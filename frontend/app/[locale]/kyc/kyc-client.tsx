@@ -12,8 +12,24 @@ import {
   type KycStatusDto,
 } from '../../../lib/api';
 import { CountrySelect } from '../../../components/CountrySelect';
-import { AppHeader } from '../../../components/AppHeader';
+import { AppShell } from '../../../components/AppShell';
+import {
+  Button,
+  Chip,
+  Eyebrow,
+  Field,
+  Icon,
+  Input,
+  Notice,
+  Panel,
+  Reveal,
+  Skeleton,
+  Spinner,
+  type ChipTone,
+  type IconName,
+} from '../../../components/ui';
 import { countryFlag, countryName } from '../../../lib/countries';
+import { useMiningFX } from '../../../lib/use-mining-fx';
 
 const DOC_TYPES = ['PASSPORT', 'NATIONAL_ID', 'DRIVERS_LICENSE'] as const;
 
@@ -46,6 +62,13 @@ async function toScaledImage(file: File): Promise<KycImage> {
   return { mimeType: 'image/jpeg', data: dataUrl.split(',')[1] };
 }
 
+const STATUS_META: Record<KycStatusDto['status'], { tone: ChipTone; notice: 'ok' | 'warn' | 'heat' | 'brand'; icon: IconName }> = {
+  APPROVED: { tone: 'ok', notice: 'ok', icon: 'check' },
+  PENDING: { tone: 'warn', notice: 'warn', icon: 'clock' },
+  REJECTED: { tone: 'heat', notice: 'heat', icon: 'x' },
+  NONE: { tone: 'brand', notice: 'brand', icon: 'shield' },
+};
+
 export default function KycClient() {
   const t = useTranslations('kyc');
   const router = useRouter();
@@ -76,110 +99,93 @@ export default function KycClient() {
   }, [load, router, params.locale]);
 
   return (
-    <div className="app-shell min-h-dvh">
-      <AppHeader locale={params.locale} backLabel={t('backToDashboard')} maxWidth="max-w-3xl" />
+    <AppShell
+      locale={params.locale}
+      backLabel={t('backToDashboard')}
+      width="max-w-4xl"
+      eyebrow="Identity"
+      title={t('title')}
+      subtitle={t('why')}
+    >
+      {error && (
+        <Notice tone="heat" icon={<Icon name="x" size={16} />} className="mb-5">
+          {error}
+        </Notice>
+      )}
 
-      <main
-        className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6"
-        style={{ paddingBottom: 'max(4rem, env(safe-area-inset-bottom))' }}
-      >
-        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-          {t('title')}
-        </h1>
-        <p className="mt-2 text-slate-400">{t('why')}</p>
-
-        {error && (
-          <p className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-            {error}
-          </p>
-        )}
-
-        {!state ? (
-          <div className="panel mt-6 space-y-3 p-6">
-            <div className="skeleton h-5 w-32" />
-            <div className="skeleton h-24 w-full" />
-          </div>
-        ) : (
-          <>
-            <StatusCard state={state} locale={params.locale} />
-            {state.canSubmit && <SubmitForm onDone={load} locale={params.locale} />}
-          </>
-        )}
-      </main>
-    </div>
+      {!state ? (
+        <div className="space-y-4">
+          <Skeleton className="h-16 w-full rounded-2xl" />
+          <Panel className="p-6">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="mt-4 h-12 w-full" />
+            <Skeleton className="mt-3 h-12 w-full" />
+            <Skeleton className="mt-5 h-32 w-full" />
+          </Panel>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <StatusCard state={state} locale={params.locale} />
+          {state.canSubmit && <SubmitForm onDone={load} locale={params.locale} />}
+        </div>
+      )}
+    </AppShell>
   );
 }
 
 function StatusCard({ state, locale }: { state: KycStatusDto; locale: string }) {
   const t = useTranslations('kyc');
-  const tone =
-    state.status === 'APPROVED'
-      ? 'border-emerald-400/25 bg-emerald-500/10 text-emerald-300'
-      : state.status === 'PENDING'
-        ? 'border-amber-400/25 bg-amber-500/10 text-amber-200'
-        : state.status === 'REJECTED'
-          ? 'border-red-500/30 bg-red-500/10 text-red-300'
-          : 'border-white/10 bg-white/[0.04] text-slate-300';
+  const meta = STATUS_META[state.status];
 
   return (
-    <section className={`mt-6 rounded-2xl border p-5 ${tone}`}>
-      <div className="flex items-center gap-2 font-semibold">
-        <span aria-hidden>
-          {state.status === 'APPROVED'
-            ? '✓'
-            : state.status === 'PENDING'
-              ? '⏳'
-              : state.status === 'REJECTED'
-                ? '✕'
-                : 'ⓘ'}
-        </span>
-        {t(`status.${state.status}`)}
-      </div>
+    <Reveal index={0}>
+      <Notice tone={meta.notice} icon={<Icon name={meta.icon} size={18} />} className="p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="font-display text-base font-bold">{t(`status.${state.status}`)}</span>
+          <Chip tone={meta.tone} dot={state.status === 'PENDING'}>
+            {state.status}
+          </Chip>
+        </div>
 
-      {state.status === 'PENDING' && (
-        <p className="mt-1 text-sm opacity-90">{t('pendingBody')}</p>
-      )}
-      {state.status === 'APPROVED' && (
-        <p className="mt-1 text-sm opacity-90">{t('approvedBody')}</p>
-      )}
-      {state.status === 'REJECTED' && state.reviewerNote && (
-        <p className="mt-1 text-sm opacity-90">
-          {t('reason')}: {state.reviewerNote}
-        </p>
-      )}
+        {state.status === 'PENDING' && <p className="mt-1.5 text-ink-2">{t('pendingBody')}</p>}
+        {state.status === 'APPROVED' && <p className="mt-1.5 text-ink-2">{t('approvedBody')}</p>}
+        {state.status === 'REJECTED' && state.reviewerNote && (
+          <p className="mt-1.5">
+            <span className="font-bold">{t('reason')}:</span> {state.reviewerNote}
+          </p>
+        )}
 
-      {state.fullName && (
-        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-          <Field label={t('fullName')} value={state.fullName} />
-          {state.documentType && (
-            <Field label={t('documentType')} value={t(`docType.${state.documentType}`)} />
-          )}
-          {state.countryCode && (
-            <Field
-              label={t('country')}
-              value={`${countryFlag(state.countryCode)} ${countryName(state.countryCode, locale)}`}
-            />
-          )}
-        </dl>
-      )}
-    </section>
+        {state.fullName && (
+          <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-current/10 pt-4 text-ink sm:grid-cols-3">
+            <Row label={t('fullName')} value={state.fullName} />
+            {state.documentType && <Row label={t('documentType')} value={t(`docType.${state.documentType}`)} />}
+            {state.countryCode && (
+              <Row
+                label={t('country')}
+                value={`${countryFlag(state.countryCode)} ${countryName(state.countryCode, locale)}`}
+              />
+            )}
+          </dl>
+        )}
+      </Notice>
+    </Reveal>
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <dt className="text-xs uppercase tracking-wide opacity-70">{label}</dt>
-      <dd className="font-medium">{value}</dd>
+    <div className="min-w-0">
+      <dt className="v-eyebrow">{label}</dt>
+      <dd className="mt-1 truncate text-sm font-medium">{value}</dd>
     </div>
   );
 }
 
 function SubmitForm({ onDone, locale }: { onDone: () => void; locale: string }) {
   const t = useTranslations('kyc');
+  const { playError, playClaimReward } = useMiningFX();
   const [fullName, setFullName] = useState('');
-  const [documentType, setDocumentType] =
-    useState<(typeof DOC_TYPES)[number]>('PASSPORT');
+  const [documentType, setDocumentType] = useState<(typeof DOC_TYPES)[number]>('PASSPORT');
   const [documentNumber, setDocumentNumber] = useState('');
   const [countryCode, setCountryCode] = useState('');
   const [front, setFront] = useState<KycImage | null>(null);
@@ -188,9 +194,12 @@ function SubmitForm({ onDone, locale }: { onDone: () => void; locale: string }) 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const uploaded = [front, back, selfie].filter(Boolean).length;
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!front || !selfie) {
+      playError();
       setError(t('needImages'));
       return;
     }
@@ -206,8 +215,10 @@ function SubmitForm({ onDone, locale }: { onDone: () => void; locale: string }) 
         back: back ?? undefined,
         selfie,
       });
+      playClaimReward();
       onDone();
     } catch (err) {
+      playError();
       setError(err instanceof ApiError ? err.message : t('offline'));
     } finally {
       setBusy(false);
@@ -215,89 +226,112 @@ function SubmitForm({ onDone, locale }: { onDone: () => void; locale: string }) 
   }
 
   return (
-    <form onSubmit={submit} className="panel mt-4 p-6">
-      <h2 className="font-semibold">{t('formTitle')}</h2>
-      <p className="mt-1 text-sm text-slate-400">{t('formHint')}</p>
+    <Reveal index={1}>
+      <Panel hud className="p-5 sm:p-7">
+        <form onSubmit={submit}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <Eyebrow tone="brand">Step 1 / 2</Eyebrow>
+              <h2 className="mt-1.5 font-display text-lg font-bold text-ink">{t('formTitle')}</h2>
+              <p className="mt-1 text-sm text-ink-2">{t('formHint')}</p>
+            </div>
+            <Chip tone={uploaded >= 2 ? 'charge' : 'default'}>
+              <Icon name="shield" size={12} />
+              {uploaded}/3
+            </Chip>
+          </div>
 
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <label className="block sm:col-span-2">
-          <span className="field-label">
-            {t('fullName')}
-          </span>
-          <input
-            className="input-field mt-1.5"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            required
-            minLength={2}
-            maxLength={120}
-            autoComplete="name"
-          />
-        </label>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2">
+            <Field label={t('fullName')} className="sm:col-span-2">
+              <Input
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                minLength={2}
+                maxLength={120}
+                autoComplete="name"
+              />
+            </Field>
 
-        <label className="block">
-          <span className="field-label">
-            {t('documentType')}
-          </span>
-          <select
-            className="input-field mt-1.5"
-            value={documentType}
-            onChange={(e) =>
-              setDocumentType(e.target.value as (typeof DOC_TYPES)[number])
-            }
-          >
-            {DOC_TYPES.map((d) => (
-              <option key={d} value={d}>
-                {t(`docType.${d}`)}
-              </option>
-            ))}
-          </select>
-        </label>
+            <Field label={t('documentType')}>
+              <div className="relative">
+                <select
+                  className="v-input appearance-none pr-10"
+                  value={documentType}
+                  onChange={(e) => setDocumentType(e.target.value as (typeof DOC_TYPES)[number])}
+                >
+                  {DOC_TYPES.map((d) => (
+                    <option key={d} value={d}>
+                      {t(`docType.${d}`)}
+                    </option>
+                  ))}
+                </select>
+                <Icon
+                  name="chevron-down"
+                  size={16}
+                  className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-3"
+                />
+              </div>
+            </Field>
 
-        <label className="block">
-          <span className="field-label">
-            {t('documentNumber')}
-          </span>
-          <input
-            className="input-field mt-1.5"
-            value={documentNumber}
-            onChange={(e) => setDocumentNumber(e.target.value)}
-            required
-            minLength={3}
-            maxLength={60}
-            autoCapitalize="characters"
-          />
-        </label>
+            <Field label={t('documentNumber')}>
+              <Input
+                className="v-num"
+                value={documentNumber}
+                onChange={(e) => setDocumentNumber(e.target.value)}
+                required
+                minLength={3}
+                maxLength={60}
+                autoCapitalize="characters"
+              />
+            </Field>
 
-        <CountrySelect
-          id="kyc-country"
-          locale={locale}
-          value={countryCode}
-          onChange={setCountryCode}
-          label={t('country')}
-          placeholder={t('countryPlaceholder')}
-          required
-        />
-      </div>
+            <div className="sm:col-span-2">
+              <CountrySelect
+                id="kyc-country"
+                locale={locale}
+                value={countryCode}
+                onChange={setCountryCode}
+                label={t('country')}
+                placeholder={t('countryPlaceholder')}
+                required
+              />
+            </div>
+          </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <ImagePicker label={t('front')} value={front} onChange={setFront} required />
-        <ImagePicker label={t('back')} value={back} onChange={setBack} />
-        <ImagePicker label={t('selfie')} value={selfie} onChange={setSelfie} required />
-      </div>
+          <div className="mt-6">
+            <Eyebrow tone="brand">Step 2 / 2</Eyebrow>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <ImagePicker label={t('front')} value={front} onChange={setFront} required icon="chip" />
+              <ImagePicker label={t('back')} value={back} onChange={setBack} icon="copy" />
+              <ImagePicker label={t('selfie')} value={selfie} onChange={setSelfie} required icon="user" />
+            </div>
+          </div>
 
-      {error && (
-        <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-          {error}
-        </p>
-      )}
+          {error && (
+            <Notice tone="heat" icon={<Icon name="x" size={16} />} className="mt-4">
+              {error}
+            </Notice>
+          )}
 
-      <p className="mt-4 text-xs text-slate-500">{t('privacy')}</p>
+          <p className="mt-4 flex items-start gap-2 text-xs leading-relaxed text-ink-3">
+            <Icon name="lock" size={13} className="mt-0.5 shrink-0" />
+            {t('privacy')}
+          </p>
 
-      <button type="submit" disabled={busy} className="btn-primary mt-4 w-full py-3">
-        {busy ? t('submitting') : t('submit')}
-      </button>
-    </form>
+          <Button type="submit" variant="primary" size="lg" loading={busy} className="mt-5 w-full">
+            {busy ? (
+              t('submitting')
+            ) : (
+              <>
+                <Icon name="shield" size={16} />
+                {t('submit')}
+              </>
+            )}
+          </Button>
+        </form>
+      </Panel>
+    </Reveal>
   );
 }
 
@@ -306,15 +340,18 @@ function ImagePicker({
   value,
   onChange,
   required,
+  icon,
 }: {
   label: string;
   value: KycImage | null;
   onChange: (v: KycImage | null) => void;
   required?: boolean;
+  icon: IconName;
 }) {
   const t = useTranslations('kyc');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+  const [dragging, setDragging] = useState(false);
 
   async function pick(file?: File) {
     if (!file) return;
@@ -331,29 +368,55 @@ function ImagePicker({
   }
 
   return (
-    <label className="block cursor-pointer">
-      <span className="field-label">
+    <label
+      className="block cursor-pointer"
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        pick(e.dataTransfer.files?.[0]);
+      }}
+    >
+      <span className="v-label">
         {label}
-        {!required && <span className="ml-1 normal-case text-slate-500">({t('optional')})</span>}
+        {!required && <span className="ml-1 font-medium normal-case tracking-normal text-ink-3">({t('optional')})</span>}
       </span>
       <div
-        className={`mt-1.5 grid h-28 place-items-center overflow-hidden rounded-xl border-2 border-dashed text-center text-xs ${
+        className={`v-inset relative grid h-32 place-items-center overflow-hidden border-2 border-dashed text-center text-xs transition ${
           value
-            ? 'border-indigo-400/40 bg-indigo-500/10'
-            : 'border-white/15 bg-white/[0.03] text-slate-500'
+            ? 'border-charge/60'
+            : dragging
+              ? 'border-charge/70 bg-charge/[0.06] text-charge'
+              : error
+                ? 'border-heat/60 text-heat'
+                : 'border-line/30 text-ink-3 hover:border-brand-hi/60 hover:text-ink-2'
         }`}
       >
         {busy ? (
-          <span className="text-slate-500">…</span>
+          <Spinner className="h-5 w-5 text-brand-hi" />
         ) : value ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={`data:${value.mimeType};base64,${value.data}`}
-            alt={label}
-            className="h-full w-full object-cover"
-          />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`data:${value.mimeType};base64,${value.data}`}
+              alt={label}
+              className="h-full w-full object-cover"
+            />
+            <span className="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-charge text-[#0b1204] shadow-charge">
+              <Icon name="check" size={12} strokeWidth={3} />
+            </span>
+          </>
         ) : (
-          <span>{error ? t('imageError') : t('tapToUpload')}</span>
+          <span className="flex flex-col items-center gap-2 px-3">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand/10 text-brand-hi">
+              <Icon name={error ? 'x' : icon} size={18} />
+            </span>
+            <span className="font-semibold">{error ? t('imageError') : t('tapToUpload')}</span>
+          </span>
         )}
       </div>
       <input

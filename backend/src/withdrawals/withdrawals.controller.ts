@@ -17,6 +17,17 @@ import { CurrentUser } from '../auth/current-user.decorator';
 export class WithdrawalsController {
   constructor(private readonly withdrawals: WithdrawalsService) {}
 
+  /**
+   * GET /api/withdrawals/window — are payouts open yet?
+   *
+   * Declared before the collection route so the withdraw screen can render
+   * the closed state instead of a form that would be refused on submit.
+   */
+  @Get('window')
+  window() {
+    return this.withdrawals.window();
+  }
+
   /** POST /api/withdrawals — request a payout (min 100 pts, 1/week, KYC). */
   @Post()
   request(@CurrentUser('id') userId: string, @Body() dto: RequestWithdrawalDto) {

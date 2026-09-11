@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 
 export function CmsTab() {
-  const [heroTitle, setHeroTitle] = useState('BONDKOIN Node Mining Protocol');
+  const [heroTitle, setHeroTitle] = useState('VOLTARA Node Mining Protocol');
   const [heroSubtitle, setHeroSubtitle] = useState('Next-Generation BEP-20 Decentralized Mining Cluster');
   const [faqCount] = useState(12);
   const [saved, setSaved] = useState(false);
@@ -18,7 +18,7 @@ export function CmsTab() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
         <div>
-          <h2 className="text-xl font-black text-white">📝 Content Management & Platform Pages</h2>
+          <h2 className="text-xl font-black text-white">Content Management & Platform Pages</h2>
           <p className="text-xs text-slate-400">
             Manage landing copy, FAQ items, Terms of Service, and platform announcements
           </p>
@@ -73,7 +73,7 @@ export function CmsTab() {
         </div>
 
         <div className="md:col-span-2 flex justify-end">
-          <button type="submit" className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase text-slate-950">
+          <button type="submit" className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase">
             Publish Content Updates
           </button>
         </div>

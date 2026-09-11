@@ -71,7 +71,7 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
               onClick={() => setStatus(st)}
               className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
                 status === st
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  ? 'bg-violet-600 text-white shadow-sm'
                   : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
               }`}
             >
@@ -132,7 +132,7 @@ export function KycTab({ onUnauthorized }: KycTabProps) {
                         onClick={() => openDetail(r.userId)}
                         className="rounded-lg border border-amber-500/40 bg-amber-950/30 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-900/50 transition"
                       >
-                        🔍 Inspect Media
+                        Inspect Media
                       </button>
                     </td>
                   </tr>

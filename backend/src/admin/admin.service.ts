@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { toCsv, CSV_MAX_ROWS } from '../common/csv';
@@ -14,8 +18,8 @@ import { verifyPassword } from '../auth/password';
 import {
   effectiveRateMilli,
   referralTierFor,
-  ActiveBooster,
 } from '../mining/mining.engine';
+import { rigTelemetry, type RigPart } from '../mining/rig.engine';
 
 /** A miner counts as "active" if they tapped Mine within this window. */
 const ACTIVE_WINDOW_MS = 24 * 3_600_000;
@@ -46,6 +50,17 @@ function pct(part: number, whole: number): number {
   return whole > 0 ? round2((part / whole) * 100) : 0;
 }
 
+/** The catalogue columns the rig engine needs off a joined plan row. */
+type AdminPartPhysics = {
+  kind: RigPart['kind'];
+  rateBonusMilli: number;
+  heat: number;
+  cooling: number;
+  watts: number;
+  wattsSupplied: number;
+  hashBoostBp: number;
+};
+
 export interface AdminUserRow {
   id: string;
   email: string | null;
@@ -56,6 +71,9 @@ export interface AdminUserRow {
   referralCount: number;
   referralTier: { level: number; multiplier: number };
   activeBoosters: number;
+  /** 0–100. Below 100 the miner is losing output to heat or brownout. */
+  gridStability: number;
+  installedParts: number;
   kycStatus: string;
   isBlocked: boolean;
   lastMineAt: Date | null;
@@ -362,6 +380,7 @@ export class AdminService {
         include: {
           kyc: true,
           boosters: { include: { plan: true } },
+          installedParts: { include: { booster: { include: { plan: true } } } },
           devices: { orderBy: { seenAt: 'desc' }, take: 2 },
           _count: { select: { referrals: true } },
         },
@@ -382,20 +401,46 @@ export class AdminService {
     countryCode: string | null;
     pointsBalance: bigint;
     rateAdjustMilli: number;
+    rigCoolingBonus?: number;
+    rigPowerBonus?: number;
     isBlocked: boolean;
     lastMineAt: Date | null;
     createdAt: Date;
     kyc: { status: string } | null;
     boosters: { expiresAt: Date; plan: { rateBonusMilli: number } }[];
+    installedParts?: {
+      booster: { expiresAt: Date; plan: AdminPartPhysics };
+    }[];
     devices?: { fingerprint: string; lastIp: string | null; seenAt: Date }[];
     _count: { referrals: number };
   }): AdminUserRow {
-    const boosters: ActiveBooster[] = u.boosters.map((b) => ({
-      rateBonusMilli: b.plan.rateBonusMilli,
-      expiresAt: b.expiresAt,
-    }));
+    const now = new Date();
     const inviteCount = u._count.referrals;
     const latestDevice = u.devices?.[0];
+
+    // The rate an operator sees has to be the rate the miner is actually
+    // getting, throttle included — a support ticket that says "my rate
+    // dropped" is answered by this column, not by the unthrottled total.
+    const telemetry = rigTelemetry({
+      parts: (u.installedParts ?? []).map(
+        (s): RigPart => ({
+          kind: s.booster.plan.kind,
+          hashMilli: s.booster.plan.rateBonusMilli,
+          heat: s.booster.plan.heat,
+          cooling: s.booster.plan.cooling,
+          watts: s.booster.plan.watts,
+          wattsSupplied: s.booster.plan.wattsSupplied,
+          hashBoostBp: s.booster.plan.hashBoostBp,
+          expiresAt: s.booster.expiresAt,
+        }),
+      ),
+      chassis: {
+        coolingBonus: u.rigCoolingBonus ?? 0,
+        powerBonus: u.rigPowerBonus ?? 0,
+      },
+      now,
+    });
+
     return {
       id: u.id,
       email: u.email,
@@ -403,14 +448,16 @@ export class AdminService {
       balancePoints: Number(u.pointsBalance) / 1000,
       ratePerHour:
         effectiveRateMilli({
-          boosters,
+          rig: telemetry,
           inviteCount,
           rateAdjustMilli: u.rateAdjustMilli,
         }) / 1000,
       rateAdjustMilli: u.rateAdjustMilli,
       referralCount: inviteCount,
       referralTier: referralTierFor(inviteCount),
-      activeBoosters: boosters.filter((b) => b.expiresAt > new Date()).length,
+      activeBoosters: u.boosters.filter((b) => b.expiresAt > now).length,
+      gridStability: telemetry.gridStability,
+      installedParts: telemetry.installedCount,
       kycStatus: u.kyc?.status ?? 'NONE',
       isBlocked: u.isBlocked,
       lastMineAt: u.lastMineAt,
@@ -428,6 +475,7 @@ export class AdminService {
       include: {
         kyc: true,
         boosters: { include: { plan: true } },
+        installedParts: { include: { booster: { include: { plan: true } } } },
         devices: { orderBy: { seenAt: 'desc' }, take: 10 },
         _count: { select: { referrals: true } },
       },
@@ -641,6 +689,7 @@ export class AdminService {
       include: {
         kyc: true,
         boosters: { include: { plan: true } },
+        installedParts: { include: { booster: { include: { plan: true } } } },
         _count: { select: { referrals: true } },
       },
     });
@@ -1563,13 +1612,81 @@ export class AdminService {
 
     return plans.map((p) => ({
       id: p.id,
+      code: p.code,
+      name: p.name,
+      kind: p.kind,
+      tier: p.tier,
       priceUsd: p.priceUsd,
       rateBonusMilli: p.rateBonusMilli,
       rateBonusPoints: p.rateBonusMilli / 1000,
+      // The running costs, so the panel can edit them rather than create
+      // parts that are free to run (SPEC §2a).
+      heat: p.heat,
+      cooling: p.cooling,
+      watts: p.watts,
+      wattsSupplied: p.wattsSupplied,
+      hashBoostBp: p.hashBoostBp,
+      hashBoostPercent: p.hashBoostBp / 100,
       durationDays: p.durationDays,
       active: p.active,
       activeSales: p._count.boosters,
     }));
+  }
+
+  /**
+   * A part's running costs, as the panel sends them.
+   *
+   * Every one is optional so an existing caller that only knows about price
+   * and rate keeps working — but a CORE created with no heat and no draw is
+   * a part that is free to run, which is the one thing the rig economy
+   * cannot have. `normalisePartInput` refuses that rather than quietly
+   * shipping it (SPEC §2a).
+   */
+  private normalisePartInput(dto: {
+    kind?: string;
+    name?: string;
+    code?: string;
+    heat?: number;
+    cooling?: number;
+    watts?: number;
+    wattsSupplied?: number;
+    hashBoostBp?: number;
+    hashBoostPercent?: number;
+    tier?: number;
+  }) {
+    const int = (v: number | undefined) =>
+      v === undefined ? undefined : Math.max(0, Math.trunc(Number(v) || 0));
+
+    const kind = dto.kind?.toUpperCase();
+    if (kind && !['CORE', 'COOLER', 'PSU', 'MODULE'].includes(kind)) {
+      throw new BadRequestException(
+        `Unknown part kind "${dto.kind}". Use CORE, COOLER, PSU or MODULE.`,
+      );
+    }
+
+    const hashBoostBp =
+      int(dto.hashBoostBp) ??
+      (dto.hashBoostPercent !== undefined
+        ? Math.max(0, Math.round(Number(dto.hashBoostPercent) * 100))
+        : undefined);
+
+    return {
+      ...(kind ? { kind: kind as 'CORE' | 'COOLER' | 'PSU' | 'MODULE' } : {}),
+      ...(dto.name !== undefined ? { name: String(dto.name).trim() } : {}),
+      ...(dto.code !== undefined
+        ? { code: String(dto.code).trim().toUpperCase() || null }
+        : {}),
+      ...(int(dto.heat) !== undefined ? { heat: int(dto.heat)! } : {}),
+      ...(int(dto.cooling) !== undefined ? { cooling: int(dto.cooling)! } : {}),
+      ...(int(dto.watts) !== undefined ? { watts: int(dto.watts)! } : {}),
+      ...(int(dto.wattsSupplied) !== undefined
+        ? { wattsSupplied: int(dto.wattsSupplied)! }
+        : {}),
+      ...(hashBoostBp !== undefined ? { hashBoostBp } : {}),
+      ...(int(dto.tier) !== undefined
+        ? { tier: Math.min(5, Math.max(1, int(dto.tier)!)) }
+        : {}),
+    };
   }
 
   async createBoosterPlan(dto: {
@@ -1578,10 +1695,36 @@ export class AdminService {
     rateBonusPoints?: number;
     durationDays?: number;
     active?: boolean;
+    kind?: string;
+    name?: string;
+    code?: string;
+    heat?: number;
+    cooling?: number;
+    watts?: number;
+    wattsSupplied?: number;
+    hashBoostBp?: number;
+    hashBoostPercent?: number;
+    tier?: number;
   }) {
     const rateBonusMilli =
       dto.rateBonusMilli ??
       (dto.rateBonusPoints ? Math.round(dto.rateBonusPoints * 1000) : 2000);
+
+    const part = this.normalisePartInput(dto);
+    const kind = part.kind ?? 'CORE';
+
+    // A core that makes hash but no heat and draws no power is strictly
+    // better than every other core at any price, and nothing in the game can
+    // balance against it. Catch it here, where an operator can still fix it.
+    if (kind === 'CORE' && rateBonusMilli > 0) {
+      const heat = part.heat ?? 0;
+      const watts = part.watts ?? 0;
+      if (heat <= 0 && watts <= 0) {
+        throw new BadRequestException(
+          'A core needs a running cost: set heat and/or watts (SPEC §2a).',
+        );
+      }
+    }
 
     return this.prisma.boosterPlan.create({
       data: {
@@ -1589,6 +1732,8 @@ export class AdminService {
         rateBonusMilli,
         durationDays: Number(dto.durationDays || 30),
         active: dto.active ?? true,
+        ...part,
+        kind,
       },
     });
   }
@@ -1601,6 +1746,16 @@ export class AdminService {
       rateBonusPoints?: number;
       durationDays?: number;
       active?: boolean;
+      kind?: string;
+      name?: string;
+      code?: string;
+      heat?: number;
+      cooling?: number;
+      watts?: number;
+      wattsSupplied?: number;
+      hashBoostBp?: number;
+      hashBoostPercent?: number;
+      tier?: number;
     },
   ) {
     const rateBonusMilli =
@@ -1614,6 +1769,7 @@ export class AdminService {
         ...(rateBonusMilli !== undefined ? { rateBonusMilli } : {}),
         ...(dto.durationDays !== undefined ? { durationDays: Number(dto.durationDays) } : {}),
         ...(dto.active !== undefined ? { active: dto.active } : {}),
+        ...this.normalisePartInput(dto),
       },
     });
   }

@@ -6,8 +6,8 @@ import type { AdminStats } from '../../lib/admin-api';
 export function AuditAdminTab({ stats }: { stats: AdminStats | null }) {
   const configs = [
     { label: 'Blockchain Network', value: 'BNB Smart Chain (BSC Mainnet)' },
-    { label: 'Token Standard', value: 'BEP-20 Official BONDKOIN' },
-    { label: 'Conversion Ratio', value: '3 Points : 1 BONDKOIN Token (Fixed)' },
+    { label: 'Token Standard', value: 'BEP-20 Official VOLTARA' },
+    { label: 'Conversion Ratio', value: '3 Points : 1 VOLTARA Token (Fixed)' },
     { label: 'Payout Automation', value: 'Admin Approval Escrow Queue' },
   ];
 
@@ -34,7 +34,7 @@ export function AuditAdminTab({ stats }: { stats: AdminStats | null }) {
       {stats?.recentActivity && (
         <div className="card border-slate-800 bg-slate-900/80 p-6 shadow-2xl backdrop-blur-md">
           <h3 className="text-sm font-black uppercase tracking-wider text-white border-b border-slate-800 pb-3">
-            📜 Immutable Ledger Transactions
+            Immutable Ledger Transactions
           </h3>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-left text-xs font-mono text-slate-300">

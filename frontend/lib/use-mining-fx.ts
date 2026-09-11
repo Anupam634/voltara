@@ -126,11 +126,86 @@ export function useMiningFX() {
     });
   }, [getContext]);
 
+
+  // 3. A short UI tick — tab switches, part install, toggle.
+  const playTick = useCallback(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1800, now);
+    osc.frequency.exponentialRampToValueAtTime(900, now + 0.05);
+    gain.gain.setValueAtTime(0.06, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  }, [getContext]);
+
+  // 4. A part seating into a slot: a low thunk and a rising hum.
+  const playInstall = useCallback(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(30);
+      } catch {
+        /* ignore */
+      }
+    }
+    const thunk = ctx.createOscillator();
+    const tg = ctx.createGain();
+    thunk.type = 'sine';
+    thunk.frequency.setValueAtTime(180, now);
+    thunk.frequency.exponentialRampToValueAtTime(60, now + 0.12);
+    tg.gain.setValueAtTime(0.3, now);
+    tg.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+    thunk.connect(tg).connect(ctx.destination);
+    thunk.start(now);
+    thunk.stop(now + 0.18);
+
+    const hum = ctx.createOscillator();
+    const hg = ctx.createGain();
+    hum.type = 'sawtooth';
+    hum.frequency.setValueAtTime(220, now + 0.08);
+    hum.frequency.exponentialRampToValueAtTime(660, now + 0.4);
+    hg.gain.setValueAtTime(0.0001, now + 0.08);
+    hg.gain.exponentialRampToValueAtTime(0.08, now + 0.2);
+    hg.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(1200, now);
+    hum.connect(lp).connect(hg).connect(ctx.destination);
+    hum.start(now + 0.08);
+    hum.stop(now + 0.52);
+  }, [getContext]);
+
+  // 5. Something went wrong: a dull two-note drop.
+  const playError = useCallback(() => {
+    const ctx = getContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    [330, 220].forEach((f, i) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(f, now + i * 0.12);
+      g.gain.setValueAtTime(0.12, now + i * 0.12);
+      g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.18);
+      osc.connect(g).connect(ctx.destination);
+      osc.start(now + i * 0.12);
+      osc.stop(now + i * 0.12 + 0.2);
+    });
+  }, [getContext]);
+
   useEffect(() => {
     return () => {
       ctxRef.current?.close().catch(() => {});
     };
   }, []);
 
-  return { playMiningStrike, playClaimReward };
+  return { playMiningStrike, playClaimReward, playTick, playInstall, playError };
 }

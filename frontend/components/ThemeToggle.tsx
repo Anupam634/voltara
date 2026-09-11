@@ -1,102 +1,94 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { applyTheme, readTheme, THEME_META, THEMES, type ThemeMode } from './theme';
 
-export type ThemeMode = 'dark' | 'light' | 'cyber' | 'red';
+export type { ThemeMode } from './theme';
 
+/**
+ * Theme picker. A single swatch button that opens a small palette; the
+ * choice is written to <html data-theme> and localStorage. The layout's
+ * boot script restores it before paint.
+ */
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<ThemeMode>('dark');
+  const [theme, setTheme] = useState<ThemeMode>('grid');
+  const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
-    const saved = localStorage.getItem('matsumoto_theme') as ThemeMode;
-    if (saved && (saved === 'dark' || saved === 'light' || saved === 'cyber' || saved === 'red')) {
-      setTheme(saved);
-      applyTheme(saved);
-    } else {
-      applyTheme('dark');
-    }
+    setTheme(readTheme());
   }, []);
 
-  const applyTheme = (mode: ThemeMode) => {
-    const root = document.documentElement;
-    root.classList.remove('theme-dark', 'theme-light', 'theme-cyber', 'theme-red', 'dark');
-    root.classList.add(`theme-${mode}`);
-    if (mode !== 'light') {
-      root.classList.add('dark');
-    }
-    localStorage.setItem('matsumoto_theme', mode);
-  };
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
 
-  const handleSelect = (mode: ThemeMode) => {
+  const select = (mode: ThemeMode) => {
     setTheme(mode);
     applyTheme(mode);
+    setOpen(false);
   };
 
-  if (!mounted) {
-    return (
-      <div className="h-8 w-32 rounded-full border border-white/10 bg-slate-900/60 animate-pulse" />
-    );
-  }
+  if (!mounted) return <div className="v-skeleton h-8 w-8 rounded-full" />;
 
   return (
-    <div className="flex items-center rounded-full border border-white/15 bg-slate-900/80 p-0.5 backdrop-blur-md shadow-sm">
+    <div className="relative" ref={ref}>
       <button
         type="button"
-        title="Midnight Sapphire"
-        aria-label="Midnight Sapphire"
-        onClick={() => handleSelect('dark')}
-        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all ${
-          theme === 'dark'
-            ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/30'
-            : 'text-slate-400 hover:text-slate-200'
-        }`}
+        aria-label="Theme"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="grid h-8 w-8 place-items-center rounded-full border border-line/30 bg-surface-2/70 transition hover:scale-105 hover:border-brand-hi/70"
       >
-        🌙
+        <span
+          className="block h-4 w-4 rounded-full ring-1 ring-white/20"
+          style={{ background: THEME_META[theme].swatch }}
+        />
       </button>
 
-      <button
-        type="button"
-        title="Executive Light"
-        aria-label="Executive Light"
-        onClick={() => handleSelect('light')}
-        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all ${
-          theme === 'light'
-            ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-500/30'
-            : 'text-slate-400 hover:text-slate-200'
-        }`}
-      >
-        ☀️
-      </button>
-
-      <button
-        type="button"
-        title="Corporate Royal Blue"
-        aria-label="Corporate Royal Blue"
-        onClick={() => handleSelect('cyber')}
-        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all ${
-          theme === 'cyber'
-            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-md shadow-indigo-500/30'
-            : 'text-slate-400 hover:text-slate-200'
-        }`}
-      >
-        🔵
-      </button>
-
-      <button
-        type="button"
-        title="Crimson Scarlet Red Edition"
-        aria-label="Crimson Scarlet Red Edition"
-        onClick={() => handleSelect('red')}
-        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs transition-all ${
-          theme === 'red'
-            ? 'bg-gradient-to-r from-red-600 to-rose-600 text-white font-bold shadow-md shadow-red-500/40 ring-1 ring-red-400'
-            : 'text-slate-400 hover:text-rose-400'
-        }`}
-      >
-        🔴
-      </button>
+      {open && (
+        <div className="v-panel v-glass absolute right-0 top-full z-50 mt-2 w-56 origin-top-right animate-pop p-1.5">
+          <div className="v-eyebrow px-2.5 py-1.5">Theme</div>
+          {THEMES.map((mode) => {
+            const meta = THEME_META[mode];
+            const on = mode === theme;
+            return (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => select(mode)}
+                className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${
+                  on ? 'bg-brand/15 text-ink' : 'text-ink-2 hover:bg-surface-3/70 hover:text-ink'
+                }`}
+              >
+                <span
+                  className="h-6 w-6 shrink-0 rounded-full ring-1 ring-white/15"
+                  style={{ background: meta.swatch }}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-extrabold">{meta.label}</span>
+                  <span className="block truncate text-[10px] text-ink-3">{meta.hint}</span>
+                </span>
+                {on && <span className="text-charge">●</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

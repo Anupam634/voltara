@@ -83,7 +83,7 @@ export default function AccountScreen() {
   };
 
   const referralLink = profile
-    ? `${WEB_URL}/${locale}/login?ref=${profile.referralCode}`
+    ? `${WEB_URL}/${locale}/r/${profile.referralCode}`
     : '';
 
   return (
@@ -176,7 +176,7 @@ export default function AccountScreen() {
                   <Text variant="footnote" mono tone="info" weight="700">
                     {formatPoints(profile.pointsBalance / POINTS_PER_TOKEN, 4, locale)}
                   </Text>{' '}
-                  $BONDKOIN
+                  $VLTR
                 </Text>
               </>
             ) : (

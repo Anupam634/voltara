@@ -9,6 +9,9 @@
  * claim.wav — "claim reward": ascending six-note sine cascade.
  * win.wav   — the reward cascade with a longer tail (prize wheel win).
  * tick.wav  — one short click (wheel segment passing the pointer).
+ * hum.wav   — 2 s seamless loop: the low hum of a rig at full stability.
+ * fan.wav   — 2 s seamless loop: filtered noise with a 30 Hz flutter, the
+ *             sound of a rig that is overheating.
  */
 const fs = require('fs');
 const path = require('path');
@@ -121,6 +124,52 @@ function writeWav(name, buf, peak = 0.9) {
     addOsc(buf, { type: 'triangle', start: i * 0.07, stop: i * 0.07 + 0.4, freq: f * 2, gain: 0.05, decayDur: 0.3 });
   });
   writeWav('win.wav', buf);
+}
+
+// ── hum.wav: a rig at rest. Two sines an octave apart with a slow amplitude
+//    wobble whose period divides the loop length, so the seam is silent. ──
+{
+  const LEN = 2;
+  const buf = buffer(LEN);
+  for (let i = 0; i < buf.length; i++) {
+    const t = i / RATE;
+    // Wobble at 1.5 Hz: exactly three cycles per 2 s loop.
+    const wobble = 0.85 + 0.15 * Math.sin(2 * Math.PI * 1.5 * t);
+    // 55 Hz and 110 Hz both complete whole cycles in 2 s (110 and 220).
+    const v = 0.7 * Math.sin(2 * Math.PI * 55 * t) + 0.3 * Math.sin(2 * Math.PI * 110 * t);
+    buf[i] = v * wobble * 0.25;
+  }
+  writeWav('hum.wav', buf, 0.35);
+}
+
+// ── fan.wav: a rig running hot. Low-passed noise with a 30 Hz flutter; the
+//    noise is cross-faded onto itself at the seam so the loop does not click. ──
+{
+  const LEN = 2;
+  const buf = buffer(LEN);
+  // One-pole low-pass at ~1.2 kHz for a rushing-air texture.
+  const rc = 1 / (2 * Math.PI * 1200);
+  const a = (1 / RATE) / (rc + 1 / RATE);
+  let y = 0;
+  for (let i = 0; i < buf.length; i++) {
+    const x = Math.random() * 2 - 1;
+    y += a * (x - y);
+    buf[i] = y;
+  }
+  // Seam cross-fade: blend the last 100 ms into the first 100 ms.
+  const fade = Math.floor(0.1 * RATE);
+  for (let i = 0; i < fade; i++) {
+    const w = i / fade;
+    const tail = buf[buf.length - fade + i];
+    buf[i] = buf[i] * w + tail * (1 - w);
+  }
+  for (let i = 0; i < buf.length; i++) {
+    const t = i / RATE;
+    // 30 Hz flutter: 60 cycles per loop, so it is periodic at the seam.
+    const flutter = 0.7 + 0.3 * Math.sin(2 * Math.PI * 30 * t);
+    buf[i] *= flutter;
+  }
+  writeWav('fan.wav', buf, 0.6);
 }
 
 // ── tick.wav: a 40 ms click for the prize wheel ──

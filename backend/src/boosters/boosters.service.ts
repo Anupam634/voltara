@@ -8,7 +8,11 @@ import { ConfigService } from '@nestjs/config';
 import { ethers } from 'ethers';
 import { PrismaService } from '../prisma.service';
 import { ChainReaderService } from './chain-reader.service';
+import { RigService } from '../rig/rig.service';
+import { RigContextService } from '../rig/rig-context.service';
+import { slotCount } from '../mining/rig.engine';
 import { verifyPayment, DEFAULT_POLICY, type Policy } from './payment.rules';
+import { fitAll, type PartFit } from './fit.rules';
 
 /** How long a quoted purchase stays payable before it must be re-quoted. */
 const INTENT_TTL_MS = 60 * 60_000;
@@ -21,6 +25,8 @@ export class BoostersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly chain: ChainReaderService,
+    private readonly rig: RigService,
+    private readonly rigContext: RigContextService,
     cfg: ConfigService,
   ) {
     this.policy = {
@@ -31,17 +37,17 @@ export class BoostersService {
     };
   }
 
-  /** Catalogue + this user's active boosters and open purchases. */
+  /** Catalogue + this user's owned parts and open purchases. */
   async overview(userId: string) {
     const now = new Date();
-    const [plans, boosters, purchases] = await Promise.all([
+    const [plans, boosters, purchases, fits] = await Promise.all([
       this.prisma.boosterPlan.findMany({
         where: { active: true },
         orderBy: { priceUsd: 'asc' },
       }),
       this.prisma.booster.findMany({
         where: { userId, expiresAt: { gt: now } },
-        include: { plan: true },
+        include: { plan: true, slot: true },
         orderBy: { expiresAt: 'asc' },
       }),
       this.prisma.boosterPurchase.findMany({
@@ -49,7 +55,9 @@ export class BoostersService {
         orderBy: { createdAt: 'desc' },
         take: 10,
       }),
+      this.fitsFor(userId, now),
     ]);
+    const fitByCode = new Map(fits.map((f) => [f.code, f]));
 
     return {
       payment: {
@@ -67,24 +75,117 @@ export class BoostersService {
           : null,
         minConfirmations: this.policy.minConfirmations,
       },
+      // The shop lists PARTS now, so every row carries what it costs to run
+      // as well as what it gives: a core that cannot be cooled is a worse buy
+      // than a cheaper one that can, and the miner has to be able to see that
+      // before paying rather than after.
       plans: plans.map((p) => ({
         id: p.id,
+        code: p.code,
+        name: p.name ?? `$${p.priceUsd} part`,
+        kind: p.kind,
+        tier: p.tier,
         priceUsd: p.priceUsd,
         rateBonusPerHour: p.rateBonusMilli / 1000,
+        heat: p.heat,
+        cooling: p.cooling,
+        watts: p.watts,
+        wattsSupplied: p.wattsSupplied,
+        hashBoostPercent: p.hashBoostBp / 100,
         durationDays: p.durationDays,
-        // What the hourly rate becomes with this one booster at ×1 referral
-        // multiplier — the same figure the landing page advertises.
+        // What the hourly rate becomes with this one core on a stock chassis
+        // at ×1 referral multiplier — the same figure the landing page
+        // advertises. Only meaningful for cores; the rest read 0 hash.
+        //
+        // Kept for the logged-out landing copy, but `fit` below is what the
+        // shop should show a miner who already owns a rig: this figure
+        // ignores their parts, their modifiers and their multiplier, so for
+        // them it is decoration, not a quote.
         resultingRatePerHour: (900 + p.rateBonusMilli) / 1000,
+        /** This part simulated against the caller's own rig. */
+        fit: fitByCode.get(p.code ?? '') ?? null,
       })),
       activeBoosters: boosters.map((b) => ({
         id: b.id,
+        planId: b.planId,
+        code: b.plan.code,
+        name: b.plan.name ?? `$${b.plan.priceUsd} part`,
+        kind: b.plan.kind,
+        tier: b.plan.tier,
         priceUsd: b.plan.priceUsd,
         rateBonusPerHour: b.plan.rateBonusMilli / 1000,
+        heat: b.plan.heat,
+        cooling: b.plan.cooling,
+        watts: b.plan.watts,
+        wattsSupplied: b.plan.wattsSupplied,
+        hashBoostPercent: b.plan.hashBoostBp / 100,
         startedAt: b.startedAt,
         expiresAt: b.expiresAt,
+        installedSlot: b.slot ? b.slot.index : null,
       })),
       purchases: purchases.map((p) => this.toDto(p)),
     };
+  }
+
+  /**
+   * Every catalogue part simulated against this miner's actual rig.
+   *
+   * Uses `RigContextService`, so the grid event, the weather, an engaged
+   * overclock and a squad loan are all in the numbers — the shop and the
+   * dashboard cannot disagree about what a rig makes, because they are
+   * reading the same context through the same engine.
+   *
+   * A rig that cannot be read is not a reason to fail the shop: the
+   * catalogue still renders, just without the personalised figures.
+   */
+  private async fitsFor(userId: string, now: Date): Promise<PartFit[]> {
+    try {
+      const [ctx, user, catalog] = await Promise.all([
+        this.rigContext.load(userId, this.prisma, { now }),
+        this.prisma.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: {
+            rigSlots: true,
+            rateAdjustMilli: true,
+            streakDays: true,
+            _count: { select: { referrals: true } },
+          },
+        }),
+        this.prisma.boosterPlan.findMany({
+          where: { active: true, code: { not: null } },
+          orderBy: { priceUsd: 'asc' },
+        }),
+      ]);
+
+      return fitAll({
+        base: ctx.parts,
+        chassis: { coolingBonus: ctx.coolingBonus, powerBonus: ctx.powerBonus },
+        modifiers: ctx.modifiers,
+        slots: slotCount(user.rigSlots),
+        catalog: catalog.map((p) => ({
+          code: p.code as string,
+          name: p.name ?? `$${p.priceUsd} part`,
+          kind: p.kind,
+          priceUsd: p.priceUsd,
+          hashMilli: p.rateBonusMilli,
+          heat: p.heat,
+          cooling: p.cooling,
+          watts: p.watts,
+          wattsSupplied: p.wattsSupplied,
+          hashBoostBp: p.hashBoostBp,
+          durationDays: p.durationDays,
+        })),
+        rate: {
+          inviteCount: user._count.referrals,
+          rateAdjustMilli: user.rateAdjustMilli,
+          streakDays: user.streakDays,
+        },
+        now,
+      });
+    } catch (err) {
+      this.logger.warn(`rig fit preview failed for ${userId}: ${err}`);
+      return [];
+    }
   }
 
   private toDto(p: {
@@ -262,33 +363,46 @@ export class BoostersService {
           purchaseId,
         },
       });
+      // Socket it straight into the rig when there is room, so the ordinary
+      // flow is buy → watch the gauge move. A full rig leaves the part in
+      // inventory rather than evicting something the miner chose to run.
+      const slot = await this.rig.autoInstall(tx, userId, created.id);
+
       await tx.ledgerEntry.create({
         data: {
           userId,
           reason: 'BOOSTER_PURCHASE',
-          // Boosters raise the mining rate; they do not move a point balance,
+          // Parts raise the mining rate; they do not move a point balance,
           // so this row is an audit trail rather than a balance change.
           deltaMilli: 0n,
           meta: {
             purchaseId,
             txHash,
             priceUsd: purchase.plan.priceUsd,
+            partCode: purchase.plan.code,
             rateBonusMilli: purchase.plan.rateBonusMilli,
+            installedSlot: slot,
           },
         },
       });
-      return created;
+      return { ...created, installedSlot: slot };
     });
 
     this.logger.log(
-      `booster activated: user=${userId} plan=$${purchase.plan.priceUsd} tx=${txHash}`,
+      `part activated: user=${userId} part=${purchase.plan.code ?? purchase.plan.priceUsd} ` +
+        `slot=${booster.installedSlot ?? 'inventory'} tx=${txHash}`,
     );
     return {
       activated: true,
       booster: {
         id: booster.id,
+        code: purchase.plan.code,
+        name: purchase.plan.name ?? `$${purchase.plan.priceUsd} part`,
+        kind: purchase.plan.kind,
         rateBonusPerHour: purchase.plan.rateBonusMilli / 1000,
         expiresAt: booster.expiresAt,
+        /** Slot it landed in, or null when the rig was full. */
+        installedSlot: booster.installedSlot,
       },
     };
   }

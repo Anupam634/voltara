@@ -1,15 +1,15 @@
 {
-  "name": "BONDKOIN Labs Mining Platform",
-  "short_name": "BONDKOIN",
-  "description": "Next-Gen Node Mining & Yield on BNB Chain",
+  "name": "VOLTARA — The Grid",
+  "short_name": "VOLTARA",
+  "description": "Build a mining rig, balance heat and power, hold grid stability at 100%.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#030714",
-  "theme_color": "#030714",
+  "background_color": "#07060b",
+  "theme_color": "#07060b",
   "icons": [
     {
-      "src": "/bondkoin-logo.png",
+      "src": "/voltara-logo.png",
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any"

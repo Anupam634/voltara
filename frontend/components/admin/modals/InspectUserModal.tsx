@@ -88,7 +88,7 @@ export function InspectUserModal({ userId, onClose }: InspectUserModalProps) {
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  📱 Device Handshake & IP Subnet Security Audit
+                  Device Handshake & IP Subnet Security Audit
                 </span>
                 <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-400">
                   {data.devices && data.devices.length > 0 ? `${data.devices.length} Handshakes Logged` : 'Web Handshake'}
@@ -111,7 +111,7 @@ export function InspectUserModal({ userId, onClose }: InspectUserModalProps) {
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  🌲 6-Tier Referral Network Tree
+                  6-Tier Referral Network Tree
                 </span>
                 <span className="text-xs font-bold text-indigo-400">
                   Direct Invites: {data.user.referralCount}
@@ -132,7 +132,7 @@ export function InspectUserModal({ userId, onClose }: InspectUserModalProps) {
 
             <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                📜 Recent Ledger Transactions (Audit Trail)
+                Recent Ledger Transactions (Audit Trail)
               </span>
               <div className="mt-3 max-h-48 overflow-y-auto">
                 <table className="w-full text-left text-xs">

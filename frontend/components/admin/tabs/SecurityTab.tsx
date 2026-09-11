@@ -25,7 +25,7 @@ export function SecurityTab({ stats }: { stats: AdminStats | null }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
         <div>
-          <h2 className="text-xl font-black text-white">🛡️ Security, Roles & Anti-Abuse Controls</h2>
+          <h2 className="text-xl font-black text-white">Security, Roles & Anti-Abuse Controls</h2>
           <p className="text-xs text-slate-400">
             Enforce hardware fingerprint limits, IP throttling, operator 2FA, and review audit anomaly logs
           </p>
@@ -83,7 +83,7 @@ export function SecurityTab({ stats }: { stats: AdminStats | null }) {
         </div>
 
         <div className="md:col-span-3 flex justify-end">
-          <button type="submit" className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase text-slate-950">
+          <button type="submit" className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase">
             Save Security Rules
           </button>
         </div>
@@ -92,7 +92,7 @@ export function SecurityTab({ stats }: { stats: AdminStats | null }) {
       {/* Security Audit Feed */}
       <div className="card border-slate-800 bg-slate-900/80 p-6 shadow-2xl backdrop-blur-md">
         <h3 className="text-sm font-black uppercase tracking-wider text-white border-b border-slate-800 pb-3">
-          🚨 Security & Anomaly Logs
+          Security & Anomaly Logs
         </h3>
         <div className="mt-4 space-y-2 font-mono text-xs">
           {logs.map((log, i) => (

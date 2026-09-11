@@ -33,6 +33,11 @@ function buildService(registered: string[]) {
         referralCode: 'CODE',
       })),
     },
+    // Signup now writes the account, its device signal and the starter
+    // core as one unit. The stub runs the callback against the same mock,
+    // which is all these tests need: they pin the branching, not the
+    // transaction semantics.
+    $transaction: jest.fn(async (fn: any) => fn(prisma)),
     $queryRaw: jest.fn(async (_strings: any, canonicalLocal: string) => {
       const hit = rows.find((r) => {
         const { canonicalLocal: local, aliases } = canonicalizeEmail(r.email);
@@ -52,14 +57,16 @@ function buildService(registered: string[]) {
     recordDevice: jest.fn(async () => undefined),
   };
   const jwt = { signAsync: jest.fn(async () => 'token') };
+  const loaner = { grant: jest.fn(async () => true) };
 
   const service = new AuthService(
     prisma as any,
     jwt as any,
     antiabuse as any,
     emailService as any,
+    loaner as any,
   );
-  return { service, prisma, emailService };
+  return { service, prisma, emailService, loaner };
 }
 
 const registerDto = (email: string) =>

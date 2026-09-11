@@ -16,7 +16,7 @@ export async function generateMetadata({
     namespace: 'leaderboard',
   });
   return {
-    title: `${t('title')} | BONDKOIN Labs`,
+    title: `${t('title')} | VOLTARA Labs`,
     description: t('subtitle'),
   };
 }

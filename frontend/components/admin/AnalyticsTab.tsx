@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import type { AdminRevenueAnalytics, AdminStats } from '../../lib/admin-api';
 import { countryFlag, countryName } from '../../lib/countries';
+import { GrowthMetrics } from './GrowthMetrics';
 
 interface AnalyticsTabProps {
   stats: AdminStats | null;
@@ -114,7 +115,7 @@ export function AnalyticsTab({
                 onClick={() => setTimeframe(tf)}
                 className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
                   timeframe === tf
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    ? 'bg-violet-600 text-white shadow-md shadow-violet-600/25'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -128,10 +129,13 @@ export function AnalyticsTab({
             className="rounded-xl border border-white/10 bg-slate-900/80 px-3.5 py-2 text-xs font-bold text-slate-300 transition hover:border-amber-500 hover:text-amber-400"
             title="Refresh Metrics"
           >
-            🔄 Sync
+            Sync
           </button>
         </div>
       </div>
+
+      {/* The targets the playbook actually sets, above the vanity totals. */}
+      <GrowthMetrics />
 
       {/* Primary KPI Metrics Grid */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -164,13 +168,13 @@ export function AnalyticsTab({
         <div className="card border-slate-800 bg-slate-900/70 p-5 backdrop-blur-md">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-400">
             <span>Total Minted Points</span>
-            <span className="text-amber-400 font-mono">PTS</span>
+            <span className="text-amber-400 font-mono">VOLTS</span>
           </div>
           <div className="mt-2 text-3xl font-black tabular-nums text-amber-400">
             {totalBalance.toFixed(2)}
           </div>
           <div className="mt-1 text-xs text-cyan-400 font-semibold truncate">
-            ≈ {tokenEquivalent.toFixed(2)} $BONDKOIN (~${estUsdValue.toFixed(2)})
+            ≈ {tokenEquivalent.toFixed(2)} $VLTR (~${estUsdValue.toFixed(2)})
           </div>
         </div>
 
@@ -194,7 +198,7 @@ export function AnalyticsTab({
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
             <div>
               <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                💰 Booster Revenue ({timeframe === '24h' ? 'Today' : timeframe === '7d' ? 'Last 7 Days' : 'Last 30 Days'})
+                Booster Revenue ({timeframe === '24h' ? 'Today' : timeframe === '7d' ? 'Last 7 Days' : 'Last 30 Days'})
               </h3>
               <p className="text-xs text-slate-400">
                 Confirmed on-chain booster payments — who paid, for which plan, and how much
@@ -270,7 +274,7 @@ export function AnalyticsTab({
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
           <div>
             <h3 className="text-sm font-black uppercase tracking-wider text-white">
-              📈 Miner Signups & Points Yield Velocity ({timeframe === '24h' ? '24 Hours' : timeframe === '7d' ? 'Past 7 Days' : 'Past 30 Days'})
+              Miner Signups & Points Yield Velocity ({timeframe === '24h' ? '24 Hours' : timeframe === '7d' ? 'Past 7 Days' : 'Past 30 Days'})
             </h3>
             <p className="text-xs text-slate-400">Daily breakdown of user registrations and accrued node mining points</p>
           </div>
@@ -344,7 +348,7 @@ export function AnalyticsTab({
         <div className="card border-slate-800 bg-slate-900/70 p-6 lg:col-span-7 backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
             <h3 className="text-sm font-black uppercase tracking-wider text-white">
-              🌍 Global Miner Distribution
+              Global Miner Distribution
             </h3>
             <span className="text-xs text-slate-400 font-mono">
               {topCountries.length} Regions Active
@@ -385,7 +389,7 @@ export function AnalyticsTab({
           <div>
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
               <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                🪪 KYC & Liquidity Pipeline
+                KYC & Liquidity Pipeline
               </h3>
               <span className="text-xs text-emerald-400 font-bold">Audited</span>
             </div>
@@ -451,7 +455,7 @@ export function AnalyticsTab({
         <div className="card border-slate-800 bg-slate-900/80 p-6 shadow-2xl backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
             <h3 className="text-sm font-black uppercase tracking-wider text-white">
-              📜 Live Protocol Activity Stream (Audit Feed)
+              Live Protocol Activity Stream (Audit Feed)
             </h3>
             <span className="text-xs font-mono text-slate-500">Immutable Ledger Events</span>
           </div>

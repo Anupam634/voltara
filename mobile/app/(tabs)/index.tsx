@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabContentInset } from '../../src/lib/layout';
-import { useRouter } from 'expo-router';
+import { router, useFocusEffect, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,9 +17,16 @@ import { Button, IconButton } from '../../src/components/ui/Button';
 import { ConfirmSheet } from '../../src/components/ui/Sheet';
 import { EmptyState, ErrorNote, Screen, Skeleton } from '../../src/components/ui/Chrome';
 import { NodeTerminal } from '../../src/components/mining/NodeTerminal';
+import { EventBanner } from '../../src/components/grid/EventBanner';
+import { StarterChecklist } from '../../src/components/onboarding/StarterChecklist';
+import { LoanerCardStandalone } from '../../src/components/onboarding/LoanerCard';
+import { RescueCard } from '../../src/components/rescue/RescueCard';
+import { StreakCard } from '../../src/components/onboarding/StreakCard';
+import { StreakTierSheet } from '../../src/components/onboarding/StreakTierSheet';
 import { violetOf } from '../../src/components/mining/Effects';
 import { Sparkline } from '../../src/components/mining/Telemetry';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import type { Palette } from '../../src/theme/tokens';
 import { useI18n, useT } from '../../src/i18n';
 import { useSession } from '../../src/store/session';
 import { useSettings } from '../../src/store/settings';
@@ -35,6 +43,7 @@ import {
   type LedgerEntryDto,
   type LedgerReason,
   type Profile,
+  type RigTelemetryDto,
 } from '../../src/api/endpoints';
 import { errorMessage, WEB_URL } from '../../src/api/client';
 import { countdownLabel, formatPoints, relativeTime } from '../../src/lib/format';
@@ -66,6 +75,13 @@ export default function MineScreen() {
   const [celebrate, setCelebrate] = useState<number | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [balanceHidden, setBalanceHidden] = useState(settings.privateBalance);
+  const [tierSheet, setTierSheet] = useState(false);
+
+  // A streak tier is only worth a sheet on the crossing, and only when this
+  // miner's own tap caused it — a poll that simply learns about a higher
+  // bonus (a fresh sign-in, a second device) must stay quiet.
+  const lastClaimAt = useRef(0);
+  const lastBonus = useRef<number | null>(null);
 
   // Flipping the preference in Settings should take effect on return, not
   // only on the next cold start.
@@ -103,6 +119,7 @@ export default function MineScreen() {
     try {
       const res = await claimMining();
       feedback.reward();
+      lastClaimAt.current = Date.now();
       setCelebrate(res.earnedPoints);
       setTimeout(() => setCelebrate(null), 1700);
 
@@ -131,10 +148,50 @@ export default function MineScreen() {
     setConfirming(true);
   };
 
+  // Watch the bonus rather than the day count: the run grows every day, but
+  // only a tier crossing is news.
+  const streakBonus = mining?.streak?.bonusPercent;
+  useEffect(() => {
+    if (streakBonus === undefined) return;
+    const previous = lastBonus.current;
+    lastBonus.current = streakBonus;
+    if (previous === null || streakBonus <= previous) return;
+    if (Date.now() - lastClaimAt.current > 15_000) return;
+    feedback.win();
+    setTierSheet(true);
+  }, [streakBonus, feedback]);
+
   const onRefresh = () => {
     void refresh({ silent: false });
     void reloadBoosters({ silent: true });
   };
+
+  // ── Rig health, as a room tone ──
+  // A steady hum while the rig holds ≥90% stability, a straining fan below
+  // 60% (with a warm haptic pulse every 8 s so the state is felt even with
+  // the sound off), silence in between. Only while this screen is in front.
+  const stability = mining?.rig.gridStability ?? null;
+  const ambientKind =
+    stability === null ? null : stability >= 90 ? 'hum' : stability < 60 ? 'fan' : null;
+  const focused = useRef(false);
+  const { startAmbient, stopAmbient } = feedback;
+  useFocusEffect(
+    useCallback(() => {
+      focused.current = true;
+      startAmbient(ambientKind);
+      return () => {
+        focused.current = false;
+        stopAmbient();
+      };
+    }, [ambientKind, startAmbient, stopAmbient]),
+  );
+  useEffect(() => {
+    if (!focused.current || ambientKind !== 'fan' || !settings.haptics) return;
+    const id = setInterval(() => {
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft).catch(() => {});
+    }, 8000);
+    return () => clearInterval(id);
+  }, [ambientKind, settings.haptics]);
 
   const loading = !profile || !mining;
   const plans = boosters?.plans ?? [];
@@ -174,7 +231,7 @@ export default function MineScreen() {
           />
           <View style={{ flex: 1, marginLeft: 2 }}>
             <Text variant="headline" weight="800" style={{ letterSpacing: -0.3 }}>
-              BONDKOIN
+              VOLTARA
             </Text>
             <Text
               variant="overline"
@@ -201,6 +258,33 @@ export default function MineScreen() {
 
         {error ? <ErrorNote message={error} onRetry={() => void refresh()} retryLabel={t('app.retry')} /> : null}
         {claimError ? <ErrorNote message={claimError} /> : null}
+
+        {/* ── 0. What the grid is living through ── */}
+        <EventBanner />
+
+        {/* ── 0a. The launch ramp, and the free core that starts it ──
+            Both unmount themselves once they no longer apply, so a settled
+            miner sees neither. */}
+        <StarterChecklist onboarding={mining?.onboarding} onClaim={onMinePress} />
+        <LoanerCardStandalone />
+
+        {/* ── 0b. The rescue, when the rig is in trouble ──
+            The live rate already has both efficiencies baked in, so dividing
+            them back out gives what the throttle is eating — no extra call. */}
+        {mining ? (
+          <RescueCard
+            telemetry={mining.rig}
+            lostPerHour={
+              mining.ratePerHour /
+                Math.max(
+                  0.01,
+                  mining.rig.thermalEfficiency * mining.rig.powerEfficiency,
+                ) -
+              mining.ratePerHour
+            }
+            referralCode={profile?.referralCode}
+          />
+        ) : null}
 
         {/* ── 1. Node terminal ── */}
         {loading ? (
@@ -245,6 +329,9 @@ export default function MineScreen() {
           locale={locale}
         />
 
+        {/* ── 2a. The run, and what breaking it costs ── */}
+        <StreakCard streak={mining?.streak} />
+
         {/* ── 3. Stat grid ── */}
         <View style={{ flexDirection: 'row', gap: spacing.md }}>
           <StatCard
@@ -271,12 +358,20 @@ export default function MineScreen() {
         <View style={{ flexDirection: 'row', gap: spacing.md }}>
           <StatCard
             i={2}
-            chip={violetOf(c)}
-            icon="document-text-outline"
-            label={t('dashboard.boosters')}
-            value={mining?.activeBoosters ?? 0}
-            cta={t('dashboard.buyBoosters')}
-            onPress={() => router.push('/(tabs)/boosters')}
+            chip={stabilityTint(c, mining?.rig.gridStability)}
+            icon="speedometer-outline"
+            label={t('dashboard.stability')}
+            value={mining?.rig.gridStability ?? 0}
+            suffix="%"
+            badge={
+              mining
+                ? t('dashboard.partsRunning', {
+                    count: String(mining.activeBoosters),
+                  })
+                : undefined
+            }
+            cta={t('dashboard.openRig')}
+            onPress={() => router.push('/(tabs)/rig')}
             locale={locale}
           />
           <StatCard
@@ -295,6 +390,9 @@ export default function MineScreen() {
             locale={locale}
           />
         </View>
+
+        {/* ── 3b. Rig telemetry ── */}
+        {mining ? <RigStrip rig={mining.rig} /> : null}
 
         {/* ── 4. Leaderboard banner ── */}
         <LeaderboardBanner onPress={() => router.push('/(tabs)/leaderboard')} />
@@ -355,9 +453,6 @@ export default function MineScreen() {
             </Card>
           </Animated.View>
         ) : null}
-
-        {/* ── Marketplace ecosystem banner ── */}
-        <MarketplaceBanner onPress={() => router.push('/(tabs)/market')} />
 
         {/* ── Platform facts ── */}
         <Card>
@@ -459,6 +554,12 @@ export default function MineScreen() {
         confirmLabel={t('mine.confirmCta')}
         cancelLabel={t('app.cancel')}
       />
+
+      <StreakTierSheet
+        streak={mining?.streak ?? null}
+        visible={tierSheet}
+        onClose={() => setTierSheet(false)}
+      />
     </Screen>
   );
 }
@@ -529,7 +630,7 @@ function BalancePanel({
           <Text variant="footnote" tone="info" mono weight="800">
             {formatPoints(balance / POINTS_PER_TOKEN, 4, locale)}
           </Text>{' '}
-          $BONDKOIN{' '}
+          $VLTR{' '}
           <Text variant="caption" tone="tertiary">
             ({t('dashboard.atRate')})
           </Text>
@@ -653,6 +754,135 @@ function Chip({
       }}
     >
       <Ionicons name={icon} size={size * 0.5} color={color} />
+    </View>
+  );
+}
+
+/** Stability colour: lime at full, amber degraded, danger critical. */
+function stabilityTint(c: Palette, stability?: number): string {
+  if (stability === undefined) return c.textTertiary;
+  if (stability >= 100) return c.gold;
+  if (stability >= 60) return c.warning;
+  return c.danger;
+}
+
+/**
+ * The rig, condensed to one row.
+ *
+ * An overheating rig is quietly paying its owner less every hour, so the home
+ * screen has to say so where they already are rather than waiting for them to
+ * open the rig tab. Balanced, it collapses to a calm one-line confirmation.
+ */
+function RigStrip({ rig }: { rig: RigTelemetryDto }) {
+  const { c, spacing, radius, alpha } = useTheme();
+  const t = useT();
+  const throttled = rig.overheating || rig.brownout;
+
+  return (
+    <Card
+      padded
+      accent={throttled ? alpha(c.danger, 0.45) : undefined}
+      onPress={() => router.push('/(tabs)/rig')}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing.md,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Text variant="overline" tone="brand" uppercase>
+            {t('dashboard.rigTitle')}
+          </Text>
+          <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>
+            {throttled ? t('dashboard.rigThrottled') : t('dashboard.rigStable')}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={c.textTertiary} />
+      </View>
+
+      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+        <MiniMeter
+          label={t('dashboard.thermal')}
+          used={rig.heatLoad}
+          capacity={rig.coolingCapacity}
+          unit="TU"
+          bad={rig.overheating}
+        />
+        <MiniMeter
+          label={t('dashboard.power')}
+          used={rig.powerDraw}
+          capacity={rig.powerSupply}
+          unit="W"
+          bad={rig.brownout}
+        />
+      </View>
+    </Card>
+  );
+}
+
+function MiniMeter({
+  label,
+  used,
+  capacity,
+  unit,
+  bad,
+}: {
+  label: string;
+  used: number;
+  capacity: number;
+  unit: string;
+  bad: boolean;
+}) {
+  const { c, spacing, radius, alpha } = useTheme();
+  // Over capacity the bar pins full and turns; the overflow is the point.
+  const pct = capacity > 0 ? Math.min(100, (used / capacity) * 100) : 0;
+  const tint = bad ? c.danger : c.primary;
+  return (
+    <View
+      style={{
+        flex: 1,
+        borderRadius: radius.md,
+        borderWidth: 1,
+        borderColor: bad ? alpha(c.danger, 0.4) : c.border,
+        backgroundColor: bad ? alpha(c.danger, 0.08) : c.surfaceAlt,
+        padding: spacing.sm,
+      }}
+    >
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+        }}
+      >
+        <Text variant="overline" tone="tertiary" uppercase style={{ fontSize: 9 }}>
+          {label}
+        </Text>
+        <Text variant="caption" mono weight="700" tone="secondary" style={{ fontSize: 10 }}>
+          {used}/{capacity} {unit}
+        </Text>
+      </View>
+      <View
+        style={{
+          height: 5,
+          borderRadius: radius.pill,
+          backgroundColor: alpha(tint, 0.16),
+          overflow: 'hidden',
+          marginTop: 6,
+        }}
+      >
+        <View
+          style={{
+            width: `${bad ? 100 : pct}%`,
+            height: '100%',
+            borderRadius: radius.pill,
+            backgroundColor: tint,
+          }}
+        />
+      </View>
     </View>
   );
 }
@@ -855,7 +1085,7 @@ function PlanCard({
         }}
       >
         <Text variant="caption" weight="800" tone="success">
-          +{formatPoints(plan.rateBonusPerHour, 2, locale)} BONDKOIN/h
+          +{formatPoints(plan.rateBonusPerHour, 2, locale)} VOLTS/h
         </Text>
       </View>
 
@@ -872,8 +1102,13 @@ function PlanCard({
           <Text variant="caption" tone="secondary">
             {t('dashboard.resultingRate')}
           </Text>
+          {/* The miner owns a rig here, so quote THEIR rate. The
+              stock-chassis figure overstates a big core badly — a VC-50 on a
+              bare chassis makes 3.59/h, not the 90.9 it advertises. */}
           <Text variant="caption" mono weight="800" tone="gold">
-            {formatPoints(plan.resultingRatePerHour, 2, locale)} /h
+            {plan.fit
+              ? `${formatPoints(plan.fit.ratePerHourBefore, 2, locale)} → ${formatPoints(plan.fit.ratePerHourAfter, 2, locale)} /h`
+              : `${formatPoints(plan.resultingRatePerHour, 2, locale)} /h`}
           </Text>
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm }}>
@@ -895,74 +1130,6 @@ function PlanCard({
         style={{ marginTop: spacing.lg }}
       />
     </Card>
-  );
-}
-
-function MarketplaceBanner({ onPress }: { onPress: () => void }) {
-  const { c, spacing, radius, alpha } = useTheme();
-  const t = useT();
-  return (
-    <Animated.View entering={FadeInDown.delay(100).duration(360)}>
-      <Card accent={alpha(c.primary, 0.3)} accessibilityLabel={t('mine.marketplaceTitle')}>
-        <LinearGradient
-          pointerEvents="none"
-          colors={[alpha(c.primary, 0), alpha(c.primary, c.dark ? 0.22 : 0.08)]}
-          start={{ x: 0, y: 0.5 }}
-          end={{ x: 1, y: 0.5 }}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: radius.xl - 1 }}
-        />
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
-          <View
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: radius.lg,
-              backgroundColor: alpha(c.primary, 0.2),
-              borderWidth: 1,
-              borderColor: alpha(c.primary, 0.3),
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 24, lineHeight: 30 }}>🛒</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
-              <View
-                style={{
-                  paddingHorizontal: 7,
-                  paddingVertical: 2,
-                  borderRadius: radius.sm,
-                  backgroundColor: alpha(c.primary, 0.2),
-                  borderWidth: 1,
-                  borderColor: alpha(c.primary, 0.3),
-                }}
-              >
-                <Text variant="overline" tone="info" uppercase style={{ fontSize: 9 }}>
-                  {t('mine.ecosystemChip')}
-                </Text>
-              </View>
-              <Text variant="caption" mono tone="tertiary" style={{ fontSize: 10 }}>
-                {t('marketScreen.preview')}
-              </Text>
-            </View>
-            <Text variant="headline" style={{ marginTop: 6 }}>
-              {t('mine.marketplaceTitle')}
-            </Text>
-            <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>
-              {t('marketScreen.subtitle')}
-            </Text>
-          </View>
-        </View>
-        <Button
-          label={`${t('mine.openMarketplace')} →`}
-          onPress={onPress}
-          variant="primary"
-          fullWidth
-          style={{ marginTop: spacing.lg }}
-        />
-      </Card>
-    </Animated.View>
   );
 }
 
@@ -1066,7 +1233,8 @@ function ReferralPanel({
   const t = useT();
   const feedback = useFeedback();
   const [copied, setCopied] = useState(false);
-  const link = `${WEB_URL}/${locale}/login?ref=${profile.referralCode}&mode=register`;
+  // The rig card, not a bare invite — see app/referrals.tsx.
+  const link = `${WEB_URL}/${locale}/r/${profile.referralCode}`;
 
   async function copy() {
     try {

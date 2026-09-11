@@ -7,7 +7,7 @@ const questions: QuizQuestionDto[] = [
     question: 'Which chain?',
     options: ['BNB', 'ETH', 'SOL', 'BTC'],
     correctIndex: 0,
-    explanation: 'BONDKOIN settles on BNB Smart Chain.',
+    explanation: 'VOLTARA settles on BNB Smart Chain.',
   },
   {
     id: 2,

@@ -6,7 +6,7 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 
 /**
- * Thin client for the BONDKOIN API — the native twin of the web app's
+ * Thin client for the VOLTARA API — the native twin of the web app's
  * `lib/api.ts`.
  *
  * Two differences from the browser version:
@@ -17,14 +17,14 @@ import { Platform } from 'react-native';
 
 export const API_URL: string =
   (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ??
-  'https://api.bondkoinlabs.com/api';
+  'https://api.voltaragrid.com/api';
 
 export const WEB_URL: string =
   (Constants.expoConfig?.extra as { webUrl?: string } | undefined)?.webUrl ??
-  'https://bondkoinlabs.com';
+  'https://voltaragrid.com';
 
-const TOKEN_KEY = 'bondkoin_token';
-const DEVICE_KEY = 'bondkoin_device';
+const TOKEN_KEY = 'voltara_token';
+const DEVICE_KEY = 'voltara_device';
 
 /** Requests that hang forever look like a frozen app; fail them instead. */
 const TIMEOUT_MS = 20_000;

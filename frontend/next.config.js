@@ -30,8 +30,8 @@ const isDev = process.env.NODE_ENV !== 'production';
 function connectSources() {
   const sources = new Set([
     "'self'",
-    'https://bondkoinlabs.com',
-    'https://api.bondkoinlabs.com',
+    'https://voltaragrid.com',
+    'https://api.voltaragrid.com',
     // The public BSC node the chain widgets read from.
     'https://bsc-dataseed.binance.org',
   ]);

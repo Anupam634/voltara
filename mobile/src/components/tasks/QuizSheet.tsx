@@ -24,7 +24,7 @@ import type { ClaimTaskResult, QuizQuestion } from '../../api/endpoints';
 const DEFAULT_QUESTIONS: QuizQuestion[] = [
   {
     id: 1,
-    question: 'Which blockchain settles $BONDKOIN withdrawals?',
+    question: 'Which blockchain settles $VLTR withdrawals?',
     options: [
       'BNB Smart Chain (BEP-20)',
       'Ethereum Mainnet (ERC-20)',
@@ -36,10 +36,10 @@ const DEFAULT_QUESTIONS: QuizQuestion[] = [
     id: 2,
     question: 'What is the point-to-token conversion rate?',
     options: [
-      '1 point = 1 $BONDKOIN',
-      '3 points = 1 $BONDKOIN',
-      '10 points = 1 $BONDKOIN',
-      '5 points = 1 $BONDKOIN',
+      '1 point = 1 $VLTR',
+      '3 points = 1 $VLTR',
+      '10 points = 1 $VLTR',
+      '5 points = 1 $VLTR',
     ],
   },
   {

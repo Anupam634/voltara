@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtAuthGuard } from './jwt.guard';
 import { AntiabuseModule } from '../antiabuse/antiabuse.module';
+import { RigModule } from '../rig/rig.module';
 import { Logger } from '@nestjs/common';
 import { checkJwtSecret } from '../common/jwt-secret';
 
@@ -15,6 +16,9 @@ import { checkJwtSecret } from '../common/jwt-secret';
 @Module({
   imports: [
     AntiabuseModule,
+    // The loaner grant runs inside register(). RigModule imports this
+    // module back for the guard, so both ends of the cycle defer.
+    forwardRef(() => RigModule),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

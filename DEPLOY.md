@@ -1,4 +1,4 @@
-# Running & deploying Matsumoto
+# Running & deploying Voltara
 
 Two paths, depending on what you need right now:
 
@@ -23,7 +23,7 @@ Docker — the API and the frontend run directly with `npm` so you get fast
 reloads.
 
 Don't have Docker? Install Postgres 16 and Redis locally instead, then
-create a `matsumoto` database with user/password `postgres`/`postgres`
+create a `voltara` database with user/password `postgres`/`postgres`
 (or edit `backend/.env` to match whatever you already have running).
 
 ### 2. Backend
@@ -33,22 +33,49 @@ cd backend
 cp .env.example .env      # defaults already point at the docker-compose services
 npm install
 npx prisma migrate dev    # creates the schema
-npm run start:dev         # http://localhost:4000/api
+npm run start:dev         # http://localhost:3001/api
 ```
 
-Leave this running. You should see `Matsumoto API listening on
-http://localhost:4000/api` in the log, and routes like
+Leave this running. You should see `Voltara API listening on
+http://0.0.0.0:3001/api` in the log, and routes like
 `{/api/auth/register, POST}` listed above it.
 
 Sanity-check it directly, no frontend needed:
 
 ```bash
-curl -X POST http://localhost:4000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"you@example.com","password":"testpass123"}'
+curl http://localhost:3001/api/grid/stats
 ```
 
-You should get back `{ "accessToken": "...", "user": {...} }`.
+### 2a. Email — signup does not work without it
+
+**Registration requires a 6-digit code sent by email.** With no working SMTP
+the `send-otp` call answers `502` and nobody can create an account. The API
+is otherwise healthy and the health check passes, so this does not surface
+until someone actually tries to sign up.
+
+Run a local mail catcher:
+
+```bash
+docker run -d --name voltara-mail -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+and point the backend at it in `backend/.env`:
+
+```
+SMTP_HOST="localhost"
+SMTP_PORT="1025"
+SMTP_USER="dev@voltaragrid.com"
+SMTP_PASS="anything"        # mailpit accepts any credentials
+```
+
+Codes then land in the web inbox at **http://localhost:8025** — open the
+message, copy the six digits, finish the form.
+
+An explicitly set `SMTP_HOST` always wins. It did not used to: the provider
+was chosen from the *username's* domain, so a `@voltaragrid.com` user
+silently rebuilt the transport as `mail.spacemail.com:465` and ignored the
+configured host. The symptom was `535 authentication failed`, which sends you
+looking at credentials rather than at the host.
 
 ### 3. Frontend
 
@@ -56,7 +83,7 @@ In a second terminal:
 
 ```bash
 cd frontend
-cp .env.example .env.local   # NEXT_PUBLIC_API_URL="http://localhost:4000/api" — already correct for local
+cp .env.example .env.local   # NEXT_PUBLIC_API_URL="http://localhost:3001/api" — already correct for local
 npm install
 npm run dev                  # http://localhost:3000
 ```
@@ -135,6 +162,18 @@ run by hand, and nothing breaks if a start command is later edited.
      - `JWT_SECRET` → any long random string (`openssl rand -hex 32`)
      - `WALLET_MODE` → leave as `offchain` for testing — no real chain calls, no private key needed
 
+   **Signup does not work without SMTP.** Registration requires a 6-digit
+   emailed code, so until these are set every `send-otp` answers `502` and
+   nobody can create an account — while `/api/health` still reports `ok`,
+   so the deploy looks fine. `render.yaml` declares them as prompted
+   secrets; the boot log says `SIGNUP IS DISABLED` when they are missing:
+     - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`
+
+   `backend/.env.example` still ships `SMTP_PASS="your-spacemail-password"`,
+   a placeholder — a real mailbox password has to go in, or point the five
+   variables at whatever provider you actually use (Resend, SES, Postmark
+   and Mailgun all expose plain SMTP).
+
    To reach the admin panel, also set:
      - `ADMIN_EMAIL` → the login you want, e.g. `ops@yourdomain.com`
      - `ADMIN_PASSWORD` → at least 12 characters
@@ -151,10 +190,10 @@ run by hand, and nothing breaks if a start command is later edited.
    one or leave the variable unset — do not point it at a Redis that isn't
    there (see [Verification codes](#verification-codes-are-in-memory-unless-redis-is-configured)).
 
-4. Deploy. Render gives you a URL like `https://matsumoto-api.onrender.com`.
+4. Deploy. Render gives you a URL like `https://voltara-api.onrender.com`.
    Check it came up, and that the database is reachable from it:
    ```bash
-   curl https://matsumoto-api.onrender.com/api/health
+   curl https://voltara-api.onrender.com/api/health
    # {"status":"ok","database":"ok"}   — 503 means it cannot reach Postgres
    ```
 
@@ -179,14 +218,14 @@ run migrations — Prisma never migrates on its own, something has to call
 
 1. Sign in with GitHub, **Add New → Project**, pick this repo.
 2. **Root directory**: `frontend`
-3. **Environment variable**: `NEXT_PUBLIC_API_URL` = `https://matsumoto-api.onrender.com/api` (your Render URL + `/api`)
+3. **Environment variable**: `NEXT_PUBLIC_API_URL` = `https://voltara-api.onrender.com/api` (your Render URL + `/api`)
 4. Deploy. Vercel gives you `https://<something>.vercel.app` — that's the link to open and test, on desktop or phone.
 
 ### Notes
 
 - CORS is an **allowlist**, not wide open. Set `CORS_ORIGINS` to a
   comma-separated list of the front-end origins (e.g.
-  `https://bondkoinlabs.com,https://www.bondkoinlabs.com`). With it unset
+  `https://voltaragrid.com,https://www.voltaragrid.com`). With it unset
   the defaults in `src/common/cors-origins.ts` apply, which do not include
   a `*.vercel.app` preview URL — add it there or the preview's API calls
   will be blocked by the browser.
@@ -196,6 +235,66 @@ run migrations — Prisma never migrates on its own, something has to call
   into a free-tier test deploy's environment variables.
 
 ## Breaking changes to carry into an existing deployment
+
+### Rebrand to VOLTARA + the rig mechanic
+
+Everything below is what changes for a deployment that was running the
+previous brand. Nothing here is optional if that deployment has real users.
+
+- **New migration: `20260911120000_voltara_rig`.** Adds the part columns, the
+  `RigSlot` table and the three chassis columns on `User`, then backfills:
+  every unexpired part a miner owns is installed into a slot, oldest first,
+  and their chassis is widened to cover exactly what those parts cost to run.
+  A booster bought under the old rules — when parts were free to run — keeps
+  the rate it was sold at; only the *next* purchase has to be cooled and fed.
+  `start:prod` applies it automatically.
+
+  The GitHub workflow deploys with `prisma db push`, which does **not** run
+  migrations, so `prisma/seed.js` performs the same backfill itself. Either
+  path lands in the same state, and both are safe to re-run.
+
+- **The seed now owns the part catalogue.** It matches on the new `code`
+  column (`VC1`, `CX2`, …) rather than on price, so repricing a part in the
+  admin panel survives the next deploy instead of being duplicated. The four
+  plans that already existed are adopted by code, not replaced — existing
+  purchase rows keep pointing at them.
+
+- **Token env vars were renamed, with fallbacks.** `VLTR_CONTRACT_ADDRESS` and
+  `VLTR_DECIMALS` are the current names. `VOLTARA_*`, `BONDKOIN_*` and
+  `MATSUMOTO_*` are still read, in that order, so an existing dashboard keeps
+  working — but rename them at your next window, since the fallbacks are
+  there for the migration, not forever.
+
+- **Withdrawals ship closed.** `PAYOUTS_OPEN` defaults to `false`, and the API
+  refuses payout requests until it is `true` (or `PAYOUTS_OPEN_AT` has passed).
+  This is deliberate: accepting a request debits the miner's balance into
+  escrow, and before $VLTR exists on-chain nothing can release it — a queued
+  request would be balance held hostage by a date. The withdraw screen on web
+  and mobile reads `GET /api/withdrawals/window` and shows the closed state
+  instead of a form. **On launch day** set `PAYOUTS_OPEN="true"` and restart;
+  no redeploy of code is needed, the value is read per request. An explicit
+  `PAYOUTS_OPEN="false"` overrides the date and is the kill switch if a launch
+  has to be rolled back. Admin approve/reject stay open throughout.
+
+- **Domain and app identity changed.** `CORS_ORIGINS`, the frontend's
+  `NEXT_PUBLIC_SITE_URL`, the nginx server block (`backend/nginx/voltara.conf`)
+  and the Expo deep links all point at `voltaragrid.com`. Set them to whatever
+  domain you actually own before going live — the name appears in
+  `backend/src/common/cors-origins.ts`, `mobile/app.json` and `render.yaml`.
+
+- **The Android package changed** (`com.bondkoinlabs.app` →
+  `com.voltaragrid.app`), which Google Play treats as a *new app*: a new
+  listing, and existing installs will not update to it. That is the intended
+  consequence of launching a different product, but it is a one-way door —
+  decide before the first upload. The upload key is unchanged
+  (`mobile/voltara-release.jks`, alias still `bondkoin`, which lives inside
+  the keystore and cannot be renamed); the EAS `projectId` in `app.json` still
+  points at the old Expo project and needs replacing for a clean slate.
+
+- **Brand assets are generated, not hand-drawn.** `node tools/brand/generate-assets.js`
+  writes every favicon, PWA icon, Expo icon, splash and the OG card from one
+  source. Re-run it after touching the mark; do not edit the PNGs.
+
 
 - **`JWT_SECRET` is now required.** There is no fallback any more: the API
   refuses to boot without one, and rejects the two example values that used
@@ -225,14 +324,14 @@ These are host-side, not code: the app cannot fix them from inside.
 
 ### CORS: deploy the current nginx config
 
-`backend/nginx/bondkoin.conf` no longer touches CORS — the `add_header
+`backend/nginx/voltara.conf` no longer touches CORS — the `add_header
 Access-Control-*` lines and the `if ($request_method = 'OPTIONS')` block are
 gone, so the app's allowlist in `src/common/cors-origins.ts` is the single
 source of truth. **The running server keeps whatever config was installed
 there**, so copy the current file over and reload:
 
 ```
-sudo cp backend/nginx/bondkoin.conf /etc/nginx/sites-available/bondkoin
+sudo cp backend/nginx/voltara.conf /etc/nginx/sites-available/voltara
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -243,7 +342,7 @@ Then verify an unlisted origin is refused — this must come back with **no**
 curl -sS -X OPTIONS -D - -o /dev/null \
   -H 'Origin: https://evil.example.com' \
   -H 'Access-Control-Request-Method: POST' \
-  https://api.bondkoinlabs.com/api/auth/login
+  https://api.voltaragrid.com/api/auth/login
 ```
 
 If it still echoes `Access-Control-Allow-Origin: https://evil.example.com`,
@@ -259,7 +358,7 @@ middleware in `main.ts`), so nginx does not need `gzip on` for proxied JSON.
 
 ### Apex redirects to www on every request
 
-`https://bondkoinlabs.com/en` answers `308` to `https://www.bondkoinlabs.com/en`,
+`https://voltaragrid.com/en` answers `308` to `https://www.voltaragrid.com/en`,
 so every cold navigation pays an extra round trip. Pick one canonical host in
 the DNS/CDN config and point the other at it at the edge, or serve the apex
 directly.

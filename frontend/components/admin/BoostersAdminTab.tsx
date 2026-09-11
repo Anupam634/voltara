@@ -1,8 +1,11 @@
 'use client';
+import { Icon } from '../ui';
 
 import React, { useEffect, useState } from 'react';
 import {
   AdminBoosterPlan,
+  AdminPartInput,
+  AdminPartKind,
   AdminBoosterPurchase,
   AdminStats,
   listAdminBoosterPlans,
@@ -13,6 +16,30 @@ import {
   forceConfirmBoosterPurchase,
 } from '../../lib/admin-api';
 
+const PART_GLYPH: Record<AdminPartKind, string> = {
+  CORE: '◈',
+  COOLER: '❄',
+  PSU: '⚡',
+  MODULE: '✦',
+};
+
+/** A part with no running cost yet — every create starts from this. */
+const BLANK_PART: AdminPartInput = {
+  priceUsd: 1,
+  rateBonusPoints: 0,
+  durationDays: 30,
+  active: true,
+  kind: 'CORE',
+  name: '',
+  code: '',
+  tier: 1,
+  heat: 0,
+  cooling: 0,
+  watts: 0,
+  wattsSupplied: 0,
+  hashBoostPercent: 0,
+};
+
 export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
   const [activeSubTab, setActiveSubTab] = useState<'plans' | 'transactions'>('plans');
 
@@ -21,11 +48,12 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
   const [loadingPlans, setLoadingPlans] = useState(true);
   const [editingPlan, setEditingPlan] = useState<AdminBoosterPlan | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [planForm, setPlanForm] = useState({
+  const [planForm, setPlanForm] = useState<AdminPartInput>({
+    ...BLANK_PART,
     priceUsd: 1,
     rateBonusPoints: 2,
-    durationDays: 30,
-    active: true,
+    heat: 10,
+    watts: 45,
   });
 
   // Purchases / Transactions state
@@ -79,11 +107,15 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
   function handleOpenCreate() {
     setIsCreating(true);
     setEditingPlan(null);
+    // Defaults that are a *valid* core rather than a free-to-run one: the
+    // server rejects hash with no running cost, and a form that opens on a
+    // rejected state teaches the wrong thing.
     setPlanForm({
+      ...BLANK_PART,
       priceUsd: 5,
-      rateBonusPoints: 5,
-      durationDays: 30,
-      active: true,
+      rateBonusPoints: 10,
+      heat: 26,
+      watts: 110,
     });
   }
 
@@ -95,6 +127,15 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
       rateBonusPoints: p.rateBonusPoints,
       durationDays: p.durationDays,
       active: p.active,
+      kind: p.kind,
+      name: p.name ?? '',
+      code: p.code ?? '',
+      tier: p.tier,
+      heat: p.heat,
+      cooling: p.cooling,
+      watts: p.watts,
+      wattsSupplied: p.wattsSupplied,
+      hashBoostPercent: p.hashBoostPercent,
     });
   }
 
@@ -157,7 +198,7 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
       {/* Top Header & Sub-Tab Switcher */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
         <div>
-          <h2 className="text-xl font-black text-white">💼 Hashrate Booster Plans & Transaction Audits</h2>
+          <h2 className="text-xl font-black text-white">Hashrate Booster Plans & Transaction Audits</h2>
           <p className="text-xs text-slate-400">
             Manage booster catalog values, price points, and audit on-chain USDT/BNB payments in real-time.
           </p>
@@ -181,12 +222,12 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
       {/* Notifications */}
       {error && (
         <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-300">
-          ⚠️ {error}
+          {error}
         </div>
       )}
       {successMsg && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/30 p-3 text-xs text-emerald-300">
-          ✅ {successMsg}
+          {successMsg}
         </div>
       )}
 
@@ -212,7 +253,7 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
-          💳 On-Chain Booster Payments & Audits
+          On-Chain Booster Payments & Audits
         </button>
       </div>
 
@@ -239,20 +280,48 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
                     </span>
                   </div>
 
+                  {/* The catalogue names the part now, so the panel reads it
+                      off the row rather than guessing from the price. */}
                   <h3 className="mt-3 text-base font-bold text-white">
-                    {p.priceUsd === 1
-                      ? 'Bronze Node Booster'
-                      : p.priceUsd === 5
-                      ? 'Silver Quantum Booster'
-                      : p.priceUsd === 10
-                      ? 'Gold Stellar Booster'
-                      : p.priceUsd === 50
-                      ? 'Platinum Nebula Booster'
-                      : `Custom Booster $${p.priceUsd}`}
+                    {PART_GLYPH[p.kind]} {p.name ?? `Unnamed $${p.priceUsd} part`}
                   </h3>
+                  <div className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-slate-500">
+                    {p.code ?? 'no code'} · {p.kind} · T{p.tier}
+                  </div>
 
-                  <div className="mt-1 font-mono text-sm font-semibold text-emerald-400">
-                    +{p.rateBonusPoints.toFixed(1)} BONDKOIN/h
+                  {/* Gains in green, running costs in amber — the same
+                      grammar the miner-facing shop uses. */}
+                  <div className="mt-2 flex flex-wrap gap-1.5 font-mono text-[10px] font-bold">
+                    {p.rateBonusPoints > 0 && (
+                      <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
+                        +{p.rateBonusPoints.toFixed(1)} VOLTS/h
+                      </span>
+                    )}
+                    {p.hashBoostPercent > 0 && (
+                      <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
+                        +{p.hashBoostPercent}% hash
+                      </span>
+                    )}
+                    {p.cooling > 0 && (
+                      <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
+                        −{p.cooling} TU
+                      </span>
+                    )}
+                    {p.wattsSupplied > 0 && (
+                      <span className="rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">
+                        +{p.wattsSupplied} W
+                      </span>
+                    )}
+                    {p.heat > 0 && (
+                      <span className="rounded border border-orange-500/40 bg-orange-500/10 px-1.5 py-0.5 text-orange-300">
+                        +{p.heat} TU
+                      </span>
+                    )}
+                    {p.watts > 0 && (
+                      <span className="rounded border border-orange-500/40 bg-orange-500/10 px-1.5 py-0.5 text-orange-300">
+                        −{p.watts} W
+                      </span>
+                    )}
                   </div>
 
                   <div className="mt-4 flex items-center justify-between border-t border-slate-800 pt-3 text-xs text-slate-400">
@@ -281,7 +350,7 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
                       onClick={() => handleDeletePlan(p.id)}
                       className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1.5 text-xs font-bold text-rose-300 transition-all hover:bg-rose-500/20"
                     >
-                      🗑️
+                      <Icon name="x" size={13} />
                     </button>
                   </div>
                 </div>
@@ -325,7 +394,7 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
                 onClick={loadPurchases}
                 className="rounded-xl border border-white/15 bg-slate-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-700"
               >
-                🔍 Search
+                Search
               </button>
             </div>
           </div>
@@ -392,7 +461,7 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
 
                         {tx.failureReason && (
                           <div className="mt-1 text-[10px] text-rose-400 font-semibold max-w-xs break-words">
-                            ⚠️ {tx.failureReason}
+                            {tx.failureReason}
                           </div>
                         )}
 
@@ -404,7 +473,7 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
                               rel="noreferrer"
                               className="font-mono text-[10px] text-cyan-400 underline hover:text-cyan-300"
                             >
-                              🔗 {tx.txHash.slice(0, 10)}...
+                              {tx.txHash.slice(0, 10)}...
                             </a>
                           </div>
                         )}
@@ -436,15 +505,74 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
       {/* ───────────────────── MODAL: CREATE / EDIT PLAN ───────────────────── */}
       {(isCreating || editingPlan) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
-          <div className="card w-full max-w-md border-amber-500/40 bg-slate-900 p-6 shadow-2xl">
+          <div className="card max-h-[90vh] w-full max-w-lg overflow-y-auto border-amber-500/40 bg-slate-900 p-6 shadow-2xl">
             <h3 className="text-lg font-black text-white">
-              {isCreating ? '⚡ Create New Booster Plan' : `✏️ Edit Booster Plan ($${editingPlan?.priceUsd})`}
+              {isCreating ? '⚡ Create rig part' : `✏️ Edit part (${editingPlan?.name ?? `$${editingPlan?.priceUsd}`})`}
             </h3>
             <p className="mt-1 text-xs text-slate-400">
-              Configure price point, mining hashrate bonus, and duration in days.
+              A part gives something and costs something to run. Set both — a
+              core with no heat and no draw cannot be balanced against, and the
+              API rejects it.
             </p>
 
             <form onSubmit={handleSavePlan} className="mt-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="field-label">Kind</label>
+                  <select
+                    value={planForm.kind ?? 'CORE'}
+                    onChange={(e) =>
+                      setPlanForm({ ...planForm, kind: e.target.value as AdminPartKind })
+                    }
+                    className="input-field mt-1 text-sm font-mono"
+                  >
+                    <option value="CORE">CORE — hash</option>
+                    <option value="COOLER">COOLER — removes heat</option>
+                    <option value="PSU">PSU — supplies watts</option>
+                    <option value="MODULE">MODULE — multiplies hash</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="field-label">Tier (1–5)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={planForm.tier ?? 1}
+                    onChange={(e) =>
+                      setPlanForm({ ...planForm, tier: parseInt(e.target.value, 10) || 1 })
+                    }
+                    className="input-field mt-1 text-sm font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="field-label">Name</label>
+                  <input
+                    type="text"
+                    placeholder="VC-5 Arc Core"
+                    value={planForm.name ?? ''}
+                    onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                    className="input-field mt-1 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="field-label">Code</label>
+                  <input
+                    type="text"
+                    placeholder="VC5"
+                    value={planForm.code ?? ''}
+                    onChange={(e) => setPlanForm({ ...planForm, code: e.target.value })}
+                    className="input-field mt-1 text-sm font-mono uppercase"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    The seed matches on this — keep it unique and stable.
+                  </p>
+                </div>
+              </div>
+
               <div>
                 <label className="field-label">Price (USD / USDT)</label>
                 <input
@@ -459,7 +587,7 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
               </div>
 
               <div>
-                <label className="field-label">Hashrate Bonus (+BONDKOIN/h)</label>
+                <label className="field-label">Hashrate Bonus (+VOLTS/h)</label>
                 <input
                   type="number"
                   min="0.1"
@@ -470,8 +598,92 @@ export function BoostersAdminTab({ stats }: { stats: AdminStats | null }) {
                   className="input-field mt-1 text-sm font-mono"
                 />
                 <p className="mt-1 text-[10px] text-slate-500">
-                  Example: 2.0 = adds +2.0 BONDKOIN/h to miner base rate.
+                  Cores only. Example: 2.0 = adds +2.0 VOLTS/h to the base rate.
                 </p>
+              </div>
+
+              {/* ── Running costs ── */}
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                <p className="text-[11px] font-black uppercase tracking-wider text-amber-300">
+                  Running cost &amp; capacity
+                </p>
+                <p className="mt-0.5 text-[10px] text-slate-500">
+                  Chassis gives every miner 12 TU of cooling and 120 W free.
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="field-label">Heat produced (TU)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={planForm.heat ?? 0}
+                      onChange={(e) =>
+                        setPlanForm({ ...planForm, heat: parseInt(e.target.value, 10) || 0 })
+                      }
+                      className="input-field mt-1 text-sm font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label">Heat removed (TU)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={planForm.cooling ?? 0}
+                      onChange={(e) =>
+                        setPlanForm({ ...planForm, cooling: parseInt(e.target.value, 10) || 0 })
+                      }
+                      className="input-field mt-1 text-sm font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label">Power drawn (W)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={planForm.watts ?? 0}
+                      onChange={(e) =>
+                        setPlanForm({ ...planForm, watts: parseInt(e.target.value, 10) || 0 })
+                      }
+                      className="input-field mt-1 text-sm font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label">Power supplied (W)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={planForm.wattsSupplied ?? 0}
+                      onChange={(e) =>
+                        setPlanForm({
+                          ...planForm,
+                          wattsSupplied: parseInt(e.target.value, 10) || 0,
+                        })
+                      }
+                      className="input-field mt-1 text-sm font-mono"
+                    />
+                  </div>
+                </div>
+                {planForm.kind === 'MODULE' && (
+                  <div className="mt-3">
+                    <label className="field-label">Hash boost (%)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={planForm.hashBoostPercent ?? 0}
+                      onChange={(e) =>
+                        setPlanForm({
+                          ...planForm,
+                          hashBoostPercent: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className="input-field mt-1 text-sm font-mono"
+                    />
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      Applies to total core hash. Modules stack additively.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div>

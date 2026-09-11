@@ -56,7 +56,7 @@ export function PaymentsTab() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
         <div>
-          <h2 className="text-xl font-black text-white">💳 On-Chain Booster Payment Records & Audits</h2>
+          <h2 className="text-xl font-black text-white">On-Chain Booster Payment Records & Audits</h2>
           <p className="text-xs text-slate-400">
             Real-time BEP-20 USDT / BNB blockchain payment records, recipient tracking, and underpayment overrides
           </p>
@@ -65,12 +65,12 @@ export function PaymentsTab() {
 
       {error && (
         <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-300">
-          ⚠️ {error}
+          {error}
         </div>
       )}
       {successMsg && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/30 p-3 text-xs text-emerald-300">
-          ✅ {successMsg}
+          {successMsg}
         </div>
       )}
 
@@ -106,7 +106,7 @@ export function PaymentsTab() {
             onClick={loadPurchases}
             className="rounded-xl border border-white/15 bg-slate-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-700"
           >
-            🔍 Search
+            Search
           </button>
         </div>
       </div>
@@ -173,7 +173,7 @@ export function PaymentsTab() {
 
                     {tx.failureReason && (
                       <div className="mt-1 text-[10px] text-rose-400 font-semibold max-w-xs break-words">
-                        ⚠️ {tx.failureReason}
+                        {tx.failureReason}
                       </div>
                     )}
 
@@ -185,7 +185,7 @@ export function PaymentsTab() {
                           rel="noreferrer"
                           className="font-mono text-[10px] text-cyan-400 underline hover:text-cyan-300"
                         >
-                          🔗 {tx.txHash.slice(0, 10)}...
+                          {tx.txHash.slice(0, 10)}...
                         </a>
                       </div>
                     )}

@@ -88,7 +88,7 @@ export function MinersTab({ onChanged, onUnauthorized }: MinersTabProps) {
                 onClick={() => setFilter(f)}
                 className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
                   filter === f
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    ? 'bg-violet-600 text-white shadow-sm'
                     : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >
@@ -172,6 +172,21 @@ export function MinersTab({ onChanged, onUnauthorized }: MinersTabProps) {
                           {(u.rateAdjustMilli / 1000).toFixed(2)})
                         </span>
                       )}
+                      {/* The rate above is what the miner actually gets, so a
+                          throttle has to be visible next to it — otherwise a
+                          "my rate dropped" ticket has no answer on this row. */}
+                      {u.gridStability < 100 && (
+                        <span
+                          className={`ml-1.5 rounded px-1 py-0.5 text-[10px] font-bold ${
+                            u.gridStability >= 60
+                              ? 'bg-amber-500/15 text-amber-300'
+                              : 'bg-rose-500/15 text-rose-300'
+                          }`}
+                          title="Grid stability — the rig is throttling"
+                        >
+                          {u.gridStability}%
+                        </span>
+                      )}
                     </td>
                     <td className="p-3.5">
                       <span className="font-mono font-bold text-white">
@@ -205,7 +220,7 @@ export function MinersTab({ onChanged, onUnauthorized }: MinersTabProps) {
                     <td className="p-3.5">
                       {u.isBlocked ? (
                         <span className="rounded-full bg-red-500/20 border border-red-500/40 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-red-300">
-                          🛑 Suspended
+                          Suspended
                         </span>
                       ) : (
                         <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-emerald-400">
@@ -220,7 +235,7 @@ export function MinersTab({ onChanged, onUnauthorized }: MinersTabProps) {
                           className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-200 hover:border-amber-400 hover:text-amber-300 transition"
                           title="Inspect Account Details"
                         >
-                          🔍 Details
+                          Details
                         </button>
                         <button
                           onClick={() => setBanModalUser(u)}
@@ -242,7 +257,7 @@ export function MinersTab({ onChanged, onUnauthorized }: MinersTabProps) {
                           onClick={() => setAirdropModalUser(u)}
                           className="rounded-lg border border-amber-500/30 bg-amber-950/30 px-2.5 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-900/50 transition"
                         >
-                          🎁 Airdrop
+                          Airdrop
                         </button>
                       </div>
                     </td>

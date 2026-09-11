@@ -5,59 +5,92 @@ import {
   accrueMilli,
   canClaim,
   referralTierFor,
-  ActiveBooster,
+  nextStreakDays,
+  nextStreakTier,
+  streakBonusBp,
   CLAIM_WINDOW_HOURS,
+  STREAK_GRACE_HOURS,
 } from './mining.engine';
+import { type RigTelemetry } from './rig.engine';
+import { RigService, telemetryDto } from '../rig/rig.service';
+import { RigContextService } from '../rig/rig-context.service';
+import { ApprenticeService } from '../apprentice/apprentice.service';
 import { lockUserRow } from '../common/row-lock';
 
 /**
- * Orchestrates the mining flow: reads a user's boosters + referral count,
+ * Orchestrates the mining flow: reads a user's rig + referral count,
  * computes their live rate, and settles a "Mine" tap into the ledger.
- * All the arithmetic lives in mining.engine.ts (pure + tested).
+ * All the arithmetic lives in mining.engine.ts / rig.engine.ts (pure + tested).
  */
 @Injectable()
 export class MiningService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rig: RigService,
+    private readonly rigContext: RigContextService,
+    private readonly apprentice: ApprenticeService,
+  ) {}
 
   private async loadInputs(userId: string): Promise<{
-    boosters: ActiveBooster[];
+    telemetry: RigTelemetry;
     inviteCount: number;
     lastMineAt: Date | null;
     rateAdjustMilli: number;
+    streakDays: number;
+    bestStreakDays: number;
+    rigRunning: boolean;
   }> {
-    const user = await this.prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      include: {
-        boosters: { include: { plan: true } },
-        _count: { select: { referrals: true } },
-      },
-    });
-    const boosters: ActiveBooster[] = user.boosters.map((b) => ({
-      rateBonusMilli: b.plan.rateBonusMilli,
-      expiresAt: b.expiresAt,
-    }));
+    const [user, telemetry] = await Promise.all([
+      this.prisma.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: {
+          lastMineAt: true,
+          rateAdjustMilli: true,
+          streakDays: true,
+          bestStreakDays: true,
+          _count: { select: { referrals: true, installedParts: true } },
+        },
+      }),
+      this.rig.telemetryFor(userId),
+    ]);
     return {
-      boosters,
+      telemetry,
       inviteCount: user._count.referrals,
       lastMineAt: user.lastMineAt,
       rateAdjustMilli: user.rateAdjustMilli,
+      streakDays: user.streakDays,
+      bestStreakDays: user.bestStreakDays,
+      rigRunning: user._count.installedParts > 0,
     };
   }
 
   /** Live stats for the dashboard (rate, tier, whether a tap is available). */
   async getStatus(userId: string) {
-    const { boosters, inviteCount, lastMineAt, rateAdjustMilli } =
-      await this.loadInputs(userId);
+    const {
+      telemetry,
+      inviteCount,
+      lastMineAt,
+      rateAdjustMilli,
+      streakDays,
+      bestStreakDays,
+      rigRunning,
+    } = await this.loadInputs(userId);
     const rateMilli = effectiveRateMilli({
-      boosters,
+      rig: telemetry,
       inviteCount,
       rateAdjustMilli,
+      streakDays,
     });
     const pending = accrueMilli({ rateMilli, lastMineAt });
+    const climbing = nextStreakTier(streakDays);
     return {
       ratePerHour: rateMilli / 1000,
       referralTier: referralTierFor(inviteCount),
-      activeBoosters: boosters.filter((b) => b.expiresAt > new Date()).length,
+      activeBoosters: telemetry.installedCount,
+      // The rig readout rides along with every status poll: the dashboard
+      // gauge has to move the moment a part is installed or burns out, and
+      // making it a second request would let the two drift apart on screen.
+      rig: telemetryDto(telemetry),
       pendingPoints: pending / 1000,
       canClaim: canClaim({ lastMineAt }),
       // The dashboard interpolates accrual between polls rather than
@@ -67,6 +100,30 @@ export class MiningService {
         ? new Date(lastMineAt.getTime() + CLAIM_WINDOW_HOURS * 3_600_000)
         : null,
       maxPendingPoints: (rateMilli * CLAIM_WINDOW_HOURS) / 1000,
+      streak: {
+        days: streakDays,
+        bestDays: bestStreakDays,
+        bonusPercent: streakBonusBp(streakDays) / 100,
+        nextTier: climbing
+          ? { days: climbing.minDays, bonusPercent: climbing.bonusBp / 100 }
+          : null,
+        // The moment the run breaks if the miner has not tapped: the
+        // cooldown plus the grace window. The dashboard counts down to it.
+        keepsUntil: lastMineAt
+          ? new Date(
+              lastMineAt.getTime() +
+                (CLAIM_WINDOW_HOURS + STREAK_GRACE_HOURS) * 3_600_000,
+            )
+          : null,
+      },
+      // Derived, never stored: three things a new miner has to do once, and
+      // a column for each would only drift from the truth.
+      onboarding: {
+        claimedFirst: lastMineAt !== null,
+        rigRunning,
+        invited: inviteCount > 0,
+        done: lastMineAt !== null && rigRunning && inviteCount > 0,
+      },
     };
   }
 
@@ -116,13 +173,18 @@ export class MiningService {
   async claim(userId: string) {
     const now = new Date();
 
-    const earnedMilli = await this.prisma.$transaction(async (tx) => {
+    const settled = await this.prisma.$transaction(async (tx) => {
       await lockUserRow(tx, userId);
 
       const user = await tx.user.findUniqueOrThrow({
         where: { id: userId },
-        include: {
-          boosters: { include: { plan: true } },
+        select: {
+          lastMineAt: true,
+          rateAdjustMilli: true,
+          rigCoolingBonus: true,
+          rigPowerBonus: true,
+          streakDays: true,
+          bestStreakDays: true,
           _count: { select: { referrals: true } },
         },
       });
@@ -131,21 +193,39 @@ export class MiningService {
         throw new BadRequestException('Mining cooldown is still active (24h).');
       }
 
+      // Read the rig inside the same transaction as the credit. Settling
+      // against a snapshot taken before the lock would pay out a build the
+      // miner had already torn down. Every modifier (event, overclock, squad
+      // loan, burned parts) is applied here exactly as the status poll shows.
+      const { telemetry } = await this.rigContext.telemetryFor(userId, tx, { now });
+
+      // Settle at the streak the miner ALREADY had. The window being paid
+      // for was mined under that run, and extending the streak first would
+      // pay today's hours at tomorrow's bonus.
       const rateMilli = effectiveRateMilli({
-        boosters: user.boosters.map((b) => ({
-          rateBonusMilli: b.plan.rateBonusMilli,
-          expiresAt: b.expiresAt,
-        })),
+        rig: telemetry,
         inviteCount: user._count.referrals,
         rateAdjustMilli: user.rateAdjustMilli,
+        streakDays: user.streakDays,
       });
       const earned = accrueMilli({ rateMilli, lastMineAt: user.lastMineAt });
+
+      const streakDays = nextStreakDays({
+        streakDays: user.streakDays,
+        lastMineAt: user.lastMineAt,
+        now,
+      });
+      const bestStreakDays = Math.max(user.bestStreakDays, streakDays);
+      const bonusBp = streakBonusBp(streakDays);
+      const tierUp = bonusBp > streakBonusBp(user.streakDays);
 
       await tx.user.update({
         where: { id: userId },
         data: {
           pointsBalance: { increment: BigInt(earned) },
           lastMineAt: now,
+          streakDays,
+          bestStreakDays,
         },
       });
       await tx.ledgerEntry.create({
@@ -153,15 +233,56 @@ export class MiningService {
           userId,
           reason: 'MINING',
           deltaMilli: BigInt(earned),
-          meta: { rateMilli, inviteCount: user._count.referrals },
+          meta: {
+            rateMilli,
+            inviteCount: user._count.referrals,
+            gridStability: telemetry.gridStability,
+            overclock: telemetry.modifiers.overclock,
+            eventHashMultBp: telemetry.modifiers.hashMultBp,
+            streakDays,
+          },
         },
       });
-      return earned;
+
+      // A zero-delta marker, not a credit: the streak is paid as a rate
+      // bonus on every future claim, and this row is what lets the
+      // dashboard celebrate the moment a tier is reached.
+      if (tierUp) {
+        await tx.ledgerEntry.create({
+          data: {
+            userId,
+            reason: 'STREAK_BONUS',
+            deltaMilli: 0n,
+            meta: { streakDays, bonusBp },
+          },
+        });
+      }
+
+      // A mentor's share, if this miner has one. Newly minted on top of
+      // `earned`, never taken out of it — see ApprenticeService.creditMentor,
+      // which swallows its own failures so a mentor's bonus can never roll
+      // back the apprentice's claim.
+      const mentorCutMilli = await this.apprentice.creditMentor(
+        tx,
+        userId,
+        earned,
+        now,
+      );
+
+      return { earned, streakDays, bestStreakDays, bonusBp, tierUp, mentorCutMilli };
     });
 
     return {
-      earnedPoints: earnedMilli / 1000,
+      earnedPoints: settled.earned / 1000,
       nextClaimAt: new Date(now.getTime() + CLAIM_WINDOW_HOURS * 3_600_000),
+      streak: {
+        days: settled.streakDays,
+        bestDays: settled.bestStreakDays,
+        bonusPercent: settled.bonusBp / 100,
+        // True only on the tap that crossed into a new tier, so the client
+        // knows when to fire the celebration rather than guessing.
+        tierUp: settled.tierUp,
+      },
     };
   }
 }

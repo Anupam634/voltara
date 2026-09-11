@@ -120,7 +120,9 @@ export default function ReferralsScreen() {
   );
 
   const code = stats?.referralCode ?? '';
-  const link = `${WEB_URL}/${locale}/login?ref=${code}&mode=register`;
+  // The rig card, not a bare invite: this link unfurls into an image of
+  // the miner's own build. `?ref=` still rides on the card page's CTA.
+  const link = `${WEB_URL}/${locale}/r/${code}`;
 
   const roster = useMemo(() => {
     const list = stats?.referralsList ?? [];
@@ -155,7 +157,7 @@ export default function ReferralsScreen() {
       target === 'telegram'
         ? `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message)}`
         : target === 'x'
-          ? `https://x.com/intent/post?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message)}&hashtags=BONDKOIN,BNBChain`
+          ? `https://x.com/intent/post?url=${encodeURIComponent(link)}&text=${encodeURIComponent(message)}&hashtags=VOLTARA,BNBChain`
           : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
     void Linking.openURL(url).catch(() => void share());
   };

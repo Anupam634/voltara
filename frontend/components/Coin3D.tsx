@@ -1,59 +1,46 @@
 'use client';
 
-import Image from 'next/image';
+import { LogoMark } from './Logo';
 
 /**
- * 3D BONDKOIN Token with official logo artwork (/bondkoin-logo.png),
- * multi-axial orbiting particle rings, and holographic ambient depth.
+ * The $VLTR token: a spinning 3D coin with an edge, two orbit rings each
+ * carrying a charge node, and an ambient bloom. Entirely CSS-driven, so it
+ * costs nothing on the main thread.
  */
-export function Coin3D() {
+export function Coin3D({ size = 'md' }: { size?: 'sm' | 'md' }) {
+  const stage = size === 'sm' ? 'h-[14rem]' : 'h-[20rem] sm:h-[22rem]';
+  const scale = size === 'sm' ? 'scale-[0.7]' : '';
   return (
-    <div className="coin-stage relative grid h-[20rem] w-full place-items-center sm:h-[22rem]">
-      {/* Ambient background aura glow */}
-      <div className="absolute h-52 w-52 rounded-full bg-amber-500/25 blur-3xl pointer-events-none" />
+    <div className={`coin-stage relative grid w-full place-items-center ${stage}`}>
+      <div className="pointer-events-none absolute h-56 w-56 rounded-full bg-brand/30 blur-3xl" />
+      <div className={`relative grid place-items-center ${scale}`}>
+        <div className="orbit h-[18rem] w-[18rem]" aria-hidden>
+          <span className="orbit__node" />
+        </div>
+        <div className="orbit orbit--wide h-[22rem] w-[22rem]" aria-hidden>
+          <span className="orbit__node" />
+        </div>
 
-      {/* Orbit rings with multi-axis rotation */}
-      <div className="orbit h-[18rem] w-[18rem]" aria-hidden />
-      <div className="orbit orbit--wide h-[22rem] w-[22rem]" aria-hidden />
+        <div className="animate-float">
+          <div className="coin">
+            <div className="coin-edge" style={{ transform: 'translateZ(-2px)' }} />
+            <div className="coin-edge" style={{ transform: 'translateZ(-4px)' }} />
+            <div className="coin-edge" style={{ transform: 'translateZ(-6px)' }} />
+            <div className="coin-edge" style={{ transform: 'translateZ(-8px)' }} />
 
-      <div className="animate-float">
-        <div className="coin">
-          {/* Edge thickness slices */}
-          <div className="coin-edge" style={{ transform: 'translateZ(-2px)' }} />
-          <div className="coin-edge" style={{ transform: 'translateZ(-4px)' }} />
-          <div className="coin-edge" style={{ transform: 'translateZ(-6px)' }} />
-          <div className="coin-edge" style={{ transform: 'translateZ(-8px)' }} />
-
-          {/* Front Face: Real Official BONDKOIN Logo Mark */}
-          <div className="coin-face overflow-hidden p-3 border-2 border-amber-300/60 bg-slate-950">
-            <div className="relative h-full w-full flex flex-col items-center justify-center">
-              <Image
-                src="/bondkoin-logo.png"
-                alt="BONDKOIN Official Emblem"
-                width={150}
-                height={150}
-                priority
-                className="h-28 w-28 rounded-full object-cover drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)]"
-              />
-              <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 mt-1 font-mono">
-                $BONDKOIN
-              </span>
+            <div className="coin-face">
+              <div className="flex flex-col items-center gap-1">
+                <LogoMark size={104} />
+                <span className="font-mono text-[10px] font-extrabold uppercase tracking-[0.3em] text-charge">$VLTR</span>
+              </div>
             </div>
-          </div>
-
-          {/* Back Face: Real Official BONDKOIN Logo Mark */}
-          <div className="coin-face coin-face--back overflow-hidden p-3 border-2 border-amber-300/60 bg-slate-950">
-            <div className="relative h-full w-full flex flex-col items-center justify-center">
-              <Image
-                src="/bondkoin-logo.png"
-                alt="BONDKOIN BEP-20"
-                width={150}
-                height={150}
-                className="h-28 w-28 rounded-full object-cover drop-shadow-[0_8px_16px_rgba(0,0,0,0.5)]"
-              />
-              <span className="text-[9px] font-black uppercase tracking-widest text-amber-400 mt-1 font-mono">
-                BNB CHAIN BEP-20
-              </span>
+            <div className="coin-face coin-face--back">
+              <div className="flex flex-col items-center gap-1">
+                <LogoMark size={104} />
+                <span className="font-mono text-[9px] font-extrabold uppercase tracking-[0.25em] text-brand-hi">
+                  BNB · BEP-20
+                </span>
+              </div>
             </div>
           </div>
         </div>

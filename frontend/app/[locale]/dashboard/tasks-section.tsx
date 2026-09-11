@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl';
 import { SpinWheelModal } from '../../../components/SpinWheelModal';
 import { QuizModal } from '../../../components/QuizModal';
 import { YouTubeTaskModal } from '../../../components/YouTubeTaskModal';
+import { Button, Chip, Eyebrow, Icon, Notice, Panel, Reveal, Skeleton, type IconName } from '../../../components/ui';
+import { useMiningFX } from '../../../lib/use-mining-fx';
 import { ApiError, claimTask, getTasks, type TaskDto } from '../../../lib/api';
 
 /** i18n key per task type — the labels already exist under `tasks.*`. */
@@ -17,13 +19,13 @@ const LABEL_KEY: Record<TaskDto['type'], string> = {
   SPIN_WHEEL: 'spin',
 };
 
-const ICON: Record<TaskDto['type'], string> = {
-  TWEET: '𝕏',
-  FOLLOW: '➕',
-  REPOST: '🔁',
-  YOUTUBE: '▶',
-  QUIZ: '🧠',
-  SPIN_WHEEL: '🎡',
+const ICON: Record<TaskDto['type'], IconName> = {
+  TWEET: 'share',
+  FOLLOW: 'star',
+  REPOST: 'swap',
+  YOUTUBE: 'play',
+  QUIZ: 'help',
+  SPIN_WHEEL: 'gift',
 };
 
 export default function TasksSection({
@@ -34,6 +36,7 @@ export default function TasksSection({
 }) {
   const t = useTranslations('dashboard');
   const taskLabels = useTranslations('tasks');
+  const { playTick, playError } = useMiningFX();
 
   const [tasks, setTasks] = useState<TaskDto[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -57,21 +60,19 @@ export default function TasksSection({
   }, [load]);
 
   async function claim(task: TaskDto) {
+    playTick();
     if (task.type === 'SPIN_WHEEL' && task.wheelSegments) {
       setWheelTask(task);
       return;
     }
-
     if (task.type === 'QUIZ') {
       setQuizTask(task);
       return;
     }
-
     if (task.type === 'YOUTUBE') {
       setYoutubeTask(task);
       return;
     }
-
     if (task.actionUrl) {
       window.open(task.actionUrl, '_blank', 'noopener,noreferrer');
     }
@@ -85,6 +86,7 @@ export default function TasksSection({
       await load();
       onClaimed();
     } catch (err) {
+      playError();
       setError(err instanceof ApiError ? err.message : t('offline'));
     } finally {
       setBusyId(null);
@@ -102,181 +104,205 @@ export default function TasksSection({
 
   if (!tasks) {
     return (
-      <section className="glass-panel mt-4 p-5 sm:p-6">
-        <div className="skeleton h-5 w-32" />
+      <Panel className="mt-4 p-5 sm:p-6">
+        <Skeleton className="h-4 w-32" />
         <div className="mt-4 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="skeleton h-28 w-full rounded-2xl" />
+            <Skeleton key={i} className="h-32 w-full rounded-2xl" />
           ))}
         </div>
-      </section>
+      </Panel>
     );
   }
 
+  const openCount = tasks.filter((x) => x.canClaim).length;
+
   return (
-    <section
-      className="glass-panel rise-in mt-4 p-5 sm:p-7"
-      style={{ '--i': 5 } as React.CSSProperties}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="grid h-8 w-8 place-items-center rounded-xl bg-blue-600/20 border border-blue-500/30 text-base">
-            🎁
+    <Reveal className="mt-4">
+      <Panel hud className="p-5 sm:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line/15 pb-4">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand/12 text-brand-hi">
+              <Icon name="gift" size={18} />
+            </span>
+            <div>
+              <Eyebrow tone="brand">{t('tasksTitle')}</Eyebrow>
+              <p className="mt-0.5 text-sm text-ink-2">{t('tasksSubtitle')}</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-base font-black tracking-tight text-white sm:text-lg">
-              {t('tasksTitle')}
-            </h2>
-            <p className="text-xs text-slate-400">{t('tasksSubtitle')}</p>
-          </div>
+          <Chip tone={openCount > 0 ? 'charge' : 'default'} dot={openCount > 0}>
+            <span className="v-num">{openCount}</span> / {tasks.length}
+          </Chip>
         </div>
-        <span className="rounded-full bg-blue-500/10 border border-blue-500/25 px-3 py-1 text-xs font-mono font-bold text-blue-300">
-          Instant Credit
-        </span>
-      </div>
 
-      {error && (
-        <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-          {error}
-        </p>
-      )}
+        {error && (
+          <Notice tone="heat" className="mt-4" icon={<Icon name="flame" size={16} />}>
+            {error}
+          </Notice>
+        )}
 
-      <div className="mt-5 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
-        {tasks.map((task) => (
-          <div
-            key={task.id}
-            data-task={task.type}
-            className="group relative flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.08] bg-slate-900/60 p-4 sm:p-5 backdrop-blur-xl transition-all duration-300 hover:border-blue-500/40 hover:bg-slate-900/90 hover:shadow-xl hover:shadow-blue-500/10"
-          >
-            {won?.id === task.id && (
-              <span className="float-up absolute left-1/2 top-3 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-emerald-500/25 border border-emerald-400/50 px-3.5 py-1 text-sm font-black text-emerald-300 backdrop-blur-md shadow-lg shadow-emerald-500/20">
-                +{won.points.toFixed(2)} PTS
-              </span>
-            )}
+        <div className="v-stagger mt-5 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {tasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              label={taskLabels(LABEL_KEY[task.type])}
+              busy={busyId === task.id}
+              won={won?.id === task.id ? won.points : null}
+              onClaim={() => claim(task)}
+              pointsShort={t('pointsShort')}
+              claimLabel={t('claim')}
+              workingLabel={t('working')}
+              cooldownLabel={t('cooldownShort')}
+            />
+          ))}
+        </div>
 
-            <div className="flex items-start gap-3">
-              {task.type === 'SPIN_WHEEL' ? (
-                <SpinWheel spinning={false} />
-              ) : (
-                <div
-                  className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-blue-500/30 bg-blue-600/15 text-lg shadow-inner transition-transform group-hover:scale-105"
-                  aria-hidden
-                >
-                  {ICON[task.type]}
-                </div>
-              )}
+        {wheelTask?.wheelSegments && (
+          <SpinWheelModal
+            segments={wheelTask.wheelSegments}
+            onSpin={() => spinFor(wheelTask)}
+            onClose={() => setWheelTask(null)}
+          />
+        )}
 
-              <div className="min-w-0 flex-1">
-                <div className="min-h-[2.5rem] flex items-center text-sm font-black tracking-tight text-white group-hover:text-blue-200 transition-colors line-clamp-2 leading-snug">
-                  {taskLabels(LABEL_KEY[task.type])}
-                </div>
-                <div className="mt-1 flex items-center gap-1.5 text-xs font-mono font-bold text-cyan-400">
-                  <span>
-                    {task.wheelSegments
-                      ? `${Math.min(...task.wheelSegments)}–${Math.max(...task.wheelSegments)}`
-                      : `+${task.rewardPoints}`}
-                  </span>
-                  <span className="text-[11px] text-slate-400">{t('pointsShort')}</span>
-                </div>
-              </div>
-            </div>
+        {quizTask && (
+          <QuizModal
+            rewardPoints={quizTask.rewardPoints}
+            customQuestions={quizTask.quizQuestions}
+            onSubmit={async (answers) => {
+              // The modal keeps itself open to show the marking, so refresh
+              // the list and the balance behind it rather than on close.
+              const res = await claimTask(quizTask.id, answers);
+              if (res.earnedPoints > 0) {
+                setWon({ id: quizTask.id, points: res.earnedPoints });
+                setTimeout(() => setWon(null), 2000);
+              }
+              await load();
+              onClaimed();
+              return res;
+            }}
+            onClose={() => setQuizTask(null)}
+          />
+        )}
 
-            {/* Rounded Glass Glowing Claim Button Row */}
-            <div className="mt-4 pt-3 border-t border-white/[0.06]">
-              <button
-                type="button"
-                onClick={() => claim(task)}
-                disabled={!task.canClaim || busyId === task.id}
-                className={`group/btn relative flex h-10 w-full items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-xs font-black uppercase tracking-wider transition-all duration-300 ${
-                  task.canClaim
-                    ? 'btn-brand shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-[0.98] border border-blue-400/40 text-white'
-                    : 'border border-white/10 bg-slate-950/70 text-slate-300 backdrop-blur-md cursor-not-allowed opacity-80'
-                }`}
-              >
-                {busyId === task.id ? (
-                  <span className="flex items-center gap-2">
-                    <span className="animate-spin text-sm">🔄</span>
-                    <span>{t('working')}</span>
-                  </span>
-                ) : task.canClaim ? (
-                  <>
-                    <span className="text-sm transition-transform group-hover/btn:rotate-12">✨</span>
-                    <span>{t('claim')}</span>
-                  </>
-                ) : (
-                  <span className="flex items-center gap-1.5 font-mono text-[11px] text-slate-300">
-                    <span>⏱️</span>
-                    <Cooldown iso={task.nextAvailableAt} label={t('cooldownShort')} />
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {wheelTask?.wheelSegments && (
-        <SpinWheelModal
-          segments={wheelTask.wheelSegments}
-          onSpin={() => spinFor(wheelTask)}
-          onClose={() => setWheelTask(null)}
-        />
-      )}
-
-      {quizTask && (
-        <QuizModal
-          rewardPoints={quizTask.rewardPoints}
-          customQuestions={quizTask.quizQuestions}
-          onSubmit={async (answers) => {
-            // The modal keeps itself open to show the marking, so refresh
-            // the list and the balance behind it rather than on close.
-            const res = await claimTask(quizTask.id, answers);
-            if (res.earnedPoints > 0) {
-              setWon({ id: quizTask.id, points: res.earnedPoints });
+        {youtubeTask && (
+          <YouTubeTaskModal
+            rewardPoints={youtubeTask.rewardPoints}
+            videoUrl={youtubeTask.actionUrl}
+            onComplete={async () => {
+              const res = await claimTask(youtubeTask.id);
+              setWon({ id: youtubeTask.id, points: res.earnedPoints });
               setTimeout(() => setWon(null), 2000);
-            }
-            await load();
-            onClaimed();
-            return res;
-          }}
-          onClose={() => setQuizTask(null)}
-        />
-      )}
-
-      {youtubeTask && (
-        <YouTubeTaskModal
-          rewardPoints={youtubeTask.rewardPoints}
-          videoUrl={youtubeTask.actionUrl}
-          onComplete={async () => {
-            const res = await claimTask(youtubeTask.id);
-            setWon({ id: youtubeTask.id, points: res.earnedPoints });
-            setTimeout(() => setWon(null), 2000);
-            await load();
-            onClaimed();
-          }}
-          onClose={() => setYoutubeTask(null)}
-        />
-      )}
-    </section>
+              await load();
+              onClaimed();
+            }}
+            onClose={() => setYoutubeTask(null)}
+          />
+        )}
+      </Panel>
+    </Reveal>
   );
 }
 
-/** A wheel that actually spins — decorative, the reward is server-set. */
-function SpinWheel({ spinning }: { spinning: boolean }) {
+function TaskCard({
+  task,
+  label,
+  busy,
+  won,
+  onClaim,
+  pointsShort,
+  claimLabel,
+  workingLabel,
+  cooldownLabel,
+}: {
+  task: TaskDto;
+  label: string;
+  busy: boolean;
+  won: number | null;
+  onClaim: () => void;
+  pointsShort: string;
+  claimLabel: string;
+  workingLabel: string;
+  cooldownLabel: string;
+}) {
+  const reward = task.wheelSegments
+    ? `${Math.min(...task.wheelSegments)}–${Math.max(...task.wheelSegments)}`
+    : `+${task.rewardPoints}`;
+
+  return (
+    <Panel
+      lift
+      trace
+      className={`group relative flex h-full flex-col justify-between overflow-hidden p-4 sm:p-5 ${
+        task.canClaim ? '' : 'opacity-80'
+      }`}
+    >
+      {won !== null && (
+        <span className="v-float-up top-3 z-20 text-base">
+          +{won.toFixed(2)} {pointsShort}
+        </span>
+      )}
+
+      <div className="flex items-start gap-3">
+        {task.type === 'SPIN_WHEEL' ? (
+          <WheelIcon />
+        ) : (
+          <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl transition-transform group-hover:scale-105 ${
+            task.canClaim ? 'bg-brand/12 text-brand-hi' : 'bg-surface-3/70 text-ink-3'
+          }`}>
+            <Icon name={ICON[task.type]} size={18} />
+          </span>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="line-clamp-2 min-h-[2.5rem] text-sm font-extrabold leading-snug text-ink">{label}</div>
+          <div className="mt-1 flex items-center gap-1.5 text-xs">
+            <span className={`v-num font-extrabold ${task.canClaim ? 'text-charge' : 'text-ink-2'}`}>{reward}</span>
+            <span className="text-ink-3">{pointsShort}</span>
+          </div>
+        </div>
+        <Chip tone={task.canClaim ? 'charge' : 'default'} dot={task.canClaim} className="shrink-0">
+          {task.canClaim ? claimLabel : <Icon name="clock" size={11} />}
+        </Chip>
+      </div>
+
+      <div className="mt-4 border-t border-line/15 pt-3">
+        <Button
+          variant={task.canClaim ? 'primary' : 'ghost'}
+          size="sm"
+          className="w-full"
+          onClick={onClaim}
+          disabled={!task.canClaim || busy}
+          loading={busy}
+        >
+          {busy ? (
+            workingLabel
+          ) : task.canClaim ? (
+            <>
+              <Icon name="sparkle" size={13} />
+              {claimLabel}
+            </>
+          ) : (
+            <Cooldown iso={task.nextAvailableAt} label={cooldownLabel} />
+          )}
+        </Button>
+      </div>
+    </Panel>
+  );
+}
+
+/** A wheel that reads as a wheel — the reward itself is server-set. */
+function WheelIcon() {
   return (
     <span
-      className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-indigo-500/30 text-lg shadow-inner ${
-        spinning ? 'wheel-spin' : ''
-      }`}
+      className="grid h-11 w-11 shrink-0 place-items-center rounded-xl animate-spin-slow"
       style={{
         background:
-          'conic-gradient(#3b82f6 0 60deg,#818cf8 60deg 120deg,#7c3aed 120deg 180deg,#6366f1 180deg 240deg,#2563eb 240deg 300deg,#60a5fa 300deg 360deg)',
+          'conic-gradient(rgb(var(--c-brand)) 0 60deg, rgb(var(--c-charge)) 60deg 120deg, rgb(var(--c-brand-hi)) 120deg 180deg, rgb(var(--c-ok)) 180deg 240deg, rgb(var(--c-brand-lo)) 240deg 300deg, rgb(var(--c-warn)) 300deg 360deg)',
       }}
       aria-hidden
     >
-      <span className="grid h-6 w-6 place-items-center rounded-full bg-slate-950 text-xs shadow-sm">
-        🎡
-      </span>
+      <span className="grid h-5 w-5 place-items-center rounded-full bg-bg" />
     </span>
   );
 }
@@ -299,5 +325,10 @@ function Cooldown({ iso, label }: { iso: string | null; label: string }) {
     return () => clearInterval(id);
   }, [iso]);
 
-  return <span className="tabular-nums">{left ? `${label} ${left}` : label}</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Icon name="clock" size={12} />
+      <span className="v-num">{left ? `${label} ${left}` : label}</span>
+    </span>
+  );
 }

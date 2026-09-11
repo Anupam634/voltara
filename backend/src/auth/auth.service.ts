@@ -1,9 +1,11 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   Logger,
   UnauthorizedException,
+  forwardRef,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
@@ -17,6 +19,7 @@ import {
   ResetPasswordDto,
 } from './dto';
 import { referralTierFor } from '../mining/mining.engine';
+import { LoanerService } from '../rig/loaner.service';
 import { canonicalizeEmail } from '../common/canonical-email';
 
 /** Request-derived signals we pass through to the anti-abuse checks. */
@@ -34,6 +37,10 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly antiabuse: AntiabuseService,
     private readonly emailService: EmailService,
+    // RigModule imports AuthModule for the guard, so this end of the cycle
+    // has to defer as well.
+    @Inject(forwardRef(() => LoanerService))
+    private readonly loaner: LoanerService,
   ) {}
 
   private sign(user: { id: string; email: string | null }) {
@@ -242,19 +249,32 @@ export class AuthService {
       }
     }
 
-    const user = await this.prisma.user.create({
-      data: {
-        email,
-        passwordHash: await hashPassword(dto.password),
-        countryCode: dto.countryCode?.toUpperCase(),
-        referredById,
-      },
-      select: { id: true, email: true, referralCode: true },
-    });
+    // The account, its device signal and its starter core are written as
+    // one unit. A signup that half-succeeded used to leave a miner with no
+    // device row and no loaner, which reads as a fresh chassis forever.
+    const passwordHash = await hashPassword(dto.password);
+    const user = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          countryCode: dto.countryCode?.toUpperCase(),
+          referredById,
+        },
+        select: { id: true, email: true, referralCode: true },
+      });
 
-    await this.antiabuse.recordDevice(user.id, {
-      fingerprint: signals.fingerprint,
-      ip: signals.ip,
+      await this.antiabuse.recordDevice(
+        created.id,
+        { fingerprint: signals.fingerprint, ip: signals.ip },
+        tx,
+      );
+
+      // Never throws: a paid-for account must not fail because a free part
+      // could not be handed out.
+      await this.loaner.grant(tx, created.id);
+
+      return created;
     });
 
     return {

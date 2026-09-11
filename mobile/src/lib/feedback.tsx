@@ -6,7 +6,7 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
-import { Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import { useSettings } from '../store/settings';
@@ -29,6 +29,20 @@ const SOURCES: Record<Cue, number> = {
   win: require('../../assets/sounds/win.wav'),
 };
 
+/**
+ * Rig health, as a room tone. `hum` is a rig at full stability, `fan` is one
+ * that is overheating. Both are 2 s seamless loops rendered by
+ * scripts/render-sounds.js; the Mine screen picks one from grid stability.
+ */
+export type Ambient = 'hum' | 'fan';
+
+const AMBIENT_SOURCES: Record<Ambient, number> = {
+  hum: require('../../assets/sounds/hum.wav'),
+  fan: require('../../assets/sounds/fan.wav'),
+};
+
+const AMBIENT_VOLUME: Record<Ambient, number> = { hum: 0.35, fan: 0.55 };
+
 export interface Feedback {
   /** Light tap — selection changes, toggles, tab switches. */
   select: () => void;
@@ -48,6 +62,12 @@ export interface Feedback {
   success: () => void;
   /** A warning that stops short of an error. */
   warn: () => void;
+  /**
+   * Start (or switch) the looping rig-health tone. `null` stops it. Obeys
+   * the sounds preference and pauses while the app is in the background.
+   */
+  startAmbient: (kind: Ambient | null) => void;
+  stopAmbient: () => void;
 }
 
 const FeedbackContext = createContext<Feedback | null>(null);
@@ -56,6 +76,9 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
   const { settings } = useSettings();
   const players = useRef<Partial<Record<Cue, AudioPlayer>>>({});
   const audioReady = useRef(false);
+  const ambient = useRef<{ kind: Ambient; player: AudioPlayer } | null>(null);
+  /** What the screen asked for, so a background/foreground cycle can resume it. */
+  const ambientWanted = useRef<Ambient | null>(null);
 
   const haptic = useCallback(
     (run: () => Promise<void>) => {
@@ -96,6 +119,88 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
     [settings.sounds],
   );
 
+  const stopAmbient = useCallback(() => {
+    ambientWanted.current = null;
+    const current = ambient.current;
+    ambient.current = null;
+    if (!current) return;
+    try {
+      current.player.pause();
+      current.player.remove();
+    } catch {
+      /* already released */
+    }
+  }, []);
+
+  const startAmbient = useCallback(
+    (kind: Ambient | null) => {
+      ambientWanted.current = kind;
+      if (!kind || !settings.sounds || AppState.currentState !== 'active') {
+        // Keep `ambientWanted` so a later foreground can resume, but silence now.
+        const current = ambient.current;
+        ambient.current = null;
+        if (current) {
+          try {
+            current.player.pause();
+            current.player.remove();
+          } catch {
+            /* ignore */
+          }
+        }
+        return;
+      }
+      if (ambient.current?.kind === kind) return;
+      try {
+        const previous = ambient.current;
+        if (previous) {
+          previous.player.pause();
+          previous.player.remove();
+        }
+        if (!audioReady.current) {
+          audioReady.current = true;
+          void setAudioModeAsync({
+            playsInSilentMode: true,
+            shouldPlayInBackground: false,
+            interruptionMode: 'mixWithOthers',
+            interruptionModeAndroid: 'duckOthers',
+          }).catch(() => {});
+        }
+        const player = createAudioPlayer(AMBIENT_SOURCES[kind]);
+        player.loop = true;
+        player.volume = AMBIENT_VOLUME[kind];
+        player.play();
+        ambient.current = { kind, player };
+      } catch {
+        ambient.current = null;
+      }
+    },
+    [settings.sounds],
+  );
+
+  // Sounds switched off in Settings silences a running loop immediately;
+  // switched back on, the screen's last request resumes.
+  useEffect(() => {
+    startAmbient(ambientWanted.current);
+  }, [settings.sounds, startAmbient]);
+
+  // Room tone must not follow the user out of the app.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') startAmbient(ambientWanted.current);
+      else {
+        const current = ambient.current;
+        ambient.current = null;
+        try {
+          current?.player.pause();
+          current?.player.remove();
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+    return () => sub.remove();
+  }, [startAmbient]);
+
   // Four short clips is a trivial amount of memory, but a player left behind
   // holds an audio session open — release them when the provider goes away.
   useEffect(() => {
@@ -108,6 +213,13 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
           /* already released */
         }
       });
+      const current = ambient.current;
+      ambient.current = null;
+      try {
+        current?.player.remove();
+      } catch {
+        /* already released */
+      }
     };
   }, []);
 
@@ -161,8 +273,10 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
         haptic(() =>
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning),
         ),
+      startAmbient,
+      stopAmbient,
     }),
-    [haptic, play],
+    [haptic, play, startAmbient, stopAmbient],
   );
 
   return (

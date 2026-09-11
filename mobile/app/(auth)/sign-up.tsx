@@ -29,7 +29,7 @@ const RESEND_COOLDOWN_S = 45;
  * Sign up.
  *
  * Two steps, matching the server: the form requests an email OTP, then
- * `register` is called with the code. A `?ref=` deep link (bondkoin://sign-up
+ * `register` is called with the code. A `?ref=` deep link (voltara://sign-up
  * or a shared invite URL) pre-fills the referral code and says so.
  */
 export default function SignUp() {

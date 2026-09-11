@@ -1,10 +1,25 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { WalletService } from '../wallet/wallet.service';
 import { pointsToToken } from '../mining/mining.engine';
 import { lockUserRow } from '../common/row-lock';
+import {
+  PAYOUTS_CLOSED_MESSAGE,
+  readPayoutWindow,
+  type PayoutWindow,
+} from './payout-window';
 
-const MIN_WITHDRAWAL_MILLI = 100 * 1000; // 100 points (SPEC §4)
+/** SPEC §4. Exported so the public status route quotes the same figure. */
+export const WITHDRAWAL_MIN_POINTS = 100;
+/** SPEC §3: 3 VOLTS = 1 $VLTR. */
+export const POINTS_PER_TOKEN = 3;
+
+const MIN_WITHDRAWAL_MILLI = WITHDRAWAL_MIN_POINTS * 1000;
 const COOLDOWN_MS = 7 * 24 * 3_600_000; // 1 per week
 
 /** Shape returned to clients — BigInt milli-points become decimal points. */
@@ -54,7 +69,22 @@ export class WithdrawalsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly wallet: WalletService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Whether payouts are open, for the withdraw screen and for `request`.
+   *
+   * Read per call rather than resolved once at boot: opening the window is
+   * the most time-sensitive switch this service has, and it should not need
+   * a redeploy to take effect.
+   */
+  window(): PayoutWindow {
+    return readPayoutWindow({
+      PAYOUTS_OPEN: this.config.get<string>('PAYOUTS_OPEN'),
+      PAYOUTS_OPEN_AT: this.config.get<string>('PAYOUTS_OPEN_AT'),
+    });
+  }
 
   /**
    * Escrow points and queue a payout for admin review.
@@ -66,6 +96,15 @@ export class WithdrawalsService {
    * pending payouts and a balance of -400.
    */
   async request(userId: string, toAddress: string, pointsMilli: number) {
+    // Before anything else, and outside the transaction: accepting a request
+    // debits the miner's balance into escrow, and until $VLTR exists there is
+    // no payout that can ever release it. A closed window is a refusal, not a
+    // queue. Admin approve/reject stays open on purpose, so any request that
+    // predates the gate can still be settled or refunded.
+    if (!this.window().open) {
+      throw new ServiceUnavailableException(PAYOUTS_CLOSED_MESSAGE);
+    }
+
     if (pointsMilli < MIN_WITHDRAWAL_MILLI) {
       throw new BadRequestException('Minimum withdrawal is 100 points.');
     }

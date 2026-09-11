@@ -15,8 +15,8 @@ import { useSettings, type ThemeMode } from '../../src/store/settings';
 import { palettes, type Palette, type ThemeName } from '../../src/theme/tokens';
 
 /**
- * Theme picker — the website's four looks, previewed as live swatches.
- * 🌙 Midnight Sapphire · ☀️ Executive Light · 🔵 Royal Blue · 🔴 Crimson
+ * Theme picker — the website's four looks, previewed as live swatches:
+ * Grid · Substation · Overdrive · Overheat.
  */
 export default function AppearanceScreen() {
   const { c, spacing } = useTheme();
@@ -24,18 +24,18 @@ export default function AppearanceScreen() {
   const t = useT();
   const { settings, update } = useSettings();
 
-  const themes: { value: ThemeName; label: string; name: string; emoji: string }[] = [
-    { value: 'dark', label: t('settings.themeDark'), name: t('settings.themeDarkName'), emoji: '🌙' },
-    { value: 'light', label: t('settings.themeLight'), name: t('settings.themeLightName'), emoji: '☀️' },
-    { value: 'cyber', label: t('settings.themeCyber'), name: t('settings.themeCyberName'), emoji: '🔵' },
-    { value: 'red', label: t('settings.themeRed'), name: t('settings.themeRedName'), emoji: '🔴' },
+  const themes: { value: ThemeName; label: string; name: string }[] = [
+    { value: 'dark', label: t('settings.themeDark'), name: t('settings.themeDarkName') },
+    { value: 'light', label: t('settings.themeLight'), name: t('settings.themeLightName') },
+    { value: 'cyber', label: t('settings.themeCyber'), name: t('settings.themeCyberName') },
+    { value: 'red', label: t('settings.themeRed'), name: t('settings.themeRedName') },
   ];
 
   const options: { value: ThemeMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { value: 'system', label: t('settings.themeSystem'), icon: 'phone-portrait-outline' },
     ...themes.map((theme) => ({
       value: theme.value as ThemeMode,
-      label: theme.name,
+      label: theme.label,
       icon: (theme.value === 'light' ? 'sunny-outline' : theme.value === 'dark' ? 'moon-outline' : 'color-palette-outline') as keyof typeof Ionicons.glyphMap,
     })),
   ];
@@ -59,7 +59,6 @@ export default function AppearanceScreen() {
               key={theme.value}
               label={theme.label}
               name={theme.name}
-              emoji={theme.emoji}
               palette={palettes[theme.value]}
               active={settings.themeMode === theme.value}
               onPress={() => update({ themeMode: theme.value })}
@@ -106,18 +105,16 @@ export default function AppearanceScreen() {
   );
 }
 
-/** A miniature of the theme: ground, glass panel, gradient button, amber numeral. */
+/** A miniature of the theme: ground, panel, violet button, lime numeral. */
 function Preview({
   label,
   name,
-  emoji,
   palette,
   active,
   onPress,
 }: {
   label: string;
   name: string;
-  emoji: string;
   palette: Palette;
   active: boolean;
   onPress: () => void;
@@ -184,7 +181,16 @@ function Preview({
           paddingBottom: spacing.md,
         }}
       >
-        <Text variant="caption">{emoji}</Text>
+        <View
+          style={{
+            width: 14,
+            height: 14,
+            borderRadius: 7,
+            backgroundColor: palette.gold,
+            borderWidth: 2,
+            borderColor: palette.primary,
+          }}
+        />
         <View style={{ flex: 1 }}>
           <Text variant="caption" weight="700" style={{ color: palette.textPrimary }} numberOfLines={1}>
             {label}

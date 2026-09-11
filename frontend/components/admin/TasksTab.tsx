@@ -83,27 +83,27 @@ export function TasksTab({ onUnauthorized }: TasksTabProps) {
 
               {task.type === 'QUIZ' && task.quizQuestions && (
                 <div className="mt-3 rounded-lg bg-slate-950 p-2.5 text-[11px] text-slate-400 border border-slate-800">
-                  🧠 <strong>{task.quizQuestions.length} Questions</strong> configured
+                  <strong>{task.quizQuestions.length} Questions</strong> configured
                 </div>
               )}
 
               {task.type === 'SPIN_WHEEL' && task.wheelSegments && (
                 <div className="mt-3 rounded-lg bg-slate-950 p-2.5 text-[11px] text-slate-400 border border-slate-800">
-                  🎡 <strong>{task.wheelSegments.length} Slices</strong>: [
+                  <strong>{task.wheelSegments.length} Slices</strong>: [
                   {task.wheelSegments.join(', ')}] PTS
                 </div>
               )}
 
               {task.actionUrl && (
                 <div className="mt-3 truncate rounded-lg bg-slate-950 p-2.5 text-[11px] text-slate-400 border border-slate-800">
-                  🔗 <span className="font-mono text-cyan-400">{task.actionUrl}</span>
+                  <span className="font-mono text-cyan-400">{task.actionUrl}</span>
                 </div>
               )}
             </div>
 
             <button
               onClick={() => setEditTask(task)}
-              className="btn-gold mt-5 w-full rounded-xl py-2.5 text-xs font-black uppercase text-slate-950 shadow-md"
+              className="btn-gold mt-5 w-full rounded-xl py-2.5 text-xs font-black uppercase shadow-md"
             >
               ⚙️ Full Task Editor →
             </button>

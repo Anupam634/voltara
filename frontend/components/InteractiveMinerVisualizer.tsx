@@ -1,11 +1,23 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Coin3D } from './Coin3D';
 import { useMiningFX } from '../lib/use-mining-fx';
-import { getToken, getMiningStatus, claimMining, type MiningStatus } from '../lib/api';
+import { claimMining, getMiningStatus, getToken, type MiningStatus } from '../lib/api';
+import { AnimatedNumber, Gauge, Icon, Tilt } from './ui';
+
+/**
+ * The hero terminal. For a visitor it is a simulator: tap, watch a rig come
+ * alive slot by slot, watch VOLTS accrue. For a signed-in miner it reads
+ * the real accrual from the server and the button becomes the real claim.
+ *
+ * Everything on screen is driven by one clock so the numbers move together:
+ * hash ticks, heat breathes, stability follows heat, slot pips light in
+ * sequence.
+ */
+
+const SIM_SLOTS = ['VC-1', 'CX-2', 'VC-5', 'PS-3', 'OD-8', 'CX-6'] as const;
 
 export function InteractiveMinerVisualizer() {
   const t = useTranslations('landing.simulator');
@@ -16,17 +28,20 @@ export function InteractiveMinerVisualizer() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [liveStatus, setLiveStatus] = useState<MiningStatus | null>(null);
   const [isMining, setIsMining] = useState(false);
-  const [points, setPoints] = useState(0.0);
-  const [temp, setTemp] = useState(48);
+  const [points, setPoints] = useState(0);
   const [hashPower, setHashPower] = useState(0.9);
-  const [tapEffect, setTapEffect] = useState(false);
+  const [heat, setHeat] = useState(6);
+  const [litSlots, setLitSlots] = useState(0);
+  const [tapEffect, setTapEffect] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [floaters, setFloaters] = useState<{ id: number; text: string }[]>([]);
 
   const anchorRef = useRef({ at: 0, base: 0 });
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startRef = useRef(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { playMiningStrike, playClaimReward } = useMiningFX();
 
-  // 1. Check for logged in user session and load live backend mining status
+  // 1. Signed-in visitors get the real accrual instead of the simulator.
   const loadLiveSession = useCallback(async () => {
     const token = getToken();
     if (!token) return;
@@ -37,10 +52,9 @@ export function InteractiveMinerVisualizer() {
       setHashPower(status.ratePerHour);
       setPoints(status.pendingPoints);
       anchorRef.current = { at: Date.now(), base: status.pendingPoints };
-      // User is actively mining if they have not claimed or have pending points
       setIsMining(!status.canClaim || status.pendingPoints > 0);
+      setLitSlots(6);
     } catch {
-      // Ignore token auth failures on landing page and fallback to simulator
       setIsAuthed(false);
     }
   }, []);
@@ -49,47 +63,57 @@ export function InteractiveMinerVisualizer() {
     loadLiveSession();
   }, [loadLiveSession]);
 
-  // 2. Real-time High-Precision Accrual Ticker
+  // 2. One clock for everything that moves.
   useEffect(() => {
-    if (isMining) {
+    if (!isMining) {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
+    startRef.current = Date.now();
+    intervalRef.current = setInterval(() => {
+      const now = Date.now();
+      const elapsed = now - startRef.current;
+      const breathe = Math.sin(now / 1800);
+
       if (isAuthed && liveStatus) {
-        // Live server-anchored accrual calculation
         const perMs = liveStatus.ratePerHour / 3_600_000;
         const cap = liveStatus.maxPendingPoints || 21.6;
-        intervalRef.current = setInterval(() => {
-          const { at, base } = anchorRef.current;
-          const current = Math.min(cap, base + (Date.now() - at) * perMs);
-          setPoints(current);
-          setTemp(50 + Math.floor(Math.sin(Date.now() / 2500) * 3));
-        }, 100);
+        const { at, base } = anchorRef.current;
+        setPoints(Math.min(cap, base + (now - at) * perMs));
+        setHeat(Math.round(52 + breathe * 3));
       } else {
-        // Simulator accrual calculation for visitors
-        intervalRef.current = setInterval(() => {
-          setPoints((prev) => +(prev + 0.00045).toFixed(5));
-          setTemp((prev) => 52 + Math.floor(Math.sin(Date.now() / 2000) * 4));
-        }, 100);
+        setPoints((prev) => +(prev + 0.00045).toFixed(5));
+        // Slots come online one every 700 ms; hash and heat climb with them.
+        const lit = Math.min(SIM_SLOTS.length, 1 + Math.floor(elapsed / 700));
+        setLitSlots(lit);
+        const HASH_BY_SLOTS = [0, 2, 2, 12, 12, 13.8, 13.8];
+        setHashPower(+(0.9 + (HASH_BY_SLOTS[lit] ?? 0)).toFixed(1));
+        setHeat(Math.round(38 + lit * 4 + breathe * 3));
       }
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
+    }, 100);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [isMining, isAuthed, liveStatus]);
 
-  // 3. Handle Mine / Claim / View Action
+  const spawnFloater = (text: string) => {
+    const id = Date.now();
+    setFloaters((f) => [...f.slice(-3), { id, text }]);
+    setTimeout(() => setFloaters((f) => f.filter((x) => x.id !== id)), 1200);
+  };
+
+  // 3. Mine / claim / open the terminal.
   const handleToggleMine = async () => {
-    setTapEffect(true);
-    setTimeout(() => setTapEffect(false), 350);
+    setTapEffect((n) => n + 1);
 
     if (isAuthed && liveStatus) {
       if (liveStatus.canClaim) {
-        // Authoritative live claim action directly from landing visualizer
         setBusy(true);
         playMiningStrike();
         try {
-          await claimMining();
+          const res = await claimMining();
           playClaimReward();
+          spawnFloater(`+${res.earnedPoints.toFixed(2)} VOLTS`);
           await loadLiveSession();
         } catch {
           router.push(`/${locale}/dashboard`);
@@ -97,138 +121,175 @@ export function InteractiveMinerVisualizer() {
           setBusy(false);
         }
       } else {
-        // Accruing session: route to dashboard terminal
         router.push(`/${locale}/dashboard`);
       }
       return;
     }
 
-    // Unauthenticated Interactive Visitor Simulator
     if (!isMining) {
       playMiningStrike();
       setIsMining(true);
       setHashPower(0.9);
+      setLitSlots(1);
+      spawnFloater('RIG ONLINE');
     } else {
       playClaimReward();
+      spawnFloater(`+${points.toFixed(3)} VOLTS`);
       setIsMining(false);
+      setLitSlots(0);
+      setHashPower(0.9);
+      setHeat(6);
     }
   };
 
+  const cooling = 12 + (litSlots >= 2 ? 40 : 0) + (litSlots >= 6 ? 120 : 0);
+  const stability = isMining
+    ? isAuthed
+      ? 100
+      : Math.min(100, Math.round((cooling / Math.max(1, heat - 30)) * 100))
+    : 0;
+  const heatPct = Math.min(100, Math.round((heat / 80) * 100));
+
   return (
-    <div className="relative mx-auto w-full max-w-lg">
-      {/* Dynamic 3D ambient aura */}
-      <div className="pointer-events-none absolute -inset-2 rounded-3xl bg-gradient-to-r from-amber-500/25 via-yellow-500/15 to-cyan-500/25 blur-2xl opacity-80" />
-
-      {/* 3D Glass Container */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/70 p-6 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10">
-        {/* Terminal Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+    <Tilt max={5} className="mx-auto w-full max-w-lg">
+      <div className="v-panel v-hud v-scanlines relative overflow-hidden rounded-3xl p-5 shadow-panel sm:p-6">
+        {/* Terminal chrome */}
+        <div className="flex items-center justify-between border-b border-line/15 pb-3">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-3 rounded-full bg-red-500/80 shadow-sm" />
-            <div className="h-3 w-3 rounded-full bg-amber-500/80 shadow-sm" />
-            <div className="h-3 w-3 rounded-full bg-emerald-500/80 shadow-sm" />
-            <span className="ml-2 font-mono text-xs text-slate-400 font-semibold">
-              bondkoin://node-cluster.bep20
-            </span>
+            <span className="h-2.5 w-2.5 rounded-full bg-heat/80" />
+            <span className="h-2.5 w-2.5 rounded-full bg-warn/80" />
+            <span className="h-2.5 w-2.5 rounded-full bg-ok/80" />
+            <span className="ml-2 font-mono text-[11px] font-semibold text-ink-3">voltara://rig.grid</span>
           </div>
-
-          <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-[11px] font-bold text-emerald-400 backdrop-blur-md">
-            <span className="pulse-dot h-2 w-2 rounded-full bg-emerald-400" />
-            <span>{isAuthed && isMining ? 'NODE ONLINE' : t('networkStatus')}</span>
-          </div>
+          <span className={`v-chip ${isMining ? 'v-chip--charge' : ''}`}>
+            <span className={`v-dot ${isMining ? '' : 'v-dot--brand'}`} />
+            {isAuthed && isMining ? 'NODE ONLINE' : t('networkStatus')}
+          </span>
         </div>
 
-        {/* 3D Holographic Coin Display */}
-        <div className="relative my-3 flex flex-col items-center justify-center">
-          <div className="h-44 w-full flex items-center justify-center scale-95">
-            <Coin3D />
-          </div>
-
-          {/* Hashrate Floating Badge */}
-          <div className="absolute top-2 right-2 rounded-xl bg-slate-900/80 border border-amber-500/40 px-3.5 py-2 text-right shadow-xl backdrop-blur-xl">
-            <div className="text-[10px] uppercase font-bold tracking-widest text-slate-400">
-              {isAuthed ? 'BASE HASHRATE' : t('baseSpeed')}
+        {/* Gauge + hash */}
+        <div className="mt-4 grid grid-cols-[auto_1fr] items-center gap-4">
+          <Gauge value={stability} size={132} stroke={10} label="Stability" />
+          <div className="min-w-0">
+            <div className="v-eyebrow">{isAuthed ? 'LIVE HASHRATE' : t('baseSpeed')}</div>
+            <div className="v-num mt-1 text-2xl font-extrabold text-charge sm:text-3xl">
+              <AnimatedNumber value={isMining ? hashPower : 0} decimals={2} />
+              <span className="ml-1 text-xs font-bold text-ink-3">VOLTS/h</span>
             </div>
-            <div className="font-mono text-sm font-black text-amber-400">
-              {isMining ? `${hashPower.toFixed(2)} BONDKOIN/h` : '0.00 BONDKOIN/h'}
+            <div className="v-trace mt-2" />
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-ink-3">
+                <span className="inline-flex items-center gap-1">
+                  <Icon name="flame" size={11} className={heatPct > 60 ? 'text-heat' : ''} />
+                  Heat
+                </span>
+                <span className="v-num">{isMining ? `${heat}°C` : '—'}</span>
+              </div>
+              <div className="v-track mt-1 h-1.5">
+                <div
+                  className="v-track__fill"
+                  style={{
+                    width: `${isMining ? heatPct : 0}%`,
+                    background:
+                      heatPct > 60
+                        ? 'linear-gradient(90deg, rgb(var(--c-warn)), rgb(var(--c-heat)))'
+                        : undefined,
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Real-time Point Accumulator Box */}
-        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-b from-amber-500/10 to-transparent p-4 text-center backdrop-blur-md">
-          <div className="text-xs uppercase font-bold tracking-wider text-amber-300/90">
-            {t('pointsAccumulated')}
-          </div>
-          <div className="mt-1 font-mono text-3xl font-black text-amber-400 tracking-tight sm:text-4xl">
-            {points.toFixed(5)}{' '}
-            <span className="text-sm font-extrabold text-amber-200">PTS</span>
-          </div>
-          <div className="mt-1.5 flex items-center justify-center gap-2 text-xs text-slate-400">
-            <span className="font-mono text-cyan-400 font-semibold">
-              ≈ {(points / 3).toFixed(5)} $BONDKOIN
+        {/* Slot pips */}
+        <div className="mt-4 grid grid-cols-6 gap-1.5">
+          {SIM_SLOTS.map((name, i) => {
+            const on = i < litSlots;
+            return (
+              <div
+                key={name}
+                className={`rounded-lg border px-1 py-1.5 text-center font-mono text-[9px] font-bold transition-all duration-500 ${
+                  on
+                    ? 'border-brand/50 bg-brand/15 text-brand-hi shadow-[0_0_14px_-4px_rgb(var(--c-brand)/0.9)]'
+                    : 'border-line/15 bg-bg/40 text-ink-3'
+                }`}
+              >
+                <span className={`mx-auto mb-1 block h-1 w-1 rounded-full ${on ? 'bg-charge' : 'bg-line/30'}`} />
+                {on ? name : '—'}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Accumulator */}
+        <div className="relative mt-4 rounded-2xl border border-charge/25 bg-charge/[0.05] p-4 text-center">
+          {floaters.map((f) => (
+            <span key={f.id} className="v-float-up text-sm">
+              {f.text}
             </span>
-            <span>•</span>
-            <span className="text-emerald-400 font-semibold">3:1 Fixed Conversion</span>
+          ))}
+          <div className="v-eyebrow v-eyebrow--charge">{t('pointsAccumulated')}</div>
+          <div className="v-num mt-1 text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
+            {points.toFixed(5)} <span className="text-sm font-bold text-charge">VOLTS</span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-center gap-2 font-mono text-[11px] text-ink-3">
+            <span className="font-semibold text-brand-hi">≈ {(points / 3).toFixed(5)} $VLTR</span>
+            <span>·</span>
+            <span className="text-ok">3 : 1</span>
           </div>
         </div>
 
-        {/* Interactive Action Button */}
+        {/* Action */}
         <div className="relative mt-4">
-          {tapEffect && <div className="mine-shockwave" />}
           <button
             type="button"
             disabled={busy}
             onClick={handleToggleMine}
-            className={`btn-gold relative w-full overflow-hidden rounded-2xl py-4 text-center text-sm uppercase tracking-wider transition-all duration-300 shadow-xl ${
-              tapEffect ? 'scale-95' : 'hover:scale-[1.01]'
-            } ${isMining ? 'ring-2 ring-emerald-400/80 shadow-[0_0_30px_rgba(16,185,129,0.4)]' : ''}`}
+            className={`v-btn v-btn--lg relative w-full ${isMining ? 'v-btn--primary' : 'v-btn--charge'}`}
           >
-            <div className="flex items-center justify-center gap-2.5 font-black text-slate-950">
-              {busy ? (
-                <span>Claiming…</span>
-              ) : isAuthed ? (
-                liveStatus?.canClaim ? (
-                  <>
-                    <span className="text-xl">⚡</span>
-                    <span>Claim Accrued PTS →</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-xl">⛏️</span>
-                    <span>Live Mining Active • Open Terminal →</span>
-                  </>
-                )
+            {tapEffect > 0 && <span key={tapEffect} className="v-shock rounded-[1.1rem]" />}
+            {busy ? (
+              <span>Claiming…</span>
+            ) : isAuthed ? (
+              liveStatus?.canClaim ? (
+                <>
+                  <Icon name="bolt" size={16} />
+                  <span>Claim accrued VOLTS</span>
+                </>
               ) : (
                 <>
-                  <span className="text-xl">{isMining ? '⛏️' : '⚡'}</span>
-                  <span>{isMining ? t('miningActive') : t('tapToMine')}</span>
+                  <Icon name="rig" size={16} />
+                  <span>Live · Open terminal</span>
                 </>
-              )}
-            </div>
+              )
+            ) : (
+              <>
+                <Icon name={isMining ? 'gauge' : 'bolt'} size={16} />
+                <span>{isMining ? t('miningActive') : t('tapToMine')}</span>
+              </>
+            )}
           </button>
         </div>
 
-        {/* Hardware Status Telemetry Strip */}
-        <div className="mt-4 grid grid-cols-3 gap-2 text-[11px] font-mono text-slate-400">
-          <div className="rounded-xl bg-slate-900/60 border border-white/[0.06] p-2.5 text-center">
-            <div className="text-slate-500 text-[10px] uppercase font-bold">NODE TEMP</div>
-            <div className="font-bold text-amber-300 mt-0.5">{temp}°C</div>
+        {/* Telemetry */}
+        <div className="mt-4 grid grid-cols-3 gap-2 font-mono text-[11px]">
+          <div className="v-inset p-2.5 text-center">
+            <div className="text-[9px] font-bold uppercase text-ink-3">Heat</div>
+            <div className="v-num mt-0.5 font-bold text-ink">{isMining ? `${heat}°C` : '—'}</div>
           </div>
-          <div className="rounded-xl bg-slate-900/60 border border-white/[0.06] p-2.5 text-center">
-            <div className="text-slate-500 text-[10px] uppercase font-bold">EFFICIENCY</div>
-            <div className="font-bold text-emerald-400 mt-0.5">99.8%</div>
+          <div className="v-inset p-2.5 text-center">
+            <div className="text-[9px] font-bold uppercase text-ink-3">Cooling</div>
+            <div className="v-num mt-0.5 font-bold text-ok">{isMining ? `${cooling} TU` : '—'}</div>
           </div>
-          <div className="rounded-xl bg-slate-900/60 border border-white/[0.06] p-2.5 text-center">
-            <div className="text-slate-500 text-[10px] uppercase font-bold">LOCAL POWER</div>
-            <div className="font-bold text-cyan-400 mt-0.5">0W (Node Eco)</div>
+          <div className="v-inset p-2.5 text-center">
+            <div className="text-[9px] font-bold uppercase text-ink-3">Slots</div>
+            <div className="v-num mt-0.5 font-bold text-brand-hi">{litSlots} / 6</div>
           </div>
         </div>
 
-        <div className="mt-3 text-center text-[10px] text-slate-500 font-mono">
-          {t('hashAlgorithm')}
-        </div>
+        <div className="mt-3 text-center font-mono text-[10px] text-ink-3">{t('hashAlgorithm')}</div>
       </div>
-    </div>
+    </Tilt>
   );
 }

@@ -17,5 +17,5 @@ export function maskIdentity(params: {
 
   const [local, domain] = email.split('@');
   const visible = local.length <= 2 ? local.slice(0, 1) : local.slice(0, 2);
-  return `${visible}***@${domain || 'matsumoto.io'}`;
+  return `${visible}***@${domain || 'voltara.io'}`;
 }

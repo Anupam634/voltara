@@ -72,7 +72,7 @@ export function WithdrawalsTab({
   }, [load]);
 
   async function handleApprove(w: AdminWithdrawal) {
-    if (!confirm(`Confirm on-chain payout of ${w.tokenAmount} $BONDKOIN to wallet ${w.toAddress}?`)) {
+    if (!confirm(`Confirm on-chain payout of ${w.tokenAmount} $VLTR to wallet ${w.toAddress}?`)) {
       return;
     }
     setBusy(true);
@@ -120,7 +120,7 @@ export function WithdrawalsTab({
               title={f.hint}
               className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
                 statusFilter === f.key
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
+                  ? 'bg-violet-600 text-white shadow-sm'
                   : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
               }`}
             >
@@ -165,7 +165,7 @@ export function WithdrawalsTab({
                     </td>
                     <td className="p-3.5 font-bold text-amber-400">{w.points} PTS</td>
                     <td className="p-3.5 font-bold text-cyan-400">
-                      {w.tokenAmount} $BONDKOIN
+                      {w.tokenAmount} $VLTR
                     </td>
                     <td className="p-3.5 text-slate-400 truncate max-w-xs" title={w.toAddress}>
                       {w.toAddress}

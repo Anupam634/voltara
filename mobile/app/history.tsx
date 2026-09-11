@@ -155,7 +155,7 @@ export default function HistoryScreen() {
                         )}
                       </Text>
                       <Text variant="caption" tone="info" weight="700">
-                        $BONDKOIN
+                        $VLTR
                       </Text>
                     </View>
                   </>

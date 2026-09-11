@@ -194,7 +194,7 @@ export default function Welcome() {
                   numberOfLines={1}
                   style={{ marginLeft: 6, flexShrink: 1 }}
                 >
-                  bondkoin://node-cluster.bep20
+                  voltara://node-cluster.bep20
                 </Text>
               </View>
               <LivePill label={t('landing.simulator.networkStatus')} />

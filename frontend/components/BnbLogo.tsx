@@ -23,9 +23,9 @@ export function BnbLogo({ className }: { className?: string }) {
 }
 
 /** Small "BNB Chain" pill used next to on-chain figures and payment steps. */
-export function BnbBadge({ label }: { label: string }) {
+export function BnbBadge({ label, className = '' }: { label: string; className?: string }) {
   return (
-    <span className="bnb-badge">
+    <span className={`v-chip v-chip--warn ${className}`}>
       <BnbLogo className="h-3.5 w-3.5" />
       {label}
     </span>

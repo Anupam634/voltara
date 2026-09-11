@@ -3,26 +3,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslations } from 'next-intl';
+import { Button, Eyebrow, Icon, Notice } from './ui';
 
 const FULL_TURNS = 7;
 const SPIN_MS = 4500;
 const NUM_LEDS = 24;
 
-// High-end multi-gradient segments for luxury Web3 aesthetic
+/**
+ * Slice colours. Deliberately fixed rather than themed — the wheel is a
+ * game surface, and its hues are part of the brand on every theme.
+ */
 const SLICE_PALETTE = [
-  { fill1: '#d97706', fill2: '#f59e0b', stroke: '#fbbf24' }, // Gold
-  { fill1: '#0369a1', fill2: '#0284c7', stroke: '#38bdf8' }, // Cyan
-  { fill1: '#6d28d9', fill2: '#7c3aed', stroke: '#c084fc' }, // Purple
-  { fill1: '#15803d', fill2: '#16a34a', stroke: '#4ade80' }, // Emerald
-  { fill1: '#c2410c', fill2: '#ea580c', stroke: '#fb923c' }, // Orange
-  { fill1: '#4338ca', fill2: '#4f46e5', stroke: '#818cf8' }, // Indigo
+  { fill1: '#6d28d9', fill2: '#8b5cf6', stroke: '#c4b5fd' }, // violet
+  { fill1: '#65a30d', fill2: '#a3e635', stroke: '#d9f99d' }, // lime
+  { fill1: '#4c1d95', fill2: '#6d28d9', stroke: '#a78bfa' }, // deep violet
+  { fill1: '#0e7490', fill2: '#22d3ee', stroke: '#a5f3fc' }, // coolant
+  { fill1: '#be123c', fill2: '#f43f5e', stroke: '#fda4af' }, // heat
+  { fill1: '#b45309', fill2: '#fbbf24', stroke: '#fde68a' }, // warn
 ];
 
 function prefersReducedMotion() {
-  return (
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  );
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 function useWheelSound(muted: boolean) {
@@ -33,8 +34,7 @@ function useWheelSound(muted: boolean) {
     if (!ctxRef.current) {
       const Ctor =
         window.AudioContext ??
-        (window as unknown as { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext;
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Ctor) return null;
       ctxRef.current = new Ctor();
     }
@@ -92,9 +92,7 @@ export function SpinWheelModal({
   const [mounted, setMounted] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
-  const [result, setResult] = useState<{ index: number; earned: number } | null>(
-    null,
-  );
+  const [result, setResult] = useState<{ index: number; earned: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
 
@@ -107,13 +105,6 @@ export function SpinWheelModal({
 
   const n = segments.length;
   const sliceAngle = 360 / n;
-  const slice = sliceAngle;
-  const angle = rotation;
-  const spin = handleSpin;
-
-  function toggleMute() {
-    setMuted((m) => !m);
-  }
 
   async function handleSpin() {
     if (spinning || result) return;
@@ -162,10 +153,7 @@ export function SpinWheelModal({
         tick();
         lastTickAngle = currentAngle;
       }
-
-      if (progress < 1) {
-        requestAnimationFrame(checkTick);
-      }
+      if (progress < 1) requestAnimationFrame(checkTick);
     };
     requestAnimationFrame(checkTick);
 
@@ -179,110 +167,101 @@ export function SpinWheelModal({
   if (!mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl animate-in fade-in duration-200">
-      {/* Outer ambient glow halo */}
-      <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-blue-600/20 blur-3xl" />
+    <div
+      className="fixed inset-0 z-[80] grid place-items-end bg-bg/75 p-0 backdrop-blur-md animate-fade sm:place-items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !spinning) onClose();
+      }}
+    >
+      <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-brand/20 blur-3xl" />
 
-      {/* Main Luxury Transparent Glassmorphic Modal Card */}
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/20 bg-slate-950/80 p-6 sm:p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl ring-1 ring-white/10">
+      <div
+        className="v-panel v-hud relative w-full animate-pop overflow-hidden rounded-b-none rounded-t-3xl p-5 text-center sm:max-w-md sm:rounded-3xl sm:p-7"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
-          <div className="flex items-center gap-2.5 text-left">
-            <div className="grid h-8 w-8 place-items-center rounded-xl bg-amber-500/20 border border-amber-500/30 text-base">
-              🎡
-            </div>
-            <div>
-              <h2 className="text-lg font-black tracking-tight text-slate-100">
-                {t('wheelTitle')}
-              </h2>
-              <p className="text-[11px] font-medium text-slate-400">
-                {t('wheelBody')}
-              </p>
+        <div className="flex items-center justify-between gap-3 border-b border-line/15 pb-4 text-left">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-charge/12 text-charge">
+              <Icon name="gift" size={18} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate font-display text-lg font-bold text-ink">{t('wheelTitle')}</h2>
+              <p className="text-xs text-ink-3">{t('wheelBody')}</p>
             </div>
           </div>
-
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={toggleMute}
+              onClick={() => setMuted((m) => !m)}
               title={muted ? t('unmute') : t('mute')}
               aria-label={muted ? t('unmute') : t('mute')}
-              className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-slate-900/80 text-slate-300 transition hover:border-amber-400/50 hover:text-amber-400"
+              className={`grid h-8 w-8 place-items-center rounded-full border transition ${
+                muted ? 'border-line/25 text-ink-3' : 'border-brand/40 bg-brand/10 text-brand-hi'
+              }`}
             >
-              {muted ? <IconMuted /> : <IconSound />}
+              <Icon name="bell" size={14} />
             </button>
             <button
               type="button"
               onClick={onClose}
               disabled={spinning}
-              className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-slate-900/80 text-slate-400 transition hover:border-slate-700 hover:text-white"
+              aria-label={t('close')}
+              className="grid h-8 w-8 place-items-center rounded-full border border-line/25 text-ink-3 transition hover:border-heat/60 hover:text-heat disabled:opacity-40"
             >
-              ✕
+              <Icon name="x" size={14} />
             </button>
           </div>
         </div>
 
-        {/* ────────── Luxury Production Wheel ────────── */}
+        {/* Wheel */}
         <div className="relative mx-auto mt-6 aspect-square w-full max-w-[19rem]">
-          {/* Top 3D Neon Indicator Arrow */}
-          <div
-            className="absolute left-1/2 top-0 z-30 -translate-x-1/2 -translate-y-2 flex flex-col items-center"
-            aria-hidden
-          >
+          {/* Pointer */}
+          <div className="absolute left-1/2 top-0 z-30 flex -translate-x-1/2 -translate-y-2 flex-col items-center" aria-hidden>
             <div
               style={{
                 width: 0,
                 height: 0,
                 borderLeft: '14px solid transparent',
                 borderRight: '14px solid transparent',
-                borderTop: '24px solid #f59e0b',
-                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.8)) drop-shadow(0 0 10px rgba(245,158,11,0.6))',
+                borderTop: '24px solid rgb(var(--c-charge))',
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.8)) drop-shadow(0 0 10px rgb(var(--c-charge) / 0.6))',
               }}
             />
-            <div className="h-2.5 w-2.5 -mt-6 rounded-full bg-red-500 shadow-md ring-2 ring-white" />
+            <div className="-mt-6 h-2.5 w-2.5 rounded-full bg-heat ring-2 ring-white shadow-md" />
           </div>
 
-          {/* Wheel SVG with LED Bezel & Gradients */}
           <svg
             viewBox="-58 -58 116 116"
             className="h-full w-full rounded-full drop-shadow-[0_20px_35px_rgba(0,0,0,0.8)]"
+            aria-label={t('wheelAria', { n })}
           >
             <defs>
-              {/* Radial background glow for wheel core */}
               <radialGradient id="wheelCore" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#1e293b" />
-                <stop offset="100%" stopColor="#030712" />
+                <stop offset="0%" stopColor="#1e1930" />
+                <stop offset="100%" stopColor="#07060b" />
               </radialGradient>
-
-              {/* Segment Gradients */}
               {SLICE_PALETTE.map((pal, idx) => (
-                <linearGradient
-                  key={idx}
-                  id={`sliceGrad-${idx}`}
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="100%"
-                >
+                <linearGradient key={idx} id={`sliceGrad-${idx}`} x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor={pal.fill2} />
                   <stop offset="100%" stopColor={pal.fill1} />
                 </linearGradient>
               ))}
-
-              {/* Gold Metallic Outer Rim */}
-              <linearGradient id="goldRim" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fef08a" />
-                <stop offset="35%" stopColor="#f59e0b" />
-                <stop offset="70%" stopColor="#92400e" />
-                <stop offset="100%" stopColor="#fef08a" />
+              <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#d9f99d" />
+                <stop offset="35%" stopColor="#a3e635" />
+                <stop offset="70%" stopColor="#4d7c0f" />
+                <stop offset="100%" stopColor="#d9f99d" />
               </linearGradient>
             </defs>
 
-            {/* 1. Outer Bezel Ring */}
-            <circle cx="0" cy="0" r="56" fill="#030712" stroke="url(#goldRim)" strokeWidth="3" />
-            <circle cx="0" cy="0" r="51.5" fill="none" stroke="rgba(245, 158, 11, 0.4)" strokeWidth="1" />
+            {/* Bezel */}
+            <circle cx="0" cy="0" r="56" fill="#07060b" stroke="url(#rimGrad)" strokeWidth="3" />
+            <circle cx="0" cy="0" r="51.5" fill="none" stroke="rgba(163,230,53,0.4)" strokeWidth="1" />
 
-            {/* 2. Perimeter LED Bulbs */}
+            {/* LEDs */}
             {Array.from({ length: NUM_LEDS }).map((_, i) => {
               const ang = (i * (360 / NUM_LEDS) * Math.PI) / 180;
               const x = 53.8 * Math.cos(ang);
@@ -294,60 +273,44 @@ export function SpinWheelModal({
                   cx={x}
                   cy={y}
                   r="1.4"
-                  fill={activeBulb ? '#fef08a' : '#f59e0b'}
-                  className={activeBulb ? 'animate-pulse' : ''}
-                  style={{
-                    filter: activeBulb ? 'drop-shadow(0 0 2px #fef08a)' : undefined,
-                  }}
+                  fill={activeBulb ? '#d9f99d' : '#a3e635'}
+                  className={activeBulb ? 'animate-breathe' : ''}
+                  style={{ filter: activeBulb ? 'drop-shadow(0 0 2px #d9f99d)' : undefined }}
                 />
               );
             })}
 
-            {/* 3. Rotating Wheel Group */}
+            {/* Rotating group */}
             <g
-              transform={`rotate(${angle} 0 0)`}
+              ref={wheelRef}
               style={{
-                transform: `rotate(${angle}deg)`,
+                transform: `rotate(${rotation}deg)`,
                 transformOrigin: '0px 0px',
-                transition: spinning
-                  ? `transform ${SPIN_MS}ms cubic-bezier(0.12, 0.88, 0.2, 1)`
-                  : 'none',
+                transition: spinning ? `transform ${SPIN_MS}ms cubic-bezier(0.12, 0.88, 0.2, 1)` : 'none',
               }}
             >
               {segments.map((value, i) => {
-                const from = i * slice - 90;
-                const to = from + slice;
+                const from = i * sliceAngle - 90;
+                const to = from + sliceAngle;
                 const rad = (deg: number) => (deg * Math.PI) / 180;
                 const x1 = 50 * Math.cos(rad(from));
                 const y1 = 50 * Math.sin(rad(from));
                 const x2 = 50 * Math.cos(rad(to));
                 const y2 = 50 * Math.sin(rad(to));
-                const mid = rad(from + slice / 2);
+                const mid = rad(from + sliceAngle / 2);
                 const won = result?.index === i;
                 const palIndex = i % SLICE_PALETTE.length;
 
                 return (
                   <g key={i}>
-                    {/* Slice Shape */}
                     <path
                       d={`M0 0 L${x1} ${y1} A50 50 0 0 1 ${x2} ${y2} Z`}
                       fill={`url(#sliceGrad-${palIndex})`}
                       stroke="#ffffff"
                       strokeWidth="0.75"
-                      opacity={result && !won ? 0.4 : 1}
+                      opacity={result && !won ? 0.35 : 1}
                     />
-
-                    {/* Outer Edge Accent Stud */}
-                    <circle
-                      cx={x1}
-                      cy={y1}
-                      r="1.2"
-                      fill="#ffffff"
-                      stroke="#92400e"
-                      strokeWidth="0.4"
-                    />
-
-                    {/* Reward Value Label */}
+                    <circle cx={x1} cy={y1} r="1.2" fill="#ffffff" stroke="#4d7c0f" strokeWidth="0.4" />
                     <text
                       x={33 * Math.cos(mid)}
                       y={33 * Math.sin(mid)}
@@ -356,96 +319,59 @@ export function SpinWheelModal({
                       fontWeight="900"
                       textAnchor="middle"
                       dominantBaseline="central"
-                      transform={`rotate(${i * slice + slice / 2}, ${33 * Math.cos(mid)}, ${33 * Math.sin(mid)})`}
-                      style={{
-                        filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))',
-                        fontFamily: 'monospace',
-                      }}
+                      transform={`rotate(${i * sliceAngle + sliceAngle / 2}, ${33 * Math.cos(mid)}, ${33 * Math.sin(mid)})`}
+                      style={{ filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.9))', fontFamily: 'var(--font-mono), monospace' }}
                     >
                       +{value}
                     </text>
                   </g>
                 );
               })}
-
-              {/* Center Decorative Core Base */}
-              <circle r="16" fill="url(#wheelCore)" stroke="url(#goldRim)" strokeWidth="2" />
+              <circle r="16" fill="url(#wheelCore)" stroke="url(#rimGrad)" strokeWidth="2" />
             </g>
           </svg>
 
-          {/* 4. Center Interactive 3D Metallic Hub Button */}
+          {/* Hub button */}
           <button
             type="button"
-            onClick={spin}
+            onClick={handleSpin}
             disabled={spinning || result !== null}
-            className="absolute left-1/2 top-1/2 z-20 h-[28%] w-[28%] -translate-x-1/2 -translate-y-1/2 rounded-full p-1 transition-all active:scale-95 disabled:opacity-80 group cursor-pointer"
+            className="absolute left-1/2 top-1/2 z-20 h-[28%] w-[28%] -translate-x-1/2 -translate-y-1/2 rounded-full p-1 transition-all active:scale-95 disabled:opacity-80"
             style={{
-              background: 'radial-gradient(circle at 30% 30%, #fffbeb 0%, #fbbf24 35%, #92400e 100%)',
-              boxShadow: '0 8px 25px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.8), 0 0 20px rgba(245,158,11,0.5)',
+              background: 'radial-gradient(circle at 30% 30%, #ecfccb 0%, #a3e635 35%, #3f6212 100%)',
+              boxShadow: '0 8px 25px rgba(0,0,0,0.7), inset 0 2px 4px rgba(255,255,255,0.8), 0 0 20px rgba(163,230,53,0.5)',
             }}
           >
-            <div className="flex h-full w-full flex-col items-center justify-center rounded-full bg-gradient-to-b from-amber-500 to-amber-700 text-slate-950 font-black tracking-wider uppercase shadow-inner">
-              <span className="text-base drop-shadow-sm">⚡</span>
-              <span className="text-[10px] tracking-widest text-slate-950 font-black -mt-0.5">
-                {spinning ? '…' : t('spin')}
-              </span>
-            </div>
+            <span className="flex h-full w-full flex-col items-center justify-center rounded-full bg-gradient-to-b from-[#a3e635] to-[#65a30d] font-display font-bold uppercase tracking-wider text-[#0b1204] shadow-inner">
+              <Icon name="bolt" size={16} strokeWidth={2.5} />
+              <span className="-mt-0.5 text-[10px] tracking-widest">{spinning ? '…' : t('spin')}</span>
+            </span>
           </button>
         </div>
 
-        {/* Error Notification */}
         {error && (
-          <div className="mt-4 rounded-2xl border border-red-500/40 bg-red-950/40 p-3 text-xs text-red-300">
+          <Notice tone="heat" className="mt-4 text-left" icon={<Icon name="flame" size={16} />}>
             {error}
-          </div>
+          </Notice>
         )}
 
-        {/* Winner Reward Celebration Box */}
         {result && (
-          <div className="mt-6 rounded-2xl border border-amber-400/50 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 p-4 text-center shadow-xl backdrop-blur-md animate-in zoom-in-95 duration-300">
-            <div className="inline-block rounded-full bg-amber-500 px-3 py-0.5 text-[10px] font-black uppercase tracking-widest text-slate-950">
-              🎉 WINNER REWARD
-            </div>
-            <div className="mt-1.5 font-mono text-2xl font-black text-cyan-300 sm:text-3xl">
-              +{result.earned} BONDKOIN PTS
-            </div>
-            <p className="mt-1 text-[11px] text-slate-300">
-              Points have been credited directly to your mining balance!
-            </p>
+          <div className="v-panel v-panel--charge mt-6 animate-pop p-4 text-center">
+            <Eyebrow tone="charge">{t('wheelWon', { points: result.earned })}</Eyebrow>
+            <div className="v-num mt-1.5 text-3xl font-extrabold text-charge">+{result.earned} VOLTS</div>
           </div>
         )}
 
-        {/* Action Button */}
-        <button
-          type="button"
+        <Button
+          variant={result ? 'charge' : 'ghost'}
           onClick={onClose}
           disabled={spinning}
-          className={`mt-6 w-full rounded-2xl py-3.5 text-xs font-black uppercase tracking-wider transition-all ${
-            result
-              ? 'btn-brand text-white shadow-xl'
-              : 'border border-white/10 bg-slate-900/80 text-slate-300 hover:border-blue-500/50 hover:text-white'
-          }`}
+          className="mt-6 w-full"
         >
           {result ? t('collect') : t('close')}
-        </button>
+        </Button>
       </div>
     </div>,
-    document.body
-  );
-}
-
-function IconSound() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden>
-      <path d="M4 9v6h4l5 4V5L8 9H4Zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4Z" />
-    </svg>
-  );
-}
-
-function IconMuted() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden>
-      <path d="M4 9v6h4l5 4V5L8 9H4Zm11 1.4L16.6 12 15 13.6 16.1 14.7 17.7 13.1l1.6 1.6 1.1-1.1L18.8 12l1.6-1.6-1.1-1.1-1.6 1.6-1.6-1.6L15 10.4Z" />
-    </svg>
+    document.body,
   );
 }

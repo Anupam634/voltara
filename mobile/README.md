@@ -1,6 +1,6 @@
-# BONDKOIN — mobile app
+# VOLTARA — mobile app
 
-The native app for the BONDKOIN mining platform. Expo (SDK 54) + expo-router,
+The native app for the VOLTARA mining platform. Expo (SDK 54) + expo-router,
 talking to the same API as `../frontend`, with the web app's message catalogue
 reused verbatim so both clients say the same thing in en / 中文 / 한국어.
 
@@ -43,8 +43,8 @@ Point the app at a different API by editing `expo.extra.apiUrl` in `app.json`:
 
 ```jsonc
 "extra": {
-  "apiUrl": "https://api.bondkoinlabs.com/api",   // or http://192.168.x.x:3001/api for local dev
-  "webUrl": "https://bondkoinlabs.com"
+  "apiUrl": "https://api.voltaragrid.com/api",   // or http://192.168.x.x:3001/api for local dev
+  "webUrl": "https://voltaragrid.com"
 }
 ```
 
@@ -124,16 +124,16 @@ listing.
 
 ### 4. Store listing checklist
 
-- **Package**: `com.bondkoinlabs.app` (set in `app.json`, cannot change later)
+- **Package**: `com.voltaragrid.app` (set in `app.json`, cannot change later)
 - **Icon**: 512×512 PNG — `assets/icon.png`
 - **Feature graphic**: 1024×500 — not in the repo, needs designing
 - **Screenshots**: at least 2 phone shots; capture Mine, Boost, Ranks, Account
 - **Short description** (80 chars):
-  `Mine BONDKOIN points daily on BNB Chain. Boosters, bounties, on-chain payouts.`
+  `Mine Volts daily on BNB Chain. Boosters, bounties, on-chain payouts.`
 - **Category**: Finance
 - **Content rating**: complete the questionnaire; the app has no ads and no
   user-generated content beyond support tickets
-- **Privacy policy URL**: `https://bondkoinlabs.com/en/privacy` (required —
+- **Privacy policy URL**: `https://voltaragrid.com/en/privacy` (required —
   the app collects email, country, device id and KYC documents)
 
 ### 5. Data safety form

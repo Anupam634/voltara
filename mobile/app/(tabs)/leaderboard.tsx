@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native';
+import { router } from 'expo-router';
 import { useTabContentInset } from '../../src/lib/layout';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +18,8 @@ import {
   Screen,
   Skeleton,
 } from '../../src/components/ui/Chrome';
+import { useSocial } from '../../src/components/social/strings';
+import { SeasonCard } from '../../src/components/social/SeasonCard';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useI18n, useT } from '../../src/i18n';
 import { useFeedback } from '../../src/lib/feedback';
@@ -58,6 +61,7 @@ export default function LeaderboardScreen() {
   const tabInset = useTabContentInset();
   const t = useT();
   const { locale } = useI18n();
+  const social = useSocial();
   const feedback = useFeedback();
 
   const [category, setCategory] = useState<LeaderboardCategory>('EARNINGS');
@@ -159,6 +163,25 @@ export default function LeaderboardScreen() {
         }}
       >
         <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
+          {/* ── Head-to-head: the two competitive screens hang off here ── */}
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <GridLinkCard
+              icon="flash"
+              title={social.duelsTitle}
+              hint={social.duelsLinkHint}
+              onPress={() => router.push('/duels')}
+            />
+            <GridLinkCard
+              icon="people"
+              title={social.squadTitle}
+              hint={social.squadLinkHint}
+              onPress={() => router.push('/squad')}
+            />
+          </View>
+
+          {/* ── The weekly season: the one board that actually ends ── */}
+          <SeasonCard />
+
           {/* ── Your rank — the web's amber-ringed glass card ── */}
           <Card glow accent={alpha(c.gold, c.dark ? 0.4 : 0.6)}>
             <View
@@ -547,6 +570,54 @@ export default function LeaderboardScreen() {
 }
 
 /** One of the three podium tiles: medal, name, flag, amber score. */
+/**
+ * A shortcut to one of the head-to-head screens.
+ *
+ * Rankings are where a miner goes to compare themselves to everyone; duels and
+ * squads are where they do something about it, so the two sit at the top of
+ * this board rather than competing for a tab slot of their own.
+ */
+function GridLinkCard({
+  icon,
+  title,
+  hint,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  hint: string;
+  onPress: () => void;
+}) {
+  const { c, spacing, radius } = useTheme();
+  return (
+    <Card padded={false} onPress={onPress} accessibilityLabel={`${title}. ${hint}`} style={{ flex: 1 }}>
+      <View style={{ padding: spacing.md, gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: radius.md,
+              backgroundColor: c.primaryMuted,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Ionicons name={icon} size={16} color={c.primary} />
+          </View>
+          <Ionicons name="chevron-forward" size={15} color={c.textTertiary} />
+        </View>
+        <Text variant="callout" weight="700" numberOfLines={1}>
+          {title}
+        </Text>
+        <Text variant="caption" tone="tertiary" numberOfLines={2} style={{ fontSize: 10 }}>
+          {hint}
+        </Text>
+      </View>
+    </Card>
+  );
+}
+
 function PodiumCard({
   entry,
   unit,
@@ -641,10 +712,16 @@ function EntryRow({
   const { locale } = useI18n();
   const t = useT();
   const value = formatPoints(entry.value, decimals, locale);
+  // A row opens the spectator view when the API carried a code for it.
+  const watch = entry.watchCode
+    ? () => router.push({ pathname: '/watch/[code]', params: { code: entry.watchCode as string } })
+    : undefined;
 
   return (
-    <View
+    <Pressable
       accessible
+      disabled={!watch}
+      onPress={watch}
       accessibilityLabel={`#${entry.rank} ${entry.displayName}, ${value} ${unit}`}
       style={{
         flexDirection: 'row',
@@ -693,6 +770,6 @@ function EntryRow({
           {unit}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }

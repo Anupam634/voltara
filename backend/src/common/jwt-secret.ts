@@ -26,8 +26,8 @@ export const MIN_JWT_SECRET_LENGTH = 32;
 
 /** Fallbacks that shipped in the repo or in .env.example at some point. */
 const KNOWN_LEAKED = new Set([
-  'bondkoin_super_secret_jwt_key_production_fallback_key_2026',
-  'bondkoin_super_secret_jwt_key_change_me_in_production',
+  'voltara_super_secret_jwt_key_production_fallback_key_2026',
+  'voltara_super_secret_jwt_key_change_me_in_production',
 ]);
 
 export interface JwtSecretCheck {

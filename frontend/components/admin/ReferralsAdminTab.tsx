@@ -52,7 +52,7 @@ export function ReferralsAdminTab() {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black text-white">
-              🌲 6-Tier Referral Network & Anti-Bypass Auditor
+              6-Tier Referral Network & Anti-Bypass Auditor
             </h2>
             <span className="rounded-full bg-indigo-500/15 border border-indigo-500/30 px-2 py-0.5 text-[10px] font-black uppercase text-indigo-300">
               Sybil Defense Active
@@ -68,13 +68,13 @@ export function ReferralsAdminTab() {
           disabled={busy}
           className="rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300 hover:border-amber-500 hover:text-amber-400 transition"
         >
-          {busy ? 'Scanning Network…' : '🔄 Scan Referral Graph'}
+          {busy ? 'Scanning Network…' : 'Scan Referral Graph'}
         </button>
       </div>
 
       {error && (
         <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-4 text-xs text-red-300">
-          <span className="font-bold">⚠ Error:</span> {error}
+          <span className="font-bold">Error:</span> {error}
         </div>
       )}
 
@@ -128,7 +128,7 @@ export function ReferralsAdminTab() {
       {/* ───────────────── Multiplier Levels Matrix ───────────────── */}
       <div className="card border-slate-800 bg-slate-900/80 p-6 shadow-2xl backdrop-blur-md">
         <h3 className="text-sm font-black uppercase tracking-wider text-white border-b border-slate-800 pb-3">
-          📊 6-Tier Level Qualification Matrix
+          6-Tier Level Qualification Matrix
         </h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {tiers.map((t) => (
@@ -151,7 +151,7 @@ export function ReferralsAdminTab() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] bg-slate-950/80 p-4">
           <div>
             <h3 className="text-sm font-black uppercase tracking-wider text-white">
-              🔍 Referral Fraud & Device Handshake Audit Log
+              Referral Fraud & Device Handshake Audit Log
             </h3>
             <p className="text-xs text-slate-400">
               Automated cross-check comparing inviter vs invitee device fingerprints and IP subnets
@@ -165,7 +165,7 @@ export function ReferralsAdminTab() {
                 onClick={() => setFilter(f)}
                 className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
                   filter === f
-                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    ? 'bg-violet-600 text-white shadow-sm'
                     : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
                 }`}
               >

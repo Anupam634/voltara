@@ -18,7 +18,7 @@ export function redirectSystemPath({
 }): string {
   try {
     // A base is required for a bare path; any origin will do for parsing.
-    const url = new URL(path, 'https://bondkoinlabs.com');
+    const url = new URL(path, 'https://voltaragrid.com');
     if (!LOGIN_PATH.test(url.pathname)) return path;
 
     const ref = url.searchParams.get('ref')?.trim();

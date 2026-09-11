@@ -78,7 +78,7 @@ export function SupportReplyModal({
           <button
             type="submit"
             disabled={busy}
-            className="btn-gold rounded-xl px-5 py-2 text-xs font-black uppercase text-slate-950"
+            className="btn-gold rounded-xl px-5 py-2 text-xs font-black uppercase"
           >
             {busy ? 'Sending…' : 'Send & Resolve'}
           </button>

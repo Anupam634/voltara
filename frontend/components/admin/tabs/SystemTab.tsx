@@ -82,7 +82,7 @@ export function SystemTab() {
         </div>
 
         <div className="md:col-span-2 flex justify-end">
-          <button type="submit" className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase text-slate-950">
+          <button type="submit" className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase">
             Save System Configuration
           </button>
         </div>

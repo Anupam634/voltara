@@ -15,7 +15,7 @@ export function SecurityAdminTab({ stats }: { stats: AdminStats | null }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
         <div>
-          <h2 className="text-xl font-black text-white">🛡️ Security, Anti-Abuse & Sybil Defense</h2>
+          <h2 className="text-xl font-black text-white">Security, Anti-Abuse & Sybil Defense</h2>
           <p className="text-xs text-slate-400">
             Hardware fingerprint limits, IP velocity controls, and automated anomaly blocking
           </p>

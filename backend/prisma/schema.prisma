@@ -1,4 +1,4 @@
-// Matsumoto Mining Platform — data model
+// VOLTARA — data model
 // See SPEC.md for the rules these tables encode.
 
 generator client {
@@ -33,6 +33,17 @@ model User {
   // last successful "Mine" tap — gates the 24h cooldown & accrual window
   lastMineAt DateTime?
 
+  // ── Claim streak ──
+  // Consecutive daily claims. A tap inside the grace window after the
+  // cooldown lifts extends the streak; a later one resets it to 1.
+  // The streak multiplies the mining rate (see mining.engine.ts).
+  streakDays     Int @default(0)
+  bestStreakDays Int @default(0)
+
+  // When the free 72h starter core was granted. Set once, at signup, so the
+  // grant can never repeat and so the expiry nudge knows who to warn.
+  loanerGrantedAt DateTime?
+
   // When the miner who invited this account last emailed it a "come back
   // and mine" nudge. Bounds how often one referral can be reminded.
   lastReferralNudgeAt DateTime?
@@ -41,17 +52,64 @@ model User {
   // milli-points/hour. Signed: negative throttles a suspected abuser.
   rateAdjustMilli Int @default(0)
 
+  // ── Rig chassis (SPEC §2a) ──
+  // How many parts this miner can have installed at once, and any extra
+  // cooling / power the chassis provides for free. The bonuses exist for two
+  // reasons: an operator can comp a miner out of a throttle from the admin
+  // panel, and the migration that introduced rigs used them to grandfather
+  // boosters bought before parts had a thermal cost.
+  rigSlots        Int @default(6)
+  rigCoolingBonus Int @default(0)
+  rigPowerBonus   Int @default(0)
+
+  // ── Overclock (risk mode) ──
+  // While set and in the future, cores run +40% hash at +80% heat. Every
+  // hour the overclock is on, one installed part may burn (see rig.engine).
+  overclockUntil      DateTime?
+  overclockNextRollAt DateTime?
+
+  // ── Salvage ──
+  // Scrap from salvaged parts; three scrap craft one random part.
+  scrap Int @default(0)
+
+  // ── Cosmetics ──
+  rigSkin String     @default("stock")
+  skins   UserSkin[]
+
+  // ── Squad (pooled cooling / power) ──
+  squadId       String?
+  squad         Squad?    @relation("SquadMembers", fields: [squadId], references: [id])
+  squadJoinedAt DateTime?
+  ownedSquads   Squad[]   @relation("SquadOwner")
+
+  // ── Apprenticeship ──
+  // A veteran adopting a newcomer. One mentor per apprentice; a mentor may
+  // hold several. See src/apprentice/apprentice.rules.ts.
+  mentorships    Apprenticeship[] @relation("ApprenticeMentor")
+  apprenticeship Apprenticeship?  @relation("ApprenticeLearner")
+
+  duelsAsChallenger   Duel[]                @relation("DuelChallenger")
+  duelsAsOpponent     Duel[]                @relation("DuelOpponent")
+  duelsWon            Duel[]                @relation("DuelWinner")
+  listings            PartListing[]         @relation("ListingSeller")
+  purchasesFromMarket PartListing[]         @relation("ListingBuyer")
+  challengeEntries    ChallengeSubmission[]
+  dailyEntries        DailySubmission[]
+  seasonAwards        SeasonAward[]
+
   kyc              KycRecord?
   boosters         Booster[]
   taskClaims       TaskClaim[]
   withdrawals      Withdrawal[]
   boosterPurchases BoosterPurchase[]
+  installedParts   RigSlot[]
   ledger           LedgerEntry[]
   devices          DeviceFingerprint[]
   supportTickets   SupportTicket[]
 
   @@index([referredById])
   @@index([countryCode])
+  @@index([squadId])
 }
 
 // ─────────────────────────── KYC ─────────────────────────────
@@ -107,18 +165,48 @@ model KycDocument {
   @@index([recordId])
 }
 
-// ─────────────────────── Booster plans ───────────────────────
-// Catalogue of purchasable plans (seeded from SPEC.md table).
+// ─────────────────────── Rig parts ───────────────────────────
+// What a part does once it is installed in a slot (SPEC §2a).
+enum RigPartKind {
+  CORE // makes hash, makes heat, draws power
+  COOLER // removes heat, draws power
+  PSU // supplies power, makes a little heat
+  MODULE // multiplies core hash, draws power
+}
+
+// Catalogue of purchasable rig parts (seeded from SPEC.md §2a).
+//
+// Still called BoosterPlan in the database: the on-chain purchase pipeline
+// — quote, pin, verify, activate — is unchanged by the rig mechanic, and
+// renaming the table would have rewritten every purchase row's foreign key
+// for no behavioural gain. The API and UI call these "parts"; a `Booster`
+// row is one OWNED part, which only earns once it sits in a RigSlot.
 model BoosterPlan {
-  id             String            @id @default(cuid())
+  id             String      @id @default(cuid())
+  // Stable catalogue key ("VC1", "CX2"). Seeding matches on this, so an
+  // operator can reprice a part without the seed inserting a duplicate.
+  code           String?     @unique
+  name           String?
+  kind           RigPartKind @default(CORE)
   priceUsd       Int // 1, 5, 10, 50
-  // rate CONTRIBUTION added on top of base, in milli-points/hour.
-  // $1 => resulting 2.9 from 0.9 base => +2.0/hr => 2000 milli.
+  // Hash CONTRIBUTION added on top of base, in milli-points/hour.
+  // VC-1 => resulting 2.9 from 0.9 base => +2.0/hr => 2000 milli.
   rateBonusMilli Int
-  durationDays   Int               @default(30)
-  active         Boolean           @default(true)
-  boosters       Booster[]
-  purchases      BoosterPurchase[]
+  // ── Running costs and capacities. Nullable-free with 0 defaults so the
+  //    rows that existed before rigs read as "free to run" until seeded.
+  heat           Int         @default(0)
+  cooling        Int         @default(0)
+  watts          Int         @default(0)
+  wattsSupplied  Int         @default(0)
+  /// Multiplier on total core hash, basis points. 1500 = +15%.
+  hashBoostBp    Int         @default(0)
+  /// 1–5, drives the rarity colour in the UI.
+  tier           Int         @default(1)
+
+  durationDays Int               @default(30)
+  active       Boolean           @default(true)
+  boosters     Booster[]
+  purchases    BoosterPurchase[]
 }
 
 enum BoosterPurchaseStatus {
@@ -176,21 +264,59 @@ model BoosterPurchase {
   @@index([status, confirmedAt])
 }
 
+// Where an owned part came from. Everything but PURCHASE is granted by the
+// platform (loaner, referral tier, crafting, a trade, a challenge prize).
+enum BoosterSource {
+  PURCHASE
+  LOANER
+  REFERRAL
+  CRAFT
+  TRADE
+  CHALLENGE
+}
+
 model Booster {
-  id         String           @id @default(cuid())
-  userId     String
-  user       User             @relation(fields: [userId], references: [id])
-  planId     String
-  plan       BoosterPlan      @relation(fields: [planId], references: [id])
-  startedAt  DateTime         @default(now())
-  expiresAt  DateTime
-  txHash     String? // on-chain payment reference
-  createdAt  DateTime         @default(now())
-  purchaseId String?          @unique
-  purchase   BoosterPurchase? @relation(fields: [purchaseId], references: [id])
+  id            String           @id @default(cuid())
+  userId        String
+  user          User             @relation(fields: [userId], references: [id])
+  planId        String
+  plan          BoosterPlan      @relation(fields: [planId], references: [id])
+  startedAt     DateTime         @default(now())
+  expiresAt     DateTime
+  txHash        String? // on-chain payment reference
+  createdAt     DateTime         @default(now())
+  purchaseId    String?          @unique
+  purchase      BoosterPurchase? @relation(fields: [purchaseId], references: [id])
+  slot          RigSlot?
+  source        BoosterSource    @default(PURCHASE)
+  // Burned by an overclock roll: contributes nothing until this passes.
+  disabledUntil DateTime?
+  // Turned into scrap; kept for the ledger, never earns again.
+  salvagedAt    DateTime?
+  listing       PartListing?
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// One part socketed into one slot of one miner's rig.
+//
+// An owned part that is NOT in a slot contributes nothing — it sits in the
+// inventory drawer. That is the whole mechanic: capacity is finite, so a
+// miner chooses which parts run and keeps the build balanced.
+model RigSlot {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  /// 0-based position in the rig grid.
+  index       Int
+  /// The owned part occupying it. Unique: a part can only be in one slot.
+  boosterId   String   @unique
+  booster     Booster  @relation(fields: [boosterId], references: [id], onDelete: Cascade)
+  installedAt DateTime @default(now())
+
+  @@unique([userId, index])
+  @@index([userId])
 }
 
 // ─────────────────────────── Tasks ───────────────────────────
@@ -245,7 +371,7 @@ model Withdrawal {
   userId       String
   user         User             @relation(fields: [userId], references: [id])
   pointsAmount BigInt // milli-points debited
-  tokenAmount  String // $Matsumoto (points/3), decimal string
+  tokenAmount  String // $VLTR (points/3), decimal string
   toAddress    String
   status       WithdrawalStatus @default(PENDING)
   txHash       String?
@@ -266,6 +392,17 @@ enum LedgerReason {
   WITHDRAWAL
   AIRDROP
   ADMIN_ADJUST
+  WELCOME
+  STREAK_BONUS
+  DUEL_WIN
+  DUEL_LOSS
+  PART_SALE
+  PART_BUY
+  MARKET_FEE
+  SKIN_PURCHASE
+  CHALLENGE_REWARD
+  MENTOR_CUT
+  SEASON_REWARD
 }
 
 model LedgerEntry {
@@ -338,4 +475,261 @@ model SupportMessage {
   createdAt DateTime      @default(now())
 
   @@index([ticketId, createdAt])
+}
+
+// ─────────────────────── Grid events ─────────────────────────
+// A world event that changes every rig's physics for a few hours.
+// Multipliers are basis points: 10000 = x1. HEATWAVE raises heat, CHEAP_POWER
+// halves draw, SOLAR_SURGE raises hash, and so on. At most one is active at
+// a time; the scheduler in grid-events.service.ts rolls the next one.
+model GridEvent {
+  id         String   @id @default(cuid())
+  code       String // HEATWAVE | CHEAP_POWER | SOLAR_SURGE | COLD_SNAP | GRID_STRAIN
+  title      String
+  body       String
+  heatMultBp Int      @default(10000)
+  drawMultBp Int      @default(10000)
+  hashMultBp Int      @default(10000)
+  startsAt   DateTime
+  endsAt     DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([startsAt, endsAt])
+}
+
+// ─────────────────────────── Squads ──────────────────────────
+// Up to five miners pooling spare cooling and power. Each member's unused
+// headroom feeds a pool that members over budget draw from, proportionally.
+model Squad {
+  id         String   @id @default(cuid())
+  name       String
+  code       String   @unique @default(cuid())
+  ownerId    String
+  owner      User     @relation("SquadOwner", fields: [ownerId], references: [id])
+  maxMembers Int      @default(5)
+  createdAt  DateTime @default(now())
+  members    User[]   @relation("SquadMembers")
+
+  @@index([ownerId])
+}
+
+// ─────────────────────────── Duels ───────────────────────────
+enum DuelStatus {
+  OPEN // waiting for an opponent to accept the share link
+  ACTIVE // 24h window running
+  SETTLED
+  CANCELLED
+  EXPIRED // nobody accepted within 48h
+}
+
+// A 24h output race between two rigs. Score = MINING credits inside the
+// window. The loser forfeits stakeBp of their in-window score to the winner.
+model Duel {
+  id                   String     @id @default(cuid())
+  code                 String     @unique @default(cuid())
+  challengerId         String
+  challenger           User       @relation("DuelChallenger", fields: [challengerId], references: [id])
+  opponentId           String?
+  opponent             User?      @relation("DuelOpponent", fields: [opponentId], references: [id])
+  status               DuelStatus @default(OPEN)
+  stakeBp              Int        @default(1000)
+  startsAt             DateTime?
+  endsAt               DateTime?
+  challengerScoreMilli BigInt?
+  opponentScoreMilli   BigInt?
+  winnerId             String?
+  winner               User?      @relation("DuelWinner", fields: [winnerId], references: [id])
+  transferMilli        BigInt?
+  settledAt            DateTime?
+  createdAt            DateTime   @default(now())
+
+  @@index([challengerId])
+  @@index([opponentId])
+  @@index([status, endsAt])
+}
+
+// ─────────────────────── Part marketplace ────────────────────
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  CANCELLED
+}
+
+// A miner selling an owned, uninstalled part to another miner for VOLTS.
+// The platform keeps 5% (MARKET_FEE_BP in part-market.service.ts).
+model PartListing {
+  id         String        @id @default(cuid())
+  boosterId  String        @unique
+  booster    Booster       @relation(fields: [boosterId], references: [id], onDelete: Cascade)
+  sellerId   String
+  seller     User          @relation("ListingSeller", fields: [sellerId], references: [id])
+  buyerId    String?
+  buyer      User?         @relation("ListingBuyer", fields: [buyerId], references: [id])
+  priceMilli BigInt
+  status     ListingStatus @default(ACTIVE)
+  createdAt  DateTime      @default(now())
+  soldAt     DateTime?
+
+  @@index([status, createdAt])
+  @@index([sellerId])
+}
+
+// ─────────────────────────── Skins ───────────────────────────
+// A cosmetic chassis skin a miner owns. The catalogue is a constant in
+// skins.service.ts; User.rigSkin is the one currently equipped.
+model UserSkin {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  skin      String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, skin])
+}
+
+// ────────────────────── Weekly blueprint challenge ───────────
+// "Cheapest rig that makes N hash/h at 100% stability." Submissions are
+// re-computed server-side with rig.engine so the cost/stability cannot be
+// forged; the top three by cost win a part when the week closes.
+model Challenge {
+  id               String                @id @default(cuid())
+  weekKey          String                @unique // "2026-W37"
+  title            String
+  body             String
+  targetHashMilli  Int
+  startsAt         DateTime
+  endsAt           DateTime
+  rewardsGrantedAt DateTime?
+  createdAt        DateTime              @default(now())
+  submissions      ChallengeSubmission[]
+
+  @@index([startsAt, endsAt])
+}
+
+model ChallengeSubmission {
+  id            String    @id @default(cuid())
+  challengeId   String
+  challenge     Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  partCodes     Json // string[] of BoosterPlan.code
+  costUsd       Int
+  hashMilli     Int
+  gridStability Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([challengeId, userId])
+  @@index([challengeId, costUsd])
+}
+
+// ───────────────────────── Apprenticeship ────────────────────
+enum ApprenticeshipStatus {
+  PENDING // offered, waiting on the apprentice
+  ACTIVE
+  ENDED // declined, or ended by either side. Permanent for that pair.
+}
+
+// A veteran mentoring a newcomer.
+//
+// Separate from the referral graph on purpose: a mentor need never have
+// invited their apprentice, and the relationship is ongoing rather than a
+// one-time credit. The mentor's cut is NEWLY MINTED — see
+// `apprentice.rules.ts` — so being mentored never costs the newcomer anything.
+model Apprenticeship {
+  id           String               @id @default(cuid())
+  mentorId     String
+  mentor       User                 @relation("ApprenticeMentor", fields: [mentorId], references: [id])
+  /// Unique: a miner may be mentored by exactly one veteran, ever at a time.
+  apprenticeId String               @unique
+  apprentice   User                 @relation("ApprenticeLearner", fields: [apprenticeId], references: [id])
+  status       ApprenticeshipStatus @default(PENDING)
+  /// The mentor's share of what the apprentice mines, in basis points.
+  mentorCutBp  Int                  @default(500)
+  createdAt    DateTime             @default(now())
+  acceptedAt   DateTime?
+  endedAt      DateTime?
+
+  @@index([mentorId, status])
+  @@index([status])
+}
+
+// ─────────────────────── Daily rig puzzle ────────────────────
+// One puzzle a day, identical for every miner: a budget and a hash target.
+// Purely a leaderboard-and-bragging feature — it pays no points and grants
+// no parts, so it sits entirely outside the withdrawal economy. The row is
+// generated deterministically from the UTC day (see daily.rules.ts), so two
+// instances writing the same day agree without coordinating.
+model DailyPuzzle {
+  id              String            @id @default(cuid())
+  dayKey          String            @unique // "2026-09-12"
+  budgetUsd       Int
+  targetHashMilli Int
+  /// Deterministic hash of the day key, for a future variant generator.
+  seed            Int
+  startsAt        DateTime
+  endsAt          DateTime
+  createdAt       DateTime          @default(now())
+  submissions     DailySubmission[]
+
+  @@index([startsAt, endsAt])
+}
+
+model DailySubmission {
+  id            String      @id @default(cuid())
+  puzzleId      String
+  puzzle        DailyPuzzle @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User        @relation(fields: [userId], references: [id])
+  partCodes     Json // string[] of BoosterPlan.code
+  costUsd       Int
+  hashMilli     Int
+  gridStability Int
+  /// How many builds this miner submitted today, successful or not.
+  attempts      Int         @default(1)
+  /// When they first cracked it. Kept across later, cheaper submissions.
+  solvedAt      DateTime    @default(now())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([puzzleId, userId])
+  @@index([puzzleId, costUsd])
+}
+
+/// One ISO week of the leaderboard, with a prize pool.
+///
+/// The leaderboard's own WEEK filter is a rolling seven days — good for
+/// browsing, useless for a prize, because a rolling window never ends. A
+/// season is the fixed Monday-to-Monday window that does end, and `closedAt`
+/// is the record that it was paid so a retry cannot pay it twice.
+model Season {
+  id        String        @id @default(cuid())
+  weekKey   String        @unique /// "2026-W37"
+  startsAt  DateTime
+  endsAt    DateTime
+  /// Set when the prizes were credited. Null while the season is running.
+  closedAt  DateTime?
+  createdAt DateTime      @default(now())
+  awards    SeasonAward[]
+
+  @@index([startsAt, endsAt])
+}
+
+/// A finishing place in a closed season, and what it paid.
+model SeasonAward {
+  id          String   @id @default(cuid())
+  seasonId    String
+  season      Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  rank        Int
+  /// VOLTS earned during the season, in milli-points — the ranked figure.
+  earnedMilli BigInt
+  /// VOLTS credited for the place, in milli-points.
+  prizeMilli  BigInt
+  createdAt   DateTime @default(now())
+
+  @@unique([seasonId, userId])
+  @@index([userId])
+  @@index([seasonId, rank])
 }

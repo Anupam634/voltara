@@ -28,6 +28,7 @@ import {
 } from '../../src/components/ui/Chrome';
 import { IconButton } from '../../src/components/ui/Button';
 import { PulseDot } from '../../src/components/ui/Pulse';
+import { useMarket } from '../../src/components/market/strings';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useI18n, useT } from '../../src/i18n';
 import { useSession } from '../../src/store/session';
@@ -40,6 +41,8 @@ import {
   submitBoosterPayment,
   type BoosterOverview,
   type BoosterPlanDto,
+  type PartFit,
+  type RigPartKind,
   type BoosterPurchaseDto,
   type PurchaseStatus,
 } from '../../src/api/endpoints';
@@ -70,6 +73,7 @@ export default function BoostersScreen() {
   const { c, spacing, radius, alpha } = useTheme();
   const tabInset = useTabContentInset();
   const t = useT();
+  const market = useMarket();
   const { locale } = useI18n();
   const { mining, refresh } = useSession();
   const router = useRouter();
@@ -134,6 +138,43 @@ export default function BoostersScreen() {
 
         {failed ? null : (
           <>
+            {/* The other place parts come from: miners selling to each other. */}
+            <Animated.View entering={FadeInDown.duration(220)}>
+              <Card onPress={() => router.push('/market')}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: spacing.md,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: radius.md,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: alpha(c.gold, 0.14),
+                      borderWidth: 1,
+                      borderColor: alpha(c.gold, 0.3),
+                    }}
+                  >
+                    <Ionicons name="swap-horizontal" size={18} color={c.gold} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="headline" weight="700">
+                      {market.marketLinkTitle}
+                    </Text>
+                    <Text variant="caption" tone="tertiary">
+                      {market.marketLinkBody}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={c.textTertiary} />
+                </View>
+              </Card>
+            </Animated.View>
+
             {/* Current rate — the glowing hero panel */}
             <Animated.View entering={FadeInDown.duration(260)}>
               <Card glow>
@@ -161,7 +202,7 @@ export default function BoostersScreen() {
                         {formatPoints(currentRate, 2, locale)}
                       </Text>
                       <Text variant="callout" tone="tertiary" weight="700">
-                        BONDKOIN/h
+                        VOLTS/h
                       </Text>
                     </View>
                     <View
@@ -272,13 +313,23 @@ export default function BoostersScreen() {
                           borderColor: alpha(c.success, 0.2),
                         }}
                       >
-                        <Ionicons name="flash" size={16} color={c.success} />
+                        <Ionicons
+                          name={PART_ICON[booster.kind]}
+                          size={16}
+                          color={c.success}
+                        />
                         <View style={{ flex: 1 }}>
-                          <Text variant="callout" tone="success" weight="700" mono>
-                            {formatUsd(booster.priceUsd, locale)} · +
-                            {formatPoints(booster.rateBonusPerHour, 2, locale)}/h
+                          <Text variant="callout" tone="success" weight="700">
+                            {booster.name}
                           </Text>
                           <Text variant="caption" tone="tertiary">
+                            {/* Owning a part is not running it — say which. */}
+                            {booster.installedSlot === null
+                              ? t('boosters.inInventory')
+                              : t('boosters.inSlot', {
+                                  slot: String(booster.installedSlot + 1),
+                                })}
+                            {' · '}
                             {t('boosters.expires')} {formatDate(booster.expiresAt, locale)}
                           </Text>
                         </View>
@@ -431,7 +482,7 @@ function PlanCard({
     <Animated.View style={pressStyle}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${formatUsd(plan.priceUsd, locale)} · +${plan.rateBonusPerHour} BONDKOIN/h`}
+        accessibilityLabel={`${formatUsd(plan.priceUsd, locale)} · +${plan.rateBonusPerHour} VOLTS/h`}
         accessibilityState={{ disabled: !!disabled }}
         disabled={disabled}
         onPressIn={() => {
@@ -485,30 +536,27 @@ function PlanCard({
             }}
           >
             <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-                <Text variant="title1" mono tone="gold">
+              <Text variant="headline" weight="900" numberOfLines={2}>
+                {plan.name}
+              </Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'baseline',
+                  gap: 6,
+                  marginTop: 2,
+                }}
+              >
+                <Text variant="title2" mono tone="gold">
                   {formatUsd(plan.priceUsd, locale)}
                 </Text>
                 <Text variant="overline" tone="tertiary" uppercase>
-                  / {plan.durationDays}d
+                  / {plan.durationDays}d · {plan.code} T{plan.tier}
                 </Text>
               </View>
-              <View
-                style={{
-                  alignSelf: 'flex-start',
-                  marginTop: spacing.sm,
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: radius.sm,
-                  backgroundColor: alpha(c.success, 0.1),
-                  borderWidth: 1,
-                  borderColor: alpha(c.success, 0.3),
-                }}
-              >
-                <Text variant="caption" tone="success" weight="800">
-                  +{formatPoints(plan.rateBonusPerHour, 1, locale)} BONDKOIN/h
-                </Text>
-              </View>
+              {/* What it gives, then what it costs to run. Both, always — a
+                  part bought without the second number overheats a rig. */}
+              <PartPhysics plan={plan} />
             </View>
 
             <View
@@ -524,7 +572,7 @@ function PlanCard({
                 justifyContent: 'center',
               }}
             >
-              <Ionicons name="flash" size={18} color={c.gold} />
+              <Ionicons name={PART_ICON[plan.kind]} size={18} color={c.gold} />
             </View>
           </View>
 
@@ -536,16 +584,15 @@ function PlanCard({
               borderTopColor: c.border,
             }}
           >
-            <PlanRow label={t('boost.afterPurchase')}>
-              <Text variant="callout" mono weight="800" tone="info">
-                {formatPoints(projected, 2, locale)} /h
-              </Text>
-            </PlanRow>
-            <PlanRow label={t('boosters.resultingRate')}>
-              <Text variant="callout" mono weight="800" tone="gold">
-                {formatPoints(plan.resultingRatePerHour, 2, locale)} /h
-              </Text>
-            </PlanRow>
+            {plan.fit ? (
+              <FitRows fit={plan.fit} />
+            ) : plan.kind === 'CORE' ? (
+              <PlanRow label={t('boost.afterPurchase')}>
+                <Text variant="callout" mono weight="800" tone="info">
+                  {formatPoints(projected, 2, locale)} /h
+                </Text>
+              </PlanRow>
+            ) : null}
             <PlanRow label={t('dashboard.duration')}>
               <Text variant="footnote" mono weight="700" tone="secondary">
                 {plan.durationDays} {t('boosters.days')} · {t('boosters.stackable')}
@@ -564,6 +611,183 @@ function PlanCard({
         </Card>
       </Pressable>
     </Animated.View>
+  );
+}
+
+/**
+ * "What happens if I buy this?", answered against the miner's own rig —
+ * the web's `FitBlock`.
+ *
+ * Replaces a local projection that added the part's bonus to the current
+ * rate. That arithmetic ignores GRID STABILITY, so on a rig with no spare
+ * cooling it promised a gain the miner would never see; a big core can
+ * genuinely earn *less* than the cheaper one beside it. These numbers come
+ * from the server, which ran the real engine over the real rig.
+ */
+function FitRows({ fit }: { fit: PartFit }) {
+  const { c, spacing, radius, alpha } = useTheme();
+  const t = useT();
+  const { locale } = useI18n();
+
+  if (!fit.fits) {
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Ionicons name="lock-closed" size={13} color={c.warning} />
+        <Text variant="footnote" tone="warning" style={{ flex: 1 }}>
+          {t('boosters.fitNoSlot')}
+        </Text>
+      </View>
+    );
+  }
+
+  const gained = fit.ratePerHourAfter >= fit.ratePerHourBefore;
+
+  return (
+    <View>
+      <Text variant="overline" tone="tertiary" uppercase>
+        {t('boosters.fitTitle')}
+      </Text>
+
+      <PlanRow label={t('boosters.fitRate')}>
+        <Text variant="callout" mono weight="800" tone={gained ? 'gold' : 'danger'}>
+          {formatPoints(fit.ratePerHourBefore, 2, locale)} →{' '}
+          {formatPoints(fit.ratePerHourAfter, 2, locale)} /h
+        </Text>
+      </PlanRow>
+
+      <PlanRow label={t('boosters.fitStability')}>
+        <Text variant="callout" mono weight="800" tone={fit.clean ? 'success' : 'warning'}>
+          {fit.stabilityBefore}% → {fit.stabilityAfter}%
+        </Text>
+      </PlanRow>
+
+      {fit.clean ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+          <Ionicons name="checkmark-circle" size={13} color={c.success} />
+          <Text variant="footnote" tone="success" weight="700">
+            {t('boosters.fitClean')}
+          </Text>
+        </View>
+      ) : (
+        <View style={{ marginTop: 6, gap: 4 }}>
+          {/* Name the shortfall. "61% stability" is a symptom; "38 TU short
+              of cooling" is something a miner can act on. */}
+          <Text variant="caption" tone="warning">
+            {fit.heatShort > 0 ? `${fit.heatShort} TU ${t('boosters.fitHeatShort')}` : null}
+            {fit.heatShort > 0 && fit.wattsShort > 0 ? ' · ' : null}
+            {fit.wattsShort > 0 ? `${fit.wattsShort} W ${t('boosters.fitWattsShort')}` : null}
+          </Text>
+
+          {fit.fix ? (
+            <View
+              style={{
+                padding: spacing.sm,
+                borderRadius: radius.md,
+                borderWidth: 1,
+                borderColor: alpha(c.gold, 0.25),
+                backgroundColor: alpha(c.gold, 0.08),
+              }}
+            >
+              <Text variant="footnote" weight="800">
+                {t('boosters.fitAdd')} {fit.fix.steps.map((s) => s.name).join(' + ')}
+              </Text>
+              <Text variant="caption" mono tone="tertiary" style={{ marginTop: 2 }}>
+                → {fit.fix.stability}% · {formatPoints(fit.fix.ratePerHour, 2, locale)} /h
+              </Text>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: 6,
+                  paddingTop: 6,
+                  borderTopWidth: 1,
+                  borderTopColor: c.border,
+                }}
+              >
+                <Text variant="overline" tone="tertiary" uppercase>
+                  {t('boosters.fitTotal')}
+                </Text>
+                <Text variant="callout" mono weight="800" tone="gold">
+                  ${fit.fix.totalUsd}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Text variant="caption" tone="tertiary">
+              {t('boosters.fitNoFix')}
+            </Text>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** Kind → icon, shared with the rig screen so a part looks the same. */
+const PART_ICON: Record<RigPartKind, keyof typeof Ionicons.glyphMap> = {
+  CORE: 'hardware-chip',
+  COOLER: 'snow',
+  PSU: 'flash',
+  MODULE: 'sparkles',
+};
+
+/**
+ * A part's figures: what it contributes, and what it costs to run.
+ *
+ * Both halves are always shown. The whole mechanic turns on a part's running
+ * cost, and a shop that quoted only the upside would be selling miners a
+ * throttle they cannot see coming.
+ */
+function PartPhysics({ plan }: { plan: BoosterPlanDto }) {
+  const { c, spacing, radius, alpha } = useTheme();
+
+  const items: { text: string; good: boolean }[] = [];
+  if (plan.rateBonusPerHour > 0) {
+    items.push({ text: `+${plan.rateBonusPerHour} VOLTS/h`, good: true });
+  }
+  if (plan.hashBoostPercent > 0) {
+    items.push({ text: `+${plan.hashBoostPercent}% hash`, good: true });
+  }
+  if (plan.cooling > 0) items.push({ text: `−${plan.cooling} TU`, good: true });
+  if (plan.wattsSupplied > 0) {
+    items.push({ text: `+${plan.wattsSupplied} W`, good: true });
+  }
+  if (plan.heat > 0) items.push({ text: `+${plan.heat} TU`, good: false });
+  if (plan.watts > 0) items.push({ text: `−${plan.watts} W`, good: false });
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+        marginTop: spacing.sm,
+      }}
+    >
+      {items.map((it) => (
+        <View
+          key={it.text}
+          style={{
+            paddingHorizontal: 7,
+            paddingVertical: 2,
+            borderRadius: radius.sm,
+            borderWidth: 1,
+            borderColor: alpha(it.good ? c.success : c.warning, 0.3),
+            backgroundColor: alpha(it.good ? c.success : c.warning, 0.1),
+          }}
+        >
+          <Text
+            variant="caption"
+            mono
+            weight="800"
+            style={{ fontSize: 10, color: it.good ? c.success : c.warning }}
+          >
+            {it.text}
+          </Text>
+        </View>
+      ))}
+    </View>
   );
 }
 

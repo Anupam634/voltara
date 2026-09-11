@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getToken } from '../lib/api';
+import { Icon } from './ui';
 
 /**
  * Whether a miner session exists in this browser.
@@ -38,29 +39,25 @@ export function NavAuth({
 
   if (authed) {
     return (
-      <Link
-        href={`/${locale}/dashboard`}
-        className="btn-gold inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md transition-all hover:scale-105"
-      >
-        <span className="sm:hidden">App →</span>
-        <span className="hidden sm:inline">{dashboardLabel} →</span>
+      <Link href={`/${locale}/dashboard`} className="v-btn v-btn--charge v-btn--sm">
+        <span className="sm:hidden">App</span>
+        <span className="hidden sm:inline">{dashboardLabel}</span>
+        <Icon name="arrow-up-right" size={13} />
       </Link>
     );
   }
   return (
-    <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
       <Link
         href={`/${locale}/login`}
-        className="hidden sm:inline-flex items-center whitespace-nowrap text-xs font-bold uppercase tracking-wider text-slate-300 hover:text-blue-400 transition"
+        className="hidden whitespace-nowrap px-2 text-xs font-bold text-ink-2 transition hover:text-ink sm:inline-flex"
       >
         {signInLabel}
       </Link>
-      <Link
-        href={`/${locale}/login?mode=register`}
-        className="btn-gold inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md transition-all hover:scale-105"
-      >
-        <span className="sm:hidden">Start →</span>
-        <span className="hidden sm:inline">{getStartedLabel} →</span>
+      <Link href={`/${locale}/login?mode=register`} className="v-btn v-btn--charge v-btn--sm">
+        <span className="sm:hidden">Start</span>
+        <span className="hidden sm:inline">{getStartedLabel}</span>
+        <Icon name="bolt" size={13} />
       </Link>
     </div>
   );
@@ -86,12 +83,9 @@ export function AuthAwareCta({
 }) {
   const authed = useIsAuthed();
   return (
-    <Link
-      href={authed ? `/${locale}/dashboard` : href}
-      className={`inline-flex items-center justify-center gap-2 text-center transition-all ${className ?? ''}`}
-    >
+    <Link href={authed ? `/${locale}/dashboard` : href} className={className ?? 'v-btn v-btn--charge v-btn--lg'}>
       <span>{authed ? dashboardLabel : label}</span>
-      <span className="text-base leading-none font-bold">→</span>
+      <Icon name="arrow-up-right" size={15} />
     </Link>
   );
 }

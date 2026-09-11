@@ -8,3 +8,6 @@ next-env.d.ts
 *.log
 .DS_Store
 /backend/prisma/*.db
+
+# Compiled output for the rig-code codec tests (see frontend/lib/rig-code.test.mjs)
+.rigcode-test/

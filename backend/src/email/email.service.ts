@@ -71,10 +71,22 @@ export class EmailService {
   initTransporter() {
     const host = process.env.SMTP_HOST || process.env.MAIL_HOST || 'mail.spacemail.com';
     const portEnv = process.env.SMTP_PORT || process.env.MAIL_PORT;
-    const user = process.env.SMTP_USER || process.env.SMTP_EMAIL || process.env.MAIL_USER || 'hello@bondkoinlabs.com';
+    const user = process.env.SMTP_USER || process.env.SMTP_EMAIL || process.env.MAIL_USER || 'hello@voltaragrid.com';
     const pass = (process.env.SMTP_PASS || process.env.SMTP_PASSWORD || process.env.MAIL_PASS || '').replace(/\s+/g, '');
-    const isGmail = host.includes('gmail') || user.endsWith('@gmail.com');
-    const isSpacemail = host.includes('spacemail') || user.includes('@bondkoinlabs.com');
+    // An explicitly configured host wins over provider sniffing.
+    //
+    // Provider detection used to look at the *username's domain*, so setting
+    // SMTP_HOST=localhost with SMTP_USER=dev@voltaragrid.com — the obvious
+    // way to point a dev box at a local mail catcher — silently rebuilt the
+    // transport as `mail.spacemail.com:465` and tried to send through the
+    // company's production mailbox. It failed with `535 authentication
+    // failed`, which reads as a credentials problem and sends you looking in
+    // entirely the wrong place; the configured host never appeared in the
+    // log at all. Sniffing is only a fallback for when no host is given.
+    const hostConfigured = !!(process.env.SMTP_HOST || process.env.MAIL_HOST);
+    const isGmail = !hostConfigured && (host.includes('gmail') || user.endsWith('@gmail.com'));
+    const isSpacemail =
+      host.includes('spacemail') || (!hostConfigured && user.includes('@voltaragrid.com'));
 
     if (user && pass) {
       if (isGmail) {
@@ -145,8 +157,17 @@ export class EmailService {
         });
       }
     } else {
-      this.logger.warn(
-        `[EmailService] SMTP credentials not set (SMTP_USER / SMTP_PASS). Check environment variables.`,
+      // Not a degraded optional feature — the product cannot onboard anyone
+      // in this state. Signup requires a 6-digit email code, so with no
+      // transporter every `send-otp` answers 502 and the form dead-ends,
+      // while the process itself stays healthy and the health check passes.
+      // The old wording ("check environment variables") read like a notice
+      // about mail being off rather than the outage it is.
+      this.logger.error(
+        '[EmailService] No SMTP transporter: SMTP_USER / SMTP_PASS are unset. ' +
+          'SIGNUP IS DISABLED — verification codes cannot be delivered and ' +
+          'every registration will fail with 502. Password reset and 2FA are ' +
+          'down too. Set the SMTP_* variables (see DEPLOY.md).',
       );
     }
   }
@@ -269,18 +290,18 @@ export class EmailService {
 
     const code = await this.generateOtp(cleanEmail, purpose);
 
-    let subject = 'BONDKOIN Verification Code';
+    let subject = 'VOLTARA Verification Code';
     let purposeTitle = 'Account Verification';
-    let purposeDesc = 'Use the verification code below to complete your registration on BONDKOIN Labs.';
+    let purposeDesc = 'Use the verification code below to complete your registration on VOLTARA Labs.';
 
     if (purpose === 'forgot_password') {
-      subject = 'BONDKOIN Password Reset Request';
+      subject = 'VOLTARA Password Reset Request';
       purposeTitle = 'Password Reset Security Code';
-      purposeDesc = 'We received a request to reset the password for your BONDKOIN account. Enter the verification code below:';
+      purposeDesc = 'We received a request to reset the password for your VOLTARA account. Enter the verification code below:';
     } else if (purpose === 'login_2fa') {
-      subject = 'BONDKOIN 2FA Security Code';
+      subject = 'VOLTARA 2FA Security Code';
       purposeTitle = 'Two-Factor Authentication';
-      purposeDesc = 'Use the verification code below to sign in to your BONDKOIN Mining Dashboard.';
+      purposeDesc = 'Use the verification code below to sign in to your VOLTARA Mining Dashboard.';
     }
 
     const html = `
@@ -309,7 +330,7 @@ export class EmailService {
       <body>
         <div class="wrapper">
           <div class="header">
-            <div class="logo">BONDKOIN <span class="logo-accent">LABS</span></div>
+            <div class="logo">VOLTARA <span class="logo-accent">LABS</span></div>
             <div class="badge">BNB Smart Chain Protocol</div>
           </div>
           <div class="content">
@@ -322,11 +343,11 @@ export class EmailService {
             </div>
 
             <div class="warning">
-              🔒 <strong>Security Notice:</strong> Never share this 6-digit code with anyone. BONDKOIN Labs administrators will never ask for your verification code.
+              🔒 <strong>Security Notice:</strong> Never share this 6-digit code with anyone. VOLTARA Labs administrators will never ask for your verification code.
             </div>
           </div>
           <div class="footer">
-            © ${new Date().getFullYear()} BONDKOIN Labs (<a href="https://bondkoinlabs.com">bondkoinlabs.com</a>). Built for the BNB Chain Ecosystem.
+            © ${new Date().getFullYear()} VOLTARA Labs (<a href="https://voltaragrid.com">voltaragrid.com</a>). Built for the BNB Chain Ecosystem.
           </div>
         </div>
       </body>
@@ -337,7 +358,7 @@ export class EmailService {
       to: cleanEmail,
       subject,
       html,
-      text: `Your BONDKOIN verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
+      text: `Your VOLTARA verification code is: ${code}. It expires in 10 minutes. Do not share this code with anyone.`,
     });
     if (delivered) {
       return {
@@ -376,8 +397,8 @@ export class EmailService {
       return false;
     }
 
-    const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
-    const message = { from: `"BONDKOIN Labs" <${senderEmail}>`, ...mail };
+    const senderEmail = (process.env.SMTP_USER || 'hello@voltaragrid.com').trim().toLowerCase();
+    const message = { from: `"VOLTARA Labs" <${senderEmail}>`, ...mail };
 
     try {
       const info = await this.withDeadline(this.transporter.sendMail(message), 'Primary SMTP');
@@ -420,11 +441,11 @@ export class EmailService {
           ? 'Your node went quiet today.'
           : `Your node has been idle for ${idleDays} day${idleDays === 1 ? '' : 's'}.`;
 
-    const subject = `${inviterLabel} is asking you to mine on BONDKOIN`;
+    const subject = `${inviterLabel} is asking you to mine on VOLTARA`;
     const text = [
-      `${inviterLabel}, the miner who invited you to BONDKOIN, sent you a reminder.`,
+      `${inviterLabel}, the miner who invited you to VOLTARA, sent you a reminder.`,
       idleLine,
-      'Tap Mine once every 24 hours to keep your $BONDKOIN accruing. It costs nothing and needs no hardware.',
+      'Tap Mine once every 24 hours to keep your $VLTR accruing. It costs nothing and needs no hardware.',
       '',
       `Mine now: ${dashboardUrl}`,
       '',
@@ -456,18 +477,96 @@ export class EmailService {
       <body>
         <div class="wrapper">
           <div class="header">
-            <div class="logo">BONDKOIN <span class="logo-accent">LABS</span></div>
+            <div class="logo">VOLTARA <span class="logo-accent">LABS</span></div>
             <div class="badge">BNB Smart Chain Protocol</div>
           </div>
           <div class="content">
             <div class="title">⛏️ ${escapeHtml(inviterLabel)} wants you back at the controls</div>
-            <div class="desc">The miner who invited you to BONDKOIN sent you a reminder. Tap <strong>Mine</strong> once every 24 hours to keep your $BONDKOIN accruing. It costs nothing and needs no hardware.</div>
+            <div class="desc">The miner who invited you to VOLTARA sent you a reminder. Tap <strong>Mine</strong> once every 24 hours to keep your $VLTR accruing. It costs nothing and needs no hardware.</div>
             <div class="idle">${escapeHtml(idleLine)}</div>
             <a class="cta" href="${escapeHtml(dashboardUrl)}">MINE NOW →</a>
             <div class="note">You receive this because a miner in your referral network asked us to nudge you. Each referral can be reminded at most once every three days.</div>
           </div>
           <div class="footer">
-            © ${new Date().getFullYear()} BONDKOIN Labs (<a href="https://bondkoinlabs.com">bondkoinlabs.com</a>). Built for the BNB Chain Ecosystem.
+            © ${new Date().getFullYear()} VOLTARA Labs (<a href="https://voltaragrid.com">voltaragrid.com</a>). Built for the BNB Chain Ecosystem.
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    return this.deliver({ to: cleanEmail, subject, html, text });
+  }
+
+  /**
+   * "Your starter core is about to burn out" — the twelve-hour warning on
+   * the free VC-1 every new miner is lent.
+   *
+   * This is the first purchase moment in the funnel: the miner has watched
+   * a lit rig for three days and is about to watch it go dark, and the
+   * replacement costs a dollar. Said plainly, without a countdown gimmick.
+   */
+  async sendLoanerExpiryEmail(
+    rawEmail: string,
+    params: { hoursLeft: number; shopUrl: string },
+  ): Promise<boolean> {
+    const cleanEmail = this.sanitizeEmail(rawEmail);
+    const { hoursLeft, shopUrl } = params;
+    const leftLabel = `${hoursLeft} hour${hoursLeft === 1 ? '' : 's'}`;
+
+    const subject = `Your VOLTARA starter core burns out in ${leftLabel}`;
+    const text = [
+      'The free VC-1 Volt Core you were lent when you joined VOLTARA is about to burn out.',
+      `Time left: ${leftLabel}.`,
+      '',
+      'When it goes, your rig drops back to the bare chassis and your rate falls from 2.9 VOLTS/hour to 0.9. Your own VC-1 costs $1 and runs for 30 days.',
+      '',
+      `Fit a new core: ${shopUrl}`,
+      '',
+      'You receive this once, because a part on your rig is expiring.',
+    ].join('\n');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { margin: 0; padding: 0; background-color: #05070f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9; }
+          .wrapper { width: 100%; max-width: 540px; margin: 30px auto; background-color: #0b0f19; border: 1px solid #1e293b; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
+          .header { padding: 28px 24px; text-align: center; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-bottom: 1px solid #334155; }
+          .logo { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: #f8fafc; text-transform: uppercase; }
+          .logo-accent { color: #38bdf8; }
+          .badge { display: inline-block; margin-top: 8px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: #f59e0b; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 9999px; text-transform: uppercase; }
+          .content { padding: 32px 28px; text-align: center; }
+          .title { font-size: 18px; font-weight: 800; color: #ffffff; margin-bottom: 8px; }
+          .desc { font-size: 13px; line-height: 1.6; color: #94a3b8; margin-bottom: 24px; }
+          .idle { background: #020617; border: 2px dashed #f43f5e; border-radius: 14px; padding: 18px; margin: 20px 0; font-size: 15px; font-weight: 800; color: #fb7185; }
+          .rate { font-size: 13px; color: #94a3b8; margin: 16px 0; }
+          .rate strong { color: #a3e635; }
+          .cta { display: inline-block; margin-top: 8px; padding: 14px 32px; font-size: 14px; font-weight: 900; color: #0b0f19 !important; background: linear-gradient(90deg, #a3e635, #d9f99d); border-radius: 12px; text-decoration: none; letter-spacing: 0.5px; }
+          .note { font-size: 11px; color: #64748b; margin-top: 24px; line-height: 1.6; }
+          .footer { padding: 20px 24px; text-align: center; font-size: 11px; color: #475569; border-top: 1px solid #1e293b; background: #070a14; }
+          .footer a { color: #38bdf8; text-decoration: none; }
+        </style>
+      </head>
+      <body>
+        <div class="wrapper">
+          <div class="header">
+            <div class="logo">VOLTARA <span class="logo-accent">LABS</span></div>
+            <div class="badge">Starter core expiring</div>
+          </div>
+          <div class="content">
+            <div class="title">Your starter core burns out in ${escapeHtml(leftLabel)}</div>
+            <div class="desc">The free VC-1 Volt Core you were lent when you joined is nearly done. When it goes, your rig drops back to the bare chassis.</div>
+            <div class="idle">${escapeHtml(leftLabel)} left</div>
+            <div class="rate">Rate now <strong>2.9 VOLTS/hour</strong> &rarr; after it burns out <strong>0.9</strong></div>
+            <div class="desc">Your own VC-1 costs $1 and runs for 30 days.</div>
+            <a class="cta" href="${escapeHtml(shopUrl)}">FIT A NEW CORE &rarr;</a>
+            <div class="note">You receive this once, because a part on your rig is expiring.</div>
+          </div>
+          <div class="footer">
+            &copy; ${new Date().getFullYear()} VOLTARA Labs (<a href="https://voltaragrid.com">voltaragrid.com</a>). Built for the BNB Chain Ecosystem.
           </div>
         </div>
       </body>
@@ -483,7 +582,7 @@ export class EmailService {
   async testEmail(rawEmail: string) {
     this.initTransporter();
     const cleanEmail = this.sanitizeEmail(rawEmail);
-    const senderEmail = (process.env.SMTP_USER || 'hello@bondkoinlabs.com').trim().toLowerCase();
+    const senderEmail = (process.env.SMTP_USER || 'hello@voltaragrid.com').trim().toLowerCase();
 
     if (!this.transporter) {
       return {
@@ -501,9 +600,9 @@ export class EmailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: `"BONDKOIN Labs" <${senderEmail}>`,
+        from: `"VOLTARA Labs" <${senderEmail}>`,
         to: cleanEmail,
-        subject: 'BONDKOIN Labs Email Health Test',
+        subject: 'VOLTARA Labs Email Health Test',
         text: 'This is a test email confirming your Spacemail integration on AWS EC2 is working perfectly!',
       });
       return {
@@ -516,9 +615,9 @@ export class EmailService {
       if (this.fallbackTransporter) {
         try {
           const info = await this.fallbackTransporter.sendMail({
-            from: `"BONDKOIN Labs" <${senderEmail}>`,
+            from: `"VOLTARA Labs" <${senderEmail}>`,
             to: cleanEmail,
-            subject: 'BONDKOIN Labs Email Health Test (Fallback)',
+            subject: 'VOLTARA Labs Email Health Test (Fallback)',
             text: 'This is a test email confirming your Spacemail integration on AWS EC2 is working perfectly!',
           });
           return {

@@ -27,11 +27,11 @@ export function FullTaskEditorModal({
       : [
           {
             id: 1,
-            question: 'What is BONDKOIN protocol token standard?',
+            question: 'What is VOLTARA protocol token standard?',
             options: ['BEP-20 (BNB Chain)', 'ERC-20', 'TRC-20', 'SPL Token'],
             correctIndex: 0,
             explanation:
-              'BONDKOIN is built natively on BNB Smart Chain utilizing the BEP-20 token standard.',
+              'VOLTARA is built natively on BNB Smart Chain utilizing the BEP-20 token standard.',
           },
         ],
   );
@@ -173,7 +173,7 @@ export function FullTaskEditorModal({
           {task.type !== 'QUIZ' && task.type !== 'SPIN_WHEEL' && (
             <div>
               <label className="block text-xs font-bold uppercase text-slate-400">
-                {task.type === 'YOUTUBE' ? '📺 YouTube Video URL or Video ID' : '🔗 Target Social Action Link'}
+                {task.type === 'YOUTUBE' ? 'YouTube Video URL or Video ID' : 'Target Social Action Link'}
               </label>
               <input
                 type="text"
@@ -196,7 +196,7 @@ export function FullTaskEditorModal({
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>
                   <h4 className="text-sm font-black text-indigo-300">
-                    🧠 Web3 Quiz Questions ({quizQuestions.length})
+                    Web3 Quiz Questions ({quizQuestions.length})
                   </h4>
                   <p className="text-[11px] text-slate-400">
                     Edit question text, 4 choices, and select the correct answer index
@@ -296,7 +296,7 @@ export function FullTaskEditorModal({
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>
                   <h4 className="text-sm font-black text-amber-300">
-                    🎡 Lucky Wheel Slices Configuration
+                    Lucky Wheel Slices Configuration
                   </h4>
                   <p className="text-[11px] text-slate-400">
                     Configure each slice point reward on the 360° wheel
@@ -369,7 +369,7 @@ export function FullTaskEditorModal({
           </button>
           <button
             type="submit"
-            className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase text-slate-950"
+            className="btn-gold rounded-xl px-6 py-2.5 text-xs font-black uppercase"
           >
             Save Full Configuration
           </button>

@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -9,35 +8,73 @@ import {
   ReferralStatsResponse,
   ReferralMember,
   getToken,
+  getMiningStatus,
   remindReferral,
   ApiError,
+  type MiningStatus,
 } from '../../../lib/api';
-import { AppHeader } from '../../../components/AppHeader';
-import { MobileTabBar } from '../../../components/MobileTabBar';
+import { fill, rigCardPath, useShare } from '../../../components/share/strings';
+import { AppShell } from '../../../components/AppShell';
+import { RewardLadder } from '../../../components/referrals/RewardLadder';
+import {
+  AnimatedNumber,
+  Button,
+  Chip,
+  Eyebrow,
+  Icon,
+  Input,
+  Notice,
+  Panel,
+  Progress,
+  Reveal,
+  Segmented,
+  Skeleton,
+  Stat,
+} from '../../../components/ui';
+import { useMiningFX } from '../../../lib/use-mining-fx';
+
+const TIER_TITLES: Record<number, string> = {
+  1: 'Free Miner',
+  2: 'Bronze Scout',
+  3: 'Silver Leader',
+  4: 'Gold Master',
+  5: 'Platinum Syndicate',
+  6: 'Cyber Sovereign',
+};
+
+const tierTitle = (level: number | undefined) => TIER_TITLES[level ?? 1] ?? TIER_TITLES[1];
+
+const BASE_RATES = [0.9, 2.9, 5.9, 12.9, 65.9];
 
 export default function ReferralsClient({ locale }: { locale: string }) {
   const t = useTranslations('referrals');
-  const tDashboard = useTranslations('dashboard');
+  const SHARE = useShare();
   const router = useRouter();
+  const { playTick } = useMiningFX();
 
   const [stats, setStats] = useState<ReferralStatsResponse | null>(null);
+  /**
+   * The miner's own rate and stability, for the share text. Best-effort: a
+   * failure just means the generic line goes out instead of the boast.
+   */
+  const [mine, setMine] = useState<MiningStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [showQr, setShowQr] = useState(false);
 
-  // Search & Filter for Team Roster
+  // Search & filter for the team roster
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'ACTIVE' | 'IDLE'>('ALL');
 
   // Referral reminder: which row is mid-flight, and the last outcome per row.
   const [remindingId, setRemindingId] = useState<string | null>(null);
-  const [remindNotice, setRemindNotice] = useState<
-    { id: string; tone: 'ok' | 'error'; text: string } | null
-  >(null);
+  const [remindNotice, setRemindNotice] = useState<{ id: string; tone: 'ok' | 'error'; text: string } | null>(
+    null,
+  );
 
-  // Interactive Calculator Slider
+  // Interactive calculator
   const [calcInvites, setCalcInvites] = useState(5);
   const [calcBaseRate, setCalcBaseRate] = useState(0.9);
 
@@ -47,6 +84,12 @@ export default function ReferralsClient({ locale }: { locale: string }) {
       return;
     }
     loadData();
+    // The share text wants the miner's live numbers, but the page must not
+    // wait on them — a failure here only costs the boast, not the link.
+    getMiningStatus()
+      .then(setMine)
+      .catch(() => setMine(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locale, router]);
 
   async function loadData() {
@@ -58,7 +101,7 @@ export default function ReferralsClient({ locale }: { locale: string }) {
       if (data.totalInvited > 0) {
         setCalcInvites(Math.max(data.totalInvited, 5));
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError(err instanceof ApiError ? err.message : 'Failed to load referral network.');
     } finally {
       setLoading(false);
@@ -92,7 +135,7 @@ export default function ReferralsClient({ locale }: { locale: string }) {
           : prev,
       );
       setRemindNotice({ id: member.id, tone: 'ok', text: t('remindSent') });
-    } catch (err: any) {
+    } catch (err: unknown) {
       setRemindNotice({
         id: member.id,
         tone: 'error',
@@ -104,12 +147,24 @@ export default function ReferralsClient({ locale }: { locale: string }) {
   }
 
   const referralCode = stats?.referralCode || '';
-  const domain = typeof window !== 'undefined' ? window.location.origin : 'https://bondkoinlabs.com';
-  const referralLink = `${domain}/${locale}/login?ref=${referralCode}&mode=register`;
+  const domain = typeof window !== 'undefined' ? window.location.origin : 'https://voltaragrid.com';
+  /**
+   * What gets shared is the rig card, not a bare invite: the link unfurls
+   * into an image of this miner's actual build. The referral still rides on
+   * `?ref=`, which the card page puts on its sign-up call to action.
+   */
+  const referralLink = referralCode ? `${domain}${rigCardPath(locale, referralCode)}` : '';
+  const shareText = mine
+    ? fill(SHARE.share.text, {
+        rate: mine.ratePerHour.toFixed(1),
+        stability: mine.rig?.gridStability ?? 100,
+      })
+    : SHARE.share.textNoRig;
 
   const copyToClipboard = async (text: string, type: 'link' | 'code') => {
     try {
       await navigator.clipboard.writeText(text);
+      playTick();
       if (type === 'link') {
         setCopiedLink(true);
         setTimeout(() => setCopiedLink(false), 2000);
@@ -118,7 +173,7 @@ export default function ReferralsClient({ locale }: { locale: string }) {
         setTimeout(() => setCopiedCode(false), 2000);
       }
     } catch {
-      // Fallback
+      // Clipboard unavailable — the field is select-all, so a manual copy works.
     }
   };
 
@@ -126,8 +181,8 @@ export default function ReferralsClient({ locale }: { locale: string }) {
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
         await navigator.share({
-          title: 'Join my BONDKOIN Mining Node!',
-          text: `Mine $BONDKOIN for free on BNB Chain with zero battery drain! Use my referral code: ${referralCode}`,
+          title: SHARE.share.title,
+          text: shareText,
           url: referralLink,
         });
       } catch {
@@ -138,7 +193,7 @@ export default function ReferralsClient({ locale }: { locale: string }) {
     }
   };
 
-  // Calculator Multiplier Helper
+  // Calculator multiplier helper (mirrors the referral tier table)
   const getSimulatedMultiplier = (invites: number) => {
     if (invites >= 31) return 8;
     if (invites >= 21) return 6;
@@ -151,9 +206,8 @@ export default function ReferralsClient({ locale }: { locale: string }) {
   const simMultiplier = getSimulatedMultiplier(calcInvites);
   const simEffectiveRate = calcBaseRate * simMultiplier;
   const simDailyPoints = simEffectiveRate * 24;
-  const simMonthlyBondkoin = (simDailyPoints * 30) / 3; // 3 PTS = 1 BONDKOIN
+  const simMonthlyVolts = (simDailyPoints * 30) / 3; // 3 VOLTS = 1 $VLTR
 
-  // Filter roster
   const filteredRoster = (stats?.referralsList || []).filter((m) => {
     if (filterStatus === 'ACTIVE' && !m.isMiningActive) return false;
     if (filterStatus === 'IDLE' && m.isMiningActive) return false;
@@ -164,596 +218,465 @@ export default function ReferralsClient({ locale }: { locale: string }) {
     return true;
   });
 
+  const totalInvited = stats?.totalInvited ?? 0;
+  const activeCount = stats?.activeMinersCount ?? 0;
+  const idleCount = totalInvited - activeCount;
+
+  const shareLinks = [
+    {
+      key: 'telegram',
+      label: t('shareTelegram'),
+      href: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(
+        shareText,
+      )}`,
+    },
+    {
+      key: 'x',
+      label: t('shareTwitter'),
+      href: `https://x.com/intent/post?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(
+        shareText,
+      )}&hashtags=VOLTARA,BNBChain`,
+    },
+    {
+      key: 'whatsapp',
+      label: t('shareWhatsApp'),
+      href: `https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${referralLink}`)}`,
+    },
+  ];
+
   return (
-    <div className="glow-field min-h-screen bg-cyber-grid bg-slate-950 pb-28 text-slate-100">
-      <AppHeader locale={locale} backLabel={t('back')} maxWidth="max-w-5xl" />
+    <AppShell
+      locale={locale}
+      backLabel={t('back')}
+      eyebrow="Node affiliate network"
+      title={t('title')}
+      subtitle={t('subtitle')}
+      actions={
+        <Button variant="charge" onClick={handleNativeShare}>
+          <Icon name="share" size={14} />
+          {t('share')}
+        </Button>
+      }
+    >
+      <div className="space-y-6">
+        {error && (
+          <Notice tone="heat" icon={<Icon name="x" size={14} />}>
+            <p>{error}</p>
+            <Button variant="danger" size="sm" className="mt-2" onClick={loadData}>
+              Retry
+            </Button>
+          </Notice>
+        )}
 
-      <main className="mx-auto max-w-5xl px-4 pt-6 sm:px-6 space-y-6">
-        {/* ───────────────── 3D Hero Banner with Node Matrix ───────────────── */}
-        <section className="relative overflow-hidden rounded-3xl border border-amber-500/30 bg-gradient-to-br from-slate-900/90 via-[#131622] to-slate-950 p-6 sm:p-8 backdrop-blur-xl shadow-2xl">
-          {/* Animated 3D Node Mesh Lighting Background */}
-          <div className="pointer-events-none absolute -right-16 -top-16 h-72 w-72 rounded-full bg-amber-500/15 blur-3xl animate-pulse" />
-          <div className="pointer-events-none absolute -left-16 -bottom-16 h-72 w-72 rounded-full bg-rose-500/15 blur-3xl" />
-
-          <div className="relative z-10 grid items-center gap-6 lg:grid-cols-12">
-            <div className="lg:col-span-7 space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1 text-xs font-black uppercase tracking-wider text-amber-300">
-                <span className="pulse-dot h-2 w-2 rounded-full bg-emerald-400" />
-                <span>BONDKOIN Node Affiliate Network</span>
+        {/* ─── Invite link + share ─── */}
+        <div className="grid gap-5 lg:grid-cols-12">
+          <Reveal className="lg:col-span-7">
+            <Panel hud tone="charge" className="h-full space-y-4 p-5 sm:p-6">
+              <div className="flex items-center justify-between gap-2">
+                <Eyebrow>{t('code')}</Eyebrow>
+                <Chip tone="charge" dot className="v-num">
+                  Active node key
+                </Chip>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
-                {t('title')}
-              </h1>
+              {loading && !stats ? (
+                <Skeleton className="h-12 w-full" />
+              ) : (
+                <div className="v-inset flex items-center justify-between gap-2 p-3">
+                  <span className="v-num min-w-0 flex-1 select-all truncate text-lg font-extrabold text-charge sm:text-xl">
+                    {referralCode || '…'}
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(referralCode, 'code')}>
+                    <Icon name={copiedCode ? 'check' : 'copy'} size={12} />
+                    {copiedCode ? t('copied') : t('copyLink')}
+                  </Button>
+                </div>
+              )}
 
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl">
-                {t('subtitle')}
-              </p>
+              <div>
+                <span className="v-label">{t('yourLink')}</span>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Input type="text" readOnly value={referralLink} className="v-num select-all truncate py-2.5 text-xs" />
+                  <Button variant="primary" className="shrink-0" onClick={() => copyToClipboard(referralLink, 'link')}>
+                    <Icon name={copiedLink ? 'check' : 'copy'} size={14} />
+                    {copiedLink ? t('copied') : t('copyLink')}
+                  </Button>
+                </div>
+              </div>
 
-              {/* Quick Share Buttons */}
-              <div className="space-y-2 pt-2">
-                <button
-                  type="button"
-                  onClick={handleNativeShare}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.02] active:scale-95"
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {shareLinks.map((s) => (
+                  <a
+                    key={s.key}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="v-btn v-btn--ghost v-btn--sm"
+                  >
+                    <Icon name="arrow-up-right" size={12} />
+                    <span className="truncate">{s.label}</span>
+                  </a>
+                ))}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    playTick();
+                    setShowQr((v) => !v);
+                  }}
+                  aria-pressed={showQr}
                 >
-                  <span>🚀</span>
-                  <span>{t('share')}</span>
-                </button>
-
-                <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
-                  <a
-                    href={`https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent('Mine free $BONDKOIN on BNB Chain! Zero battery drain.')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 rounded-xl border border-sky-500/30 bg-sky-500/10 px-3 py-2.5 text-xs font-bold text-sky-300 hover:bg-sky-500/20 transition-all"
-                  >
-                    <span>✈️</span>
-                    <span className="truncate">{t('shareTelegram')}</span>
-                  </a>
-
-                  <a
-                    href={`https://x.com/intent/post?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent("I'm mining $BONDKOIN every day on BNB Chain with @BondKoin ⛏️ Free to join, no hardware, on-chain payouts. Start with my link 👇")}&hashtags=BONDKOIN,BNBChain,Crypto,Mining`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800/80 px-3 py-2.5 text-xs font-bold text-white hover:bg-slate-700 transition-all"
-                  >
-                    <span>𝕏</span>
-                    <span className="truncate">{t('shareTwitter')}</span>
-                  </a>
-
-                  <a
-                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(`Join my BONDKOIN Mining Node! ${referralLink}`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition-all"
-                  >
-                    <span>💬</span>
-                    <span className="truncate">{t('shareWhatsApp')}</span>
-                  </a>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowQr(!showQr)}
-                    className="flex items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-slate-800/80 px-3 py-2.5 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-all"
-                  >
-                    <span>📱</span>
-                    <span className="truncate">{t('qrCode')}</span>
-                  </button>
-                </div>
+                  <Icon name="chip" size={12} />
+                  <span className="truncate">{t('qrCode')}</span>
+                </Button>
               </div>
-            </div>
+            </Panel>
+          </Reveal>
 
-            {/* 3D Holographic Referral Link Card */}
-            <div className="lg:col-span-5">
-              <div className="card relative overflow-hidden rounded-2xl border-amber-500/40 bg-slate-950/90 p-4 sm:p-5 shadow-2xl backdrop-blur-2xl space-y-3.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                    {t('code')}
-                  </span>
-                  <span className="rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-300 shrink-0">
-                    Active Node Key
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-2.5 sm:p-3 overflow-hidden">
-                  <span className="font-mono text-xs sm:text-sm font-black text-amber-300 truncate select-all flex-1 min-w-0">
-                    {referralCode || '...'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(referralCode, 'code')}
-                    className="shrink-0 rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/30 transition-all active:scale-95"
-                  >
-                    {copiedCode ? '✓ Copied' : 'Copy'}
-                  </button>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                    {t('yourLink')}
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={referralLink}
-                      className="input-field w-full py-2.5 px-3 text-xs font-mono text-slate-300 truncate select-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(referralLink, 'link')}
-                      className="w-full sm:w-auto shrink-0 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2.5 text-xs font-black uppercase text-slate-950 shadow-md hover:scale-[1.02] transition-all text-center"
-                    >
-                      {copiedLink ? '✓ Copied' : t('copyLink')}
-                    </button>
-                  </div>
-                </div>
-
-                {/* QR Code Expansion */}
-                {showQr && (
-                  <div className="mt-2 flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-slate-900/90 p-4 animate-in fade-in zoom-in-95">
+          <Reveal index={1} className="lg:col-span-5">
+            <Panel className="flex h-full flex-col items-center justify-center gap-3 p-5 text-center sm:p-6">
+              {showQr && referralCode ? (
+                <div className="animate-pop">
+                  <div className="v-inset inline-block p-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(referralLink)}`}
-                      alt="Referral QR Code"
-                      width={140}
-                      height={140}
-                      className="rounded-xl bg-white p-2 shadow-md"
+                      alt="Referral QR code"
+                      width={180}
+                      height={180}
+                      className="rounded-xl bg-white p-2"
                     />
-                    <p className="text-[11px] text-slate-400 text-center font-medium">
-                      {t('scanToJoin')}
-                    </p>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
+                  <p className="mt-3 text-[11px] font-medium text-ink-3">{t('scanToJoin')}</p>
+                </div>
+              ) : (
+                <>
+                  <span className="grid h-14 w-14 place-items-center rounded-2xl bg-brand/12 text-brand-hi">
+                    <Icon name="chip" size={26} />
+                  </span>
+                  <p className="text-sm font-bold text-ink">{t('qrCode')}</p>
+                  <p className="max-w-xs text-[11px] leading-relaxed text-ink-3">{t('scanToJoin')}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      playTick();
+                      setShowQr(true);
+                    }}
+                  >
+                    {t('qrCode')}
+                  </Button>
+                </>
+              )}
+            </Panel>
+          </Reveal>
+        </div>
 
-        {/* ───────────────── Real-Time Network HUD ───────────────── */}
+        {/* ─── Network HUD ─── */}
         <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <div className="card rounded-2xl border-slate-800 bg-slate-900/80 p-4 sm:p-5 backdrop-blur-md">
-            <div className="flex items-center justify-between">
-              <span className="text-xl sm:text-2xl">👥</span>
-              <span className="rounded-full bg-blue-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-blue-400">
-                Tier 1
-              </span>
-            </div>
-            <div className="mt-3 font-mono text-2xl sm:text-3xl font-black text-white">
-              {stats?.totalInvited ?? 0}
-            </div>
-            <div className="mt-1 text-xs font-semibold text-slate-400">
-              {t('totalInvited')}
-            </div>
-          </div>
-
-          <div className="card rounded-2xl border-slate-800 bg-slate-900/80 p-4 sm:p-5 backdrop-blur-md">
-            <div className="flex items-center justify-between">
-              <span className="text-xl sm:text-2xl">⚡</span>
-              <span className="pulse-dot h-2 w-2 rounded-full bg-emerald-400" />
-            </div>
-            <div className="mt-3 font-mono text-2xl sm:text-3xl font-black text-emerald-400">
-              {stats?.activeMinersCount ?? 0}
-            </div>
-            <div className="mt-1 text-xs font-semibold text-slate-400">
-              {t('activeMiners')}
-            </div>
-          </div>
-
-          <div className="card rounded-2xl border-slate-800 bg-slate-900/80 p-4 sm:p-5 backdrop-blur-md">
-            <div className="flex items-center justify-between">
-              <span className="text-xl sm:text-2xl">🔥</span>
-              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-400">
-                Rank Boost
-              </span>
-            </div>
-            <div className="mt-3 font-mono text-2xl sm:text-3xl font-black text-amber-400">
-              {stats?.currentTier.multiplier ?? 1}×
-            </div>
-            <div className="mt-1 text-xs font-semibold text-slate-400">
-              {t('multiplier')}
-            </div>
-          </div>
-
-          <div className="card rounded-2xl border-slate-800 bg-slate-900/80 p-4 sm:p-5 backdrop-blur-md">
-            <div className="flex items-center justify-between">
-              <span className="text-xl sm:text-2xl">👑</span>
-              <span className="rounded-full bg-purple-500/10 px-2 py-0.5 font-mono text-[10px] font-bold text-purple-300">
-                Level {stats?.currentTier.level ?? 1}
-              </span>
-            </div>
-            <div className="mt-3 text-lg sm:text-xl font-black text-white truncate">
-              {stats?.currentTier.level === 6
-                ? 'Cyber Sovereign'
-                : stats?.currentTier.level === 5
-                ? 'Platinum Syndicate'
-                : stats?.currentTier.level === 4
-                ? 'Gold Master'
-                : stats?.currentTier.level === 3
-                ? 'Silver Leader'
-                : stats?.currentTier.level === 2
-                ? 'Bronze Scout'
-                : 'Free Miner'}
-            </div>
-            <div className="mt-1 text-xs font-semibold text-slate-400">
-              {t('currentTier')}
-            </div>
-          </div>
+          <Reveal index={0}>
+            <Stat
+              label={t('totalInvited')}
+              value={<AnimatedNumber value={totalInvited} decimals={0} />}
+              icon={<Icon name="users" size={14} />}
+              hint="Tier 1"
+            />
+          </Reveal>
+          <Reveal index={1}>
+            <Stat
+              label={t('activeMiners')}
+              value={<AnimatedNumber value={activeCount} decimals={0} />}
+              icon={<Icon name="bolt" size={14} />}
+              tone="charge"
+              hint={t('active')}
+            />
+          </Reveal>
+          <Reveal index={2}>
+            <Stat
+              label={t('multiplier')}
+              value={
+                <>
+                  <AnimatedNumber value={stats?.currentTier.multiplier ?? 1} decimals={0} />×
+                </>
+              }
+              icon={<Icon name="sparkle" size={14} />}
+              tone="brand"
+              hint={`Level ${stats?.currentTier.level ?? 1}`}
+            />
+          </Reveal>
+          <Reveal index={3}>
+            <Stat
+              label={t('currentTier')}
+              value={<span className="font-display text-lg sm:text-xl">{tierTitle(stats?.currentTier.level)}</span>}
+              icon={<Icon name="trophy" size={14} />}
+              hint={`Level ${stats?.currentTier.level ?? 1}`}
+            />
+          </Reveal>
         </section>
 
-        {/* ───────────────── 3D Tier Multiplier Roadmap ───────────────── */}
-        <section className="card rounded-3xl border-slate-800 bg-slate-900/80 p-6 sm:p-8 backdrop-blur-xl space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg sm:text-xl font-black text-white">
-                🧬 {t('tierProgression')}
-              </h2>
-              <p className="text-xs text-slate-400">
-                Invited miners multiply your entire base rate and booster power up to 8×!
-              </p>
+        {/* ─── Tier ladder ─── */}
+        <Reveal>
+          <Panel hud className="space-y-6 p-5 sm:p-8">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <Eyebrow tone="charge">{t('tierProgression')}</Eyebrow>
+                <h2 className="mt-2 font-display text-xl font-bold text-ink sm:text-2xl">
+                  {tierTitle(stats?.currentTier.level)}
+                </h2>
+              </div>
+              {stats?.nextTier && (
+                <Chip tone="brand">
+                  {t('invitesNeeded', {
+                    count: stats.invitesNeededForNext,
+                    level: stats.nextTier.level,
+                    multiplier: stats.nextTier.multiplier,
+                  })}
+                </Chip>
+              )}
+              {stats && !stats.nextTier && <Chip tone="charge">{t('maxTierReached')}</Chip>}
             </div>
 
             {stats?.nextTier && (
-              <div className="rounded-xl border border-amber-500/30 bg-amber-950/30 px-3.5 py-1.5 font-mono text-xs font-bold text-amber-300">
-                {t('invitesNeeded', {
-                  count: stats.invitesNeededForNext,
-                  level: stats.nextTier.level,
-                  multiplier: stats.nextTier.multiplier,
-                })}
+              <div>
+                <div className="mb-2 flex items-center justify-between text-[11px] font-bold">
+                  <span className="text-ink-2">
+                    Level {stats.currentTier.level} ({stats.currentTier.multiplier}×)
+                  </span>
+                  <span className="v-num text-charge">{stats.progressToNextPercent}%</span>
+                  <span className="text-ink-2">
+                    Level {stats.nextTier.level} ({stats.nextTier.multiplier}×)
+                  </span>
+                </div>
+                <Progress value={stats.progressToNextPercent} charge />
               </div>
             )}
-          </div>
 
-          {/* Progress Bar to next tier */}
-          {stats?.nextTier && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold">
-                <span className="text-slate-400">
-                  Level {stats.currentTier.level} ({stats.currentTier.multiplier}×)
-                </span>
-                <span className="text-amber-400">
-                  {stats.progressToNextPercent}% Completed
-                </span>
-                <span className="text-slate-400">
-                  Level {stats.nextTier.level} ({stats.nextTier.multiplier}×)
-                </span>
-              </div>
-              <div className="h-3 w-full overflow-hidden rounded-full bg-slate-950 border border-white/10 p-0.5">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-emerald-400 transition-all duration-700 shadow-md shadow-amber-500/30"
-                  style={{ width: `${stats.progressToNextPercent}%` }}
-                />
-              </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {(stats?.allTiers || []).map((tier, i) => {
+                const isCurrent = stats?.currentTier.level === tier.level;
+                const isUnlocked = (stats?.currentTier.level ?? 1) >= tier.level;
+                const range =
+                  tier.minInvites === 0
+                    ? 'No invites needed'
+                    : tier.maxInvites >= 2000
+                      ? `${tier.minInvites}+ invites`
+                      : `${tier.minInvites}–${tier.maxInvites} invites`;
+                return (
+                  <div
+                    key={tier.level}
+                    className={`v-panel relative p-4 transition ${
+                      isCurrent ? 'v-panel--charge' : isUnlocked ? '' : 'opacity-70'
+                    }`}
+                    style={{ ['--i' as string]: i }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <Eyebrow>Tier {tier.level}</Eyebrow>
+                      <Chip tone={isCurrent ? 'charge' : isUnlocked ? 'ok' : 'default'} className="text-[9px]">
+                        {isUnlocked && !isCurrent && <Icon name="check" size={10} />}
+                        {!isUnlocked && <Icon name="lock" size={10} />}
+                        {isCurrent ? 'Current' : isUnlocked ? t('unlocked') : t('locked')}
+                      </Chip>
+                    </div>
+                    <h3 className="mt-2 font-display text-base font-bold text-ink">{TIER_TITLES[tier.level] ?? `Tier ${tier.level}`}</h3>
+                    <div className="mt-2 flex items-baseline justify-between">
+                      <span className={`v-num text-2xl font-extrabold ${isCurrent ? 'text-charge' : 'text-brand-hi'}`}>
+                        {tier.multiplier}×
+                      </span>
+                      <span className="v-num text-[11px] text-ink-3">{range}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              {loading && !stats &&
+                Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
             </div>
-          )}
+          </Panel>
+        </Reveal>
 
-          {/* 6 Tiers Grid Cards */}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {(stats?.allTiers || []).map((tier) => {
-              const isCurrent = stats?.currentTier.level === tier.level;
-              const isUnlocked = (stats?.currentTier.level ?? 1) >= tier.level;
+        {/* ─── Hardware reward ladder ─── */}
+        <RewardLadder
+          tiers={stats?.rewardTiers}
+          totalInvited={stats?.totalInvited ?? 0}
+          loading={loading}
+        />
 
-              const title =
-                tier.level === 6
-                  ? 'Cyber Sovereign'
-                  : tier.level === 5
-                  ? 'Platinum Syndicate'
-                  : tier.level === 4
-                  ? 'Gold Master'
-                  : tier.level === 3
-                  ? 'Silver Leader'
-                  : tier.level === 2
-                  ? 'Bronze Scout'
-                  : 'Free Miner';
+        {/* ─── Calculator ─── */}
+        <Reveal>
+          <Panel className="p-5 sm:p-8">
+            <Eyebrow tone="brand">{t('calculatorTitle')}</Eyebrow>
+            <h2 className="mt-2 font-display text-xl font-bold text-ink sm:text-2xl">{t('calculatorSubtitle')}</h2>
 
-              return (
-                <div
-                  key={tier.level}
-                  className={`relative overflow-hidden rounded-2xl p-4 sm:p-5 transition-all ${
-                    isCurrent
-                      ? 'border-2 border-amber-500 bg-gradient-to-b from-amber-500/15 via-slate-900 to-slate-950 shadow-xl shadow-amber-500/10'
-                      : isUnlocked
-                      ? 'border border-emerald-500/30 bg-slate-950/70'
-                      : 'border border-white/5 bg-slate-950/40 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-xs font-bold text-slate-400">
-                      Tier {tier.level}
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${
-                        isCurrent
-                          ? 'bg-amber-500 text-slate-950 shadow-sm'
-                          : isUnlocked
-                          ? 'bg-emerald-500/20 text-emerald-300'
-                          : 'bg-slate-800 text-slate-500'
-                      }`}
-                    >
-                      {isCurrent ? 'Current Rank' : isUnlocked ? t('unlocked') : t('locked')}
-                    </span>
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+              <div className="space-y-5">
+                <div>
+                  <div className="mb-2 flex justify-between text-xs font-bold">
+                    <span className="text-ink-2">{t('invitesCount')}</span>
+                    <span className="v-num text-charge">{calcInvites}</span>
                   </div>
-
-                  <h3 className="mt-2 text-base font-black text-white">{title}</h3>
-
-                  <div className="mt-2 flex items-baseline gap-2">
-                    <span className="font-mono text-2xl font-black text-amber-400">
-                      {tier.multiplier}×
-                    </span>
-                    <span className="text-xs text-slate-400 font-semibold">
-                      Hashrate Multiplier
-                    </span>
-                  </div>
-
-                  <div className="mt-3 border-t border-white/10 pt-2.5 text-xs text-slate-400 flex items-center justify-between font-mono">
-                    <span>Required:</span>
-                    <strong className="text-white">
-                      {tier.minInvites === 0
-                        ? '0 Invites'
-                        : tier.maxInvites >= 2000
-                        ? '31+ Invites'
-                        : `${tier.minInvites}–${tier.maxInvites} Invites`}
-                    </strong>
+                  <input
+                    type="range"
+                    min={0}
+                    max={50}
+                    value={calcInvites}
+                    onChange={(e) => setCalcInvites(Number(e.target.value))}
+                    className="w-full cursor-pointer"
+                    style={{ accentColor: 'rgb(var(--c-charge))' }}
+                    aria-label={t('invitesCount')}
+                  />
+                  <div className="v-num mt-1 flex justify-between text-[10px] text-ink-3">
+                    <span>0</span>
+                    <span>10</span>
+                    <span>20</span>
+                    <span>30</span>
+                    <span>40</span>
+                    <span>50</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </section>
 
-        {/* ───────────────── Interactive Multiplier Calculator ───────────────── */}
-        <section className="card rounded-3xl border-slate-800 bg-slate-900/80 p-6 sm:p-8 backdrop-blur-xl space-y-6">
-          <div>
-            <h2 className="text-lg sm:text-xl font-black text-white">
-              🧮 {t('calculatorTitle')}
-            </h2>
-            <p className="text-xs text-slate-400">
-              {t('calculatorSubtitle')}
-            </p>
-          </div>
+                <div>
+                  <div className="mb-2 flex justify-between text-xs font-bold">
+                    <span className="text-ink-2">{t('baseRateLabel')}</span>
+                    <span className="v-num text-brand-hi">{calcBaseRate.toFixed(2)} VOLTS/h</span>
+                  </div>
+                  <Segmented
+                    value={String(calcBaseRate)}
+                    options={BASE_RATES.map((r) => ({ value: String(r), label: r.toFixed(1) }))}
+                    onChange={(v) => {
+                      playTick();
+                      setCalcBaseRate(Number(v));
+                    }}
+                    className="w-full"
+                  />
+                </div>
+              </div>
 
-          <div className="grid gap-6 lg:grid-cols-12 items-center">
-            <div className="lg:col-span-7 space-y-4">
+              <div className="v-inset space-y-3 p-4 sm:p-5">
+                <div className="flex items-center justify-between">
+                  <Eyebrow>Multiplier</Eyebrow>
+                  <Chip tone="charge">{simMultiplier}× boost</Chip>
+                </div>
+                <div className="flex items-center justify-between border-t border-line/15 pt-3 text-sm">
+                  <span className="text-ink-3">{t('projectedSpeed')}</span>
+                  <span className="v-num font-extrabold text-ink">
+                    <AnimatedNumber value={simEffectiveRate} decimals={2} duration={500} /> /h
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-ink-3">{t('dailyPts')}</span>
+                  <span className="v-num font-extrabold text-ink">
+                    <AnimatedNumber value={simDailyPoints} decimals={1} duration={500} /> VOLTS
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-xl border border-charge/30 bg-charge/[0.07] p-3">
+                  <span className="text-xs font-bold text-ink-2">{t('monthlyTokens')}</span>
+                  <span className="v-num text-xl font-extrabold text-charge">
+                    ~<AnimatedNumber value={simMonthlyVolts} decimals={0} duration={500} /> $VLTR
+                  </span>
+                </div>
+              </div>
+            </div>
+          </Panel>
+        </Reveal>
+
+        {/* ─── Team roster ─── */}
+        <Reveal>
+          <Panel className="space-y-5 p-5 sm:p-8">
+            <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <div className="flex justify-between text-xs font-bold mb-2">
-                  <span className="text-slate-300">Invite Count Slider:</span>
-                  <span className="font-mono text-amber-400 text-sm font-black">
-                    {calcInvites} Invited Miners
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="40"
-                  value={calcInvites}
-                  onChange={(e) => setCalcInvites(parseInt(e.target.value, 10))}
-                  className="w-full accent-amber-500 h-2 bg-slate-950 rounded-lg cursor-pointer"
+                <Eyebrow>{totalInvited} miners</Eyebrow>
+                <h2 className="mt-2 font-display text-xl font-bold text-ink sm:text-2xl">{t('teamRoster')}</h2>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Segmented
+                  value={filterStatus}
+                  options={[
+                    { value: 'ALL', label: `All (${totalInvited})` },
+                    { value: 'ACTIVE', label: `${t('active')} (${activeCount})` },
+                    { value: 'IDLE', label: `${t('idle')} (${idleCount})` },
+                  ]}
+                  onChange={(v) => {
+                    playTick();
+                    setFilterStatus(v);
+                  }}
                 />
-                <div className="flex justify-between text-[10px] text-slate-500 font-mono mt-1">
-                  <span>0 (1×)</span>
-                  <span>5 (3×)</span>
-                  <span>10 (4×)</span>
-                  <span>20 (5×)</span>
-                  <span>30 (6×)</span>
-                  <span>31+ (8× Max)</span>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-bold mb-2">
-                  <span className="text-slate-300">{t('baseRateLabel')}:</span>
-                  <span className="font-mono text-cyan-300 text-xs">
-                    {calcBaseRate.toFixed(2)} BONDKOIN/h
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  {[0.9, 2.9, 5.9, 12.9, 65.9].map((rate) => (
-                    <button
-                      key={rate}
-                      type="button"
-                      onClick={() => setCalcBaseRate(rate)}
-                      className={`flex-1 rounded-xl py-2 text-xs font-bold transition-all ${
-                        calcBaseRate === rate
-                          ? 'bg-blue-600 text-white shadow-md'
-                          : 'border border-white/10 bg-slate-950 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      {rate === 0.9 ? 'Base' : `+${(rate - 0.9).toFixed(0)} Boost`}
-                    </button>
-                  ))}
+                <div className="relative w-full sm:w-52">
+                  <Input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={t('maskedMiner')}
+                    className="py-2 pl-9 text-xs"
+                  />
+                  <Icon name="search" size={14} className="pointer-events-none absolute left-3 top-2.5 text-ink-3" />
                 </div>
               </div>
             </div>
 
-            <div className="lg:col-span-5">
-              <div className="rounded-2xl border border-amber-500/30 bg-slate-950 p-5 space-y-4 shadow-xl">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-slate-400">Achieved Multiplier:</span>
-                  <span className="font-mono text-base font-black text-amber-400">
-                    {simMultiplier}× Boost
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-xs border-t border-white/10 pt-3">
-                  <span className="text-slate-400">{t('projectedSpeed')}:</span>
-                  <span className="font-mono text-base font-black text-emerald-400">
-                    {simEffectiveRate.toFixed(2)} /h
-                  </span>
-                </div>
-
-                <div className="flex justify-between items-center text-xs border-t border-white/10 pt-3">
-                  <span className="text-slate-400">{t('dailyPts')}:</span>
-                  <span className="font-mono text-base font-black text-white">
-                    {simDailyPoints.toFixed(1)} PTS / day
-                  </span>
-                </div>
-
-                <div className="rounded-xl bg-gradient-to-r from-amber-500/15 via-yellow-500/15 to-emerald-500/15 p-3.5 border border-amber-500/30 text-center">
-                  <div className="text-[10px] uppercase font-bold text-amber-300">
-                    {t('monthlyTokens')}
-                  </div>
-                  <div className="mt-1 font-mono text-2xl font-black text-white">
-                    ~{simMonthlyBondkoin.toFixed(0)} $BONDKOIN
-                  </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">
-                    (Direct withdrawal to BNB Chain wallet)
-                  </div>
-                </div>
+            {loading && !stats ? (
+              <div className="space-y-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-11 w-full" />
+                ))}
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ───────────────── Invited Miners Team Roster ───────────────── */}
-        <section className="card rounded-3xl border-slate-800 bg-slate-900/80 p-6 sm:p-8 backdrop-blur-xl space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-lg sm:text-xl font-black text-white">
-                👥 {t('teamRoster')} ({stats?.totalInvited ?? 0})
-              </h2>
-              <p className="text-xs text-slate-400">
-                Track your invited miners and their live mining status.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1 rounded-lg bg-slate-950 p-1 text-xs font-semibold border border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('ALL')}
-                  className={`rounded-md px-2.5 py-1 transition-all ${
-                    filterStatus === 'ALL'
-                      ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  All ({stats?.totalInvited ?? 0})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('ACTIVE')}
-                  className={`rounded-md px-2.5 py-1 transition-all ${
-                    filterStatus === 'ACTIVE'
-                      ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Mining 🟢 ({stats?.activeMinersCount ?? 0})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('IDLE')}
-                  className={`rounded-md px-2.5 py-1 transition-all ${
-                    filterStatus === 'IDLE'
-                      ? 'bg-slate-800 text-slate-200 font-bold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Idle ⚪ ({(stats?.totalInvited ?? 0) - (stats?.activeMinersCount ?? 0)})
-                </button>
+            ) : filteredRoster.length === 0 ? (
+              <div className="v-inset p-8 text-center text-xs text-ink-3">
+                <Icon name="users" size={28} className="mx-auto text-brand-hi" />
+                <p className="mx-auto mt-3 max-w-md">{t('noReferralsYet')}</p>
+                <Button variant="charge" size="sm" className="mt-4" onClick={handleNativeShare}>
+                  <Icon name="share" size={12} />
+                  {t('share')}
+                </Button>
               </div>
-
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search email/miner ID..."
-                className="input-field text-xs w-44 py-1.5"
-              />
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="p-8 text-center text-xs text-slate-400">Loading referral network...</div>
-          ) : filteredRoster.length === 0 ? (
-            <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-8 text-center text-xs text-slate-400 space-y-3">
-              <div className="text-3xl">🚀</div>
-              <p className="max-w-md mx-auto">{t('noReferralsYet')}</p>
-              <button
-                type="button"
-                onClick={handleNativeShare}
-                className="rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 px-4 py-2 text-xs font-black text-slate-950 shadow-md hover:scale-105 transition-all"
-              >
-                + Share Invite Link Now
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-2xl border border-white/10 bg-slate-950">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-white/10 bg-slate-900/90 text-slate-400 font-mono">
-                    <th className="p-3.5">Miner Account</th>
-                    <th className="p-3.5">Country</th>
-                    <th className="p-3.5">Mining Status</th>
-                    <th className="p-3.5">Joined Date</th>
-                    <th className="p-3.5" title={t('remindHint')}>
-                      {t('remindColumn')}
-                    </th>
-                    <th className="p-3.5 text-right">Contributed Boost</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.06]">
-                  {filteredRoster.map((m) => (
-                    <tr key={m.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="p-3.5 font-mono font-bold text-white">
-                        {m.maskedEmail}
-                      </td>
-                      <td className="p-3.5 font-mono text-[11px] text-slate-300">
-                        {m.countryCode}
-                      </td>
-                      <td className="p-3.5">
-                        <span
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
-                            m.isMiningActive
-                              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                              : 'bg-slate-800 text-slate-400 border border-slate-700'
-                          }`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              m.isMiningActive ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'
-                            }`}
-                          />
-                          <span>{m.isMiningActive ? t('active') : t('idle')}</span>
-                        </span>
-                      </td>
-                      <td className="p-3.5 font-mono text-[11px] text-slate-400">
-                        {new Date(m.joinedAt).toLocaleDateString()}
-                      </td>
-                      <td className="p-3.5 text-[11px]">
-                        <RemindCell
-                          member={m}
-                          busy={remindingId === m.id}
-                          notice={remindNotice?.id === m.id ? remindNotice : null}
-                          onRemind={() => handleRemind(m)}
-                        />
-                      </td>
-                      <td className="p-3.5 text-right font-mono font-bold text-amber-300">
-                        +Tier Bonus Multiplier
-                      </td>
+            ) : (
+              <div className="v-inset overflow-x-auto">
+                <table className="w-full min-w-[36rem] text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-line/20 font-mono text-[10px] uppercase tracking-wider text-ink-3">
+                      <th className="p-3.5">{t('maskedMiner')}</th>
+                      <th className="p-3.5">Country</th>
+                      <th className="p-3.5">{t('status')}</th>
+                      <th className="p-3.5">{t('joined')}</th>
+                      <th className="p-3.5" title={t('remindHint')}>
+                        {t('remindColumn')}
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                  </thead>
+                  <tbody className="v-stagger divide-y divide-line/10">
+                    {filteredRoster.map((m) => (
+                      <tr key={m.id} className="transition-colors hover:bg-surface-2/50">
+                        <td className="v-num p-3.5 font-bold text-ink">{m.maskedEmail}</td>
+                        <td className="v-num p-3.5 text-ink-2">{m.countryCode}</td>
+                        <td className="p-3.5">
+                          <Chip tone={m.isMiningActive ? 'ok' : 'default'} dot={m.isMiningActive} className="text-[10px]">
+                            {m.isMiningActive ? t('active') : t('idle')}
+                          </Chip>
+                        </td>
+                        <td className="v-num p-3.5 text-ink-3">{new Date(m.joinedAt).toLocaleDateString()}</td>
+                        <td className="p-3.5">
+                          <RemindCell
+                            member={m}
+                            busy={remindingId === m.id}
+                            notice={remindNotice?.id === m.id ? remindNotice : null}
+                            onRemind={() => handleRemind(m)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Panel>
+        </Reveal>
 
-        {/* ───────────────── Decentralized Integrity Note ───────────────── */}
-        <section className="rounded-2xl border border-white/10 bg-slate-900/60 p-5 text-xs text-slate-400 space-y-1.5 backdrop-blur-md">
-          <div className="flex items-center gap-2 font-bold text-slate-200">
-            <span>🛡️</span>
-            <span>{t('integrityTitle')}</span>
-          </div>
-          <p className="leading-relaxed text-[11px] text-slate-400">
-            {t('integrityBody')}
-          </p>
-        </section>
-      </main>
-
-      <MobileTabBar locale={locale} />
-    </div>
+        <Reveal>
+          <Notice icon={<Icon name="shield" size={16} />}>
+            <div className="text-xs font-extrabold text-ink">{t('integrityTitle')}</div>
+            <p className="mt-1 text-[11px] leading-relaxed">{t('integrityBody')}</p>
+          </Notice>
+        </Reveal>
+      </div>
+    </AppShell>
   );
 }
 
@@ -781,41 +704,28 @@ function RemindCell({
   let body: React.ReactNode;
   if (reminder.canSend || busy) {
     body = (
-      <button
-        type="button"
-        onClick={onRemind}
-        disabled={busy}
-        title={t('remindHint')}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-amber-400/40 bg-amber-500/10 px-2.5 py-1 font-bold text-amber-300 transition hover:bg-amber-500/20 hover:scale-105 disabled:cursor-wait disabled:opacity-60"
-      >
-        <span aria-hidden>📣</span>
+      <Button variant="ghost" size="sm" onClick={onRemind} loading={busy} title={t('remindHint')}>
+        <Icon name="bell" size={12} />
         {busy ? t('remindSending') : t('remind')}
-      </button>
+      </Button>
     );
   } else if (reminder.reason === 'COOLDOWN' && reminder.availableAt) {
     body = (
-      <span className="text-slate-400">
-        {t('remindAgainOn', {
-          date: new Date(reminder.availableAt).toLocaleDateString(),
-        })}
+      <span className="text-ink-3">
+        {t('remindAgainOn', { date: new Date(reminder.availableAt).toLocaleDateString() })}
       </span>
     );
   } else if (reminder.reason === 'NO_EMAIL') {
-    body = <span className="text-slate-500">{t('remindNoEmail')}</span>;
+    body = <span className="text-ink-3">{t('remindNoEmail')}</span>;
   } else {
-    body = <span className="text-slate-600">—</span>;
+    body = <span className="text-ink-3">—</span>;
   }
 
   return (
     <div className="space-y-1">
       {body}
       {notice && (
-        <div
-          role="status"
-          className={`text-[10px] font-semibold ${
-            notice.tone === 'ok' ? 'text-emerald-300' : 'text-red-300'
-          }`}
-        >
+        <div role="status" className={`text-[10px] font-semibold ${notice.tone === 'ok' ? 'text-ok' : 'text-heat'}`}>
           {notice.text}
         </div>
       )}

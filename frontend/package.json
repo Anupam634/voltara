@@ -1,12 +1,13 @@
 {
-  "name": "matsumoto-frontend",
+  "name": "voltara-frontend",
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:rigcode": "tsc lib/rig-code.ts --outDir .rigcode-test --module esnext --target es2022 --moduleResolution bundler && node --test lib/rig-code.test.mjs"
   },
   "dependencies": {
     "@types/qrcode": "^1.5.6",

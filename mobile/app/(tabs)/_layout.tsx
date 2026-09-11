@@ -1,8 +1,9 @@
 import React from 'react';
-import { Platform, View, type ColorValue } from 'react-native';
+import { Platform, Pressable, View, type ColorValue } from 'react-native';
 import { Tabs } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   Easing,
@@ -10,22 +11,27 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useT } from '../../src/i18n';
 import { useFeedback } from '../../src/lib/feedback';
+import { useSession } from '../../src/store/session';
 import { TAB_BAR_HEIGHT } from '../../src/lib/layout';
+import { Text } from '../../src/components/ui/Text';
 
 /**
- * The five tabs.
- *
- * Mine, Boost, Market, Ranks, Account — the same five destinations as the web
- * app's mobile tab bar, with Market keeping its place. The bar floats over the
- * content on both platforms (translucent blur on iOS, solid on Android where
- * blur is inconsistent across OEM skins) and sizes itself from the real
- * safe-area inset, so it clears the home indicator, a three-button Android
- * nav bar, and a bezel iPhone alike.
+ * The four tabs — Rig, ⚡ Mine, Ranks, Account — the same destinations
+ * as the web app's phone bar, with Mine raised in the centre exactly as the
+ * site does it. The Mine disc wears lime only while a claim is ready; the
+ * rest of the time it is violet, so the one lime thing on screen means
+ * "tap me now". The parts shop is not a tab: it is where the rig sends you,
+ * and it lights the Rig tab while you are in it. The bar floats over the
+ * content (translucent blur on iOS, solid on Android where blur is
+ * inconsistent across OEM skins) and sizes itself from the real safe-area
+ * inset.
  */
 export default function TabsLayout() {
   const { c, scheme, alpha } = useTheme();
@@ -36,10 +42,10 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      initialRouteName="index"
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: c.bg },
-        // Amber on the dark themes, sapphire on light — the site's tab bar.
         tabBarActiveTintColor: c.tabActive,
         tabBarInactiveTintColor: c.textTertiary,
         tabBarStyle: {
@@ -53,8 +59,8 @@ export default function TabsLayout() {
           paddingBottom: bottom,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
+          fontSize: 10,
+          fontWeight: '700',
           letterSpacing: 0,
         },
         tabBarBackground:
@@ -63,7 +69,7 @@ export default function TabsLayout() {
                 <BlurView
                   intensity={80}
                   tint={scheme === 'dark' ? 'dark' : 'light'}
-                  style={{ flex: 1, backgroundColor: alpha(c.bg, 0.86) }}
+                  style={{ flex: 1, backgroundColor: alpha(c.bg, 0.72) }}
                 />
               )
             : undefined,
@@ -73,37 +79,28 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="rig"
         options={{
-          title: t('tabs.mine'),
+          title: t('tabs.rig'),
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'flash' : 'flash-outline'} color={color} />
+            <TabIcon name={focused ? 'hardware-chip' : 'hardware-chip-outline'} color={color} focused={focused} />
           ),
         }}
       />
       <Tabs.Screen
         name="boosters"
         options={{
+          // Reachable from the rig, and from the dashboard's plan rail — but
+          // it does not earn a tab slot of its own.
+          href: null,
           title: t('tabs.boost'),
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'rocket' : 'rocket-outline'} color={color} />
-          ),
         }}
       />
       <Tabs.Screen
-        name="market"
+        name="index"
         options={{
-          title: t('tabs.market'),
-          // The marketplace is the "new" destination: cyan, with the site's
-          // pinging dot on the icon.
-          tabBarActiveTintColor: c.info,
-          tabBarIcon: ({ focused }) => (
-            <TabIcon
-              name={focused ? 'cart' : 'cart-outline'}
-              color={focused ? c.info : c.textTertiary}
-              dot={c.info}
-            />
-          ),
+          title: t('tabs.mine'),
+          tabBarButton: (props) => <MineTabButton {...props} label={t('tabs.mine')} />,
         }}
       />
       <Tabs.Screen
@@ -111,7 +108,7 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.ranks'),
           tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'trophy' : 'trophy-outline'} color={color} />
+            <TabIcon name={focused ? 'trophy' : 'trophy-outline'} color={color} focused={focused} />
           ),
         }}
       />
@@ -123,6 +120,7 @@ export default function TabsLayout() {
             <TabIcon
               name={focused ? 'person-circle' : 'person-circle-outline'}
               color={color}
+              focused={focused}
             />
           ),
         }}
@@ -134,48 +132,129 @@ export default function TabsLayout() {
 function TabIcon({
   name,
   color,
-  dot,
+  focused,
 }: {
   name: keyof typeof Ionicons.glyphMap;
   color: ColorValue;
-  /** Colour of a small "new" dot at the icon's corner. */
-  dot?: string;
+  focused?: boolean;
 }) {
+  const { c, alpha } = useTheme();
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <Ionicons name={name} size={23} color={color} />
-      {dot ? <PingDot color={dot} /> : null}
+    <View
+      style={{
+        width: 34,
+        height: 28,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: focused ? alpha(c.primary, 0.18) : 'transparent',
+      }}
+    >
+      <Ionicons name={name} size={22} color={color} />
     </View>
   );
 }
 
-/** The site's `animate-ping`: a dot with an expanding, fading ring. */
-function PingDot({ color }: { color: string }) {
-  const ring = useSharedValue(0);
+/**
+ * The raised centre disc. Violet gradient at rest; lime, breathing, with the
+ * site's expanding ring while a claim is ready.
+ */
+function MineTabButton({
+  onPress,
+  accessibilityState,
+  label,
+}: BottomTabBarButtonProps & { label: string }) {
+  const { c, glow } = useTheme();
+  const { mining } = useSession();
+  const ready = !!mining?.canClaim;
+  const focused = !!accessibilityState?.selected;
+  const scale = useSharedValue(1);
+  const breathe = useSharedValue(0);
+
   React.useEffect(() => {
-    ring.value = withRepeat(
-      withTiming(1, { duration: 1400, easing: Easing.out(Easing.quad) }),
-      -1,
-      false,
-    );
-    return () => cancelAnimation(ring);
-  }, [ring]);
-  const ringStyle = useAnimatedStyle(() => ({
-    opacity: 0.75 * (1 - ring.value),
-    transform: [{ scale: 1 + ring.value * 1.6 }],
+    if (ready) {
+      breathe.value = withRepeat(
+        withTiming(1, { duration: 1300, easing: Easing.inOut(Easing.sin) }),
+        -1,
+        true,
+      );
+    } else {
+      cancelAnimation(breathe);
+      breathe.value = withTiming(0, { duration: 200 });
+    }
+    return () => cancelAnimation(breathe);
+  }, [ready, breathe]);
+
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value * (1 + breathe.value * 0.04) }],
   }));
+  const ringStyle = useAnimatedStyle(() => ({
+    opacity: ready ? 0.7 * (1 - breathe.value) : 0,
+    transform: [{ scale: 1 + breathe.value * 0.55 }],
+  }));
+
+  const SIZE = 60;
+  const gradient = ready ? c.goldGradient : c.primaryGradient;
+  const fg = ready ? c.onGold : c.onPrimary;
+
   return (
-    <View
-      pointerEvents="none"
-      style={{ position: 'absolute', top: -3, right: -5, width: 8, height: 8 }}
-    >
-      <Animated.View
-        style={[
-          { position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: color },
-          ringStyle,
-        ]}
-      />
-      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} />
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', marginTop: -26 }}>
+      <Animated.View style={[{ borderRadius: SIZE / 2, ...glow(ready ? c.gold : c.primaryGlow, ready ? 3 : 2) }, pressStyle]}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            {
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: SIZE,
+              height: SIZE,
+              borderRadius: SIZE / 2,
+              borderWidth: 2,
+              borderColor: c.gold,
+            },
+            ringStyle,
+          ]}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label}
+          accessibilityState={accessibilityState}
+          onPressIn={() => {
+            scale.value = withSpring(0.94, { damping: 18, stiffness: 340 });
+          }}
+          onPressOut={() => {
+            scale.value = withSpring(1, { damping: 12, stiffness: 220 });
+          }}
+          onPress={onPress}
+          style={{
+            width: SIZE,
+            height: SIZE,
+            borderRadius: SIZE / 2,
+            overflow: 'hidden',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: 4,
+            borderColor: c.bg,
+          }}
+        >
+          <LinearGradient
+            pointerEvents="none"
+            colors={[...gradient] as [string, string, ...string[]]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+          />
+          <Ionicons name="flash" size={26} color={fg} />
+        </Pressable>
+      </Animated.View>
+      <Text
+        variant="overline"
+        weight="800"
+        style={{ fontSize: 10, marginTop: 3, color: ready ? c.gold : focused ? c.tabActive : c.textTertiary }}
+      >
+        {label}
+      </Text>
     </View>
   );
 }

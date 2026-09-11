@@ -3,20 +3,75 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
+import { AnimatedNumber, Icon } from './ui';
 
-interface BoosterOpt {
-  id: string;
-  nameKey: 'starter' | 'power' | 'pro' | 'enterprise';
+/**
+ * The build calculator.
+ *
+ * It quotes a whole BUILD, not a part, because a part on its own is not a
+ * rate any more: a VC-5 dropped on a bare chassis overheats and browns out at
+ * once, and the "10.9/h" this page used to promise for $5 would be 4.8/h in
+ * practice. Each option below is the core plus exactly the cooling and power
+ * it needs to run at 100% stability, priced honestly — which also happens to
+ * be the clearest possible explanation of the mechanic.
+ *
+ * The figures mirror `backend/prisma/seed.js` and the chassis constants in
+ * `rig.engine.ts`. If the catalogue is repriced, update them here too.
+ */
+
+interface Part {
+  code: string;
+  name: string;
   price: number;
-  rate: number;
 }
 
-const BOOSTER_OPTIONS: BoosterOpt[] = [
-  { id: 'free', nameKey: 'starter', price: 0, rate: 0.9 },
-  { id: 'b1', nameKey: 'starter', price: 1, rate: 2.9 },
-  { id: 'b5', nameKey: 'power', price: 5, rate: 10.9 },
-  { id: 'b10', nameKey: 'pro', price: 10, rate: 20.9 },
-  { id: 'b50', nameKey: 'enterprise', price: 50, rate: 90.9 },
+interface Build {
+  id: string;
+  /** Core hash added on top of the 0.9 base. */
+  hash: number;
+  /** The core, plus whatever it takes to run it at full stability. */
+  parts: Part[];
+}
+
+const CHASSIS_NOTE = { cooling: 12, watts: 120 };
+
+const BUILDS: Build[] = [
+  { id: 'free', hash: 0, parts: [] },
+  {
+    id: 'vc1',
+    hash: 2,
+    // 10 TU and 45 W both fit inside the free chassis: nothing else to buy.
+    parts: [{ code: 'VC1', name: 'VC-1 Volt Core', price: 1 }],
+  },
+  {
+    id: 'vc5',
+    hash: 10,
+    // 26 TU needs the vapor cooler; the cooler's own 18 W pushes the draw
+    // past the free 120 W, so a feeder unit comes with it.
+    parts: [
+      { code: 'VC5', name: 'VC-5 Arc Core', price: 5 },
+      { code: 'CX2', name: 'CX-2 Vapor Cooler', price: 2 },
+      { code: 'PS3', name: 'PS-3 Feeder Unit', price: 3 },
+    ],
+  },
+  {
+    id: 'vc10',
+    hash: 20,
+    parts: [
+      { code: 'VC10', name: 'VC-10 Plasma Core', price: 10 },
+      { code: 'CX6', name: 'CX-6 Cryo Loop', price: 6 },
+      { code: 'PS3', name: 'PS-3 Feeder Unit', price: 3 },
+    ],
+  },
+  {
+    id: 'vc50',
+    hash: 90,
+    parts: [
+      { code: 'VC50', name: 'VC-50 Fusion Core', price: 50 },
+      { code: 'CX20', name: 'CX-20 Immersion Bath', price: 20 },
+      { code: 'PS12', name: 'PS-12 Substation', price: 12 },
+    ],
+  },
 ];
 
 function getMultiplier(invites: number): { level: number; mult: number } {
@@ -28,16 +83,20 @@ function getMultiplier(invites: number): { level: number; mult: number } {
   return { level: 1, mult: 1 };
 }
 
+const BASE_RATE = 0.9;
+
 export function MiningCalculator({ locale }: { locale: string }) {
   const t = useTranslations('landing.calculator');
 
-  const [selectedBooster, setSelectedBooster] = useState<BoosterOpt>(
-    BOOSTER_OPTIONS[3]
-  );
+  const [build, setBuild] = useState<Build>(BUILDS[3]);
   const [inviteCount, setInviteCount] = useState<number>(12);
 
   const tier = getMultiplier(inviteCount);
-  const effectiveRate = +(selectedBooster.rate * tier.mult).toFixed(1);
+  const buildCost = build.parts.reduce((n, p) => n + p.price, 0);
+  // Every option here is balanced by construction, so stability is 100% and
+  // the two efficiency factors are 1. That is the point being made.
+  const stableRate = BASE_RATE + build.hash;
+  const effectiveRate = +(stableRate * tier.mult).toFixed(1);
   const dailyPoints = +(effectiveRate * 24).toFixed(1);
   const monthlyPoints = +(dailyPoints * 30).toFixed(0);
   const monthlyTokens = +(monthlyPoints / 3).toFixed(0);
@@ -45,59 +104,88 @@ export function MiningCalculator({ locale }: { locale: string }) {
   const registerLink = `/${locale}/login?mode=register`;
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-slate-900/40 p-6 sm:p-12 shadow-2xl backdrop-blur-2xl">
-      {/* Ambient background cones */}
-      <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-amber-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -left-20 -bottom-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+    <div className="v-panel v-hud relative overflow-hidden rounded-3xl p-5 sm:p-10">
+      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-brand/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -left-24 h-72 w-72 rounded-full bg-charge/10 blur-3xl" />
 
-      <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
-        {/* Left column: Interactive Controls */}
+      <div className="relative grid gap-8 lg:grid-cols-12 lg:items-start">
+        {/* Controls */}
         <div className="space-y-6 lg:col-span-7">
           <div>
-            <label className="block text-xs uppercase font-extrabold tracking-wider text-amber-400">
-              {t('selectBooster')}
-            </label>
+            <span className="v-label">{t('selectBuild')}</span>
             <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-5">
-              {BOOSTER_OPTIONS.map((b) => {
-                const isSelected = selectedBooster.id === b.id;
+              {BUILDS.map((b) => {
+                const isSelected = build.id === b.id;
+                const cost = b.parts.reduce((n, p) => n + p.price, 0);
                 return (
                   <button
                     key={b.id}
                     type="button"
-                    onClick={() => setSelectedBooster(b)}
+                    onClick={() => setBuild(b)}
+                    aria-pressed={isSelected}
                     className={`rounded-2xl border p-3 text-center transition-all duration-200 ${
                       isSelected
-                        ? 'border-amber-400 bg-amber-500/20 shadow-xl shadow-amber-500/10 scale-105'
-                        : 'border-white/[0.06] bg-slate-950/60 hover:border-white/20 hover:bg-slate-900/50'
+                        ? 'scale-[1.03] border-charge/60 bg-charge/10 shadow-charge'
+                        : 'border-line/15 bg-bg/40 hover:border-line/40 hover:bg-surface-2/60'
                     }`}
                   >
-                    <div className="text-xs font-bold text-slate-200">
-                      {b.price === 0 ? 'Free Base' : `$${b.price}`}
+                    <div className="text-xs font-bold text-ink">{cost === 0 ? t('freeBase') : `$${cost}`}</div>
+                    <div className={`v-num mt-1 text-sm font-extrabold ${isSelected ? 'text-charge' : 'text-ink-3'}`}>
+                      {(BASE_RATE + b.hash).toFixed(1)} /h
                     </div>
-                    <div
-                      className={`mt-1 font-mono text-sm font-extrabold ${
-                        isSelected ? 'text-amber-300' : 'text-slate-400'
-                      }`}
-                    >
-                      {b.rate} /h
-                    </div>
+                    {b.parts.length > 1 && (
+                      <div className="mt-0.5 font-mono text-[10px] text-ink-3">
+                        {b.parts.length} {t('parts')}
+                      </div>
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
 
+          {/* What the build actually contains — the honest bit. */}
+          <div className="rounded-2xl border border-brand/30 bg-brand/[0.07] p-4">
+            <p className="v-eyebrow v-eyebrow--brand">{t('buildContents')}</p>
+            {build.parts.length === 0 ? (
+              <p className="mt-2 text-xs text-ink-2">
+                {t('freeBaseNote', { cooling: CHASSIS_NOTE.cooling, watts: CHASSIS_NOTE.watts })}
+              </p>
+            ) : (
+              <>
+                <ul className="mt-2 space-y-1">
+                  {build.parts.map((p) => (
+                    <li key={p.code} className="flex items-center justify-between gap-3 text-xs">
+                      <span className="inline-flex items-center gap-1.5 text-ink-2">
+                        <Icon
+                          name={p.code.startsWith('VC') ? 'chip' : p.code.startsWith('CX') ? 'snow' : 'plug'}
+                          size={12}
+                          className="text-brand-hi"
+                        />
+                        {p.name}
+                      </span>
+                      <span className="v-num font-bold text-ink-3">${p.price}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-2 flex items-center justify-between gap-3 border-t border-line/20 pt-2 text-xs">
+                  <span className="font-bold text-ink">{t('buildTotal')}</span>
+                  <span className="v-num font-extrabold text-charge">
+                    ${buildCost} · {t('stability100')}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
+
           {/* Referral slider */}
           <div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs uppercase font-extrabold tracking-wider text-amber-400">
-                {t('selectInvites')}
-              </label>
-              <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-3 py-0.5 text-xs font-mono font-bold text-amber-300">
-                {inviteCount} Invited (L{tier.level} • ×{tier.mult})
+            <div className="flex items-center justify-between gap-3">
+              <span className="v-label mb-0">{t('selectInvites')}</span>
+              <span className="v-chip v-chip--brand v-num">
+                {inviteCount} · L{tier.level} · ×{tier.mult}
               </span>
             </div>
-
             <div className="mt-4">
               <input
                 type="range"
@@ -106,78 +194,68 @@ export function MiningCalculator({ locale }: { locale: string }) {
                 step="1"
                 value={inviteCount}
                 onChange={(e) => setInviteCount(Number(e.target.value))}
-                className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-slate-800 accent-amber-500"
+                className="h-2 w-full cursor-pointer appearance-none rounded-full bg-line/20 accent-[rgb(var(--c-charge))]"
+                aria-label={t('selectInvites')}
               />
-              <div className="mt-2 flex justify-between text-[11px] font-mono text-slate-500">
-                <span>0 (×1)</span>
-                <span>5 (×3)</span>
-                <span>10 (×4)</span>
-                <span>20 (×5)</span>
-                <span>30 (×6)</span>
-                <span>31+ (×8)</span>
+              <div className="mt-2 flex justify-between font-mono text-[10px] text-ink-3">
+                <span>0 ×1</span>
+                <span>5 ×3</span>
+                <span>10 ×4</span>
+                <span>20 ×5</span>
+                <span>30 ×6</span>
+                <span>31+ ×8</span>
               </div>
             </div>
           </div>
 
-          {/* Real math breakdown note */}
-          <div className="rounded-2xl border border-white/[0.08] bg-slate-950/60 p-4 text-xs text-slate-300 backdrop-blur-md">
-            <span className="text-blue-400 font-bold">Reward Calculation Engine:</span>{' '}
-            {selectedBooster.rate} BONDKOIN/h × ×{tier.mult} (Level {tier.level} Multiplier) ={' '}
-            <span className="font-mono text-cyan-300 font-extrabold">{effectiveRate} BONDKOIN/h</span>
+          <div className="v-inset p-4 text-xs text-ink-2">
+            <span className="font-bold text-brand-hi">{t('engineLabel')}</span> {stableRate.toFixed(1)} VOLTS/h × 100%{' '}
+            {t('stabilityWord')} × ×{tier.mult} ={' '}
+            <span className="v-num font-extrabold text-charge">{effectiveRate} VOLTS/h</span>
           </div>
         </div>
 
-        {/* Right column: Results Output Card */}
+        {/* Results */}
         <div className="lg:col-span-5">
-          <div className="rounded-3xl border border-blue-500/40 bg-gradient-to-br from-slate-950/90 via-slate-900/90 to-blue-950/20 p-6 sm:p-8 shadow-2xl backdrop-blur-2xl">
-            <div className="text-xs uppercase font-extrabold tracking-wider text-blue-400/90">
-              {t('estimatedYield')}
-            </div>
+          <div className="v-panel v-panel--charge v-scanlines relative overflow-hidden rounded-3xl p-6 sm:p-7">
+            <div className="v-eyebrow v-eyebrow--charge">{t('estimatedYield')}</div>
 
             <div className="mt-5 space-y-4">
-              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-                <span className="text-sm text-slate-400">{t('hourlyRate')}</span>
-                <span className="font-mono text-lg font-extrabold text-cyan-300">
-                  {effectiveRate} BONDKOIN/h
-                </span>
-              </div>
+              <Row label={t('hourlyRate')}>
+                <AnimatedNumber value={effectiveRate} decimals={1} className="text-lg font-extrabold text-charge" suffix=" VOLTS/h" />
+              </Row>
+              <Row label={t('dailyYield')}>
+                <AnimatedNumber value={dailyPoints} decimals={1} className="text-lg font-extrabold text-ink" suffix=" VOLTS" />
+              </Row>
+              <Row label={t('monthlyYield')}>
+                <AnimatedNumber value={monthlyPoints} decimals={0} className="text-xl font-extrabold text-brand-hi" suffix=" VOLTS" />
+              </Row>
 
-              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-                <span className="text-sm text-slate-400">{t('dailyYield')}</span>
-                <span className="font-mono text-lg font-extrabold text-slate-200">
-                  {dailyPoints} PTS
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-                <span className="text-sm text-slate-400">{t('monthlyYield')}</span>
-                <span className="font-mono text-xl font-black text-cyan-400">
-                  {monthlyPoints.toLocaleString()} PTS
-                </span>
-              </div>
-
-              <div className="rounded-2xl bg-blue-500/10 border border-blue-500/30 p-4 text-center">
-                <div className="text-xs uppercase font-bold text-blue-300">
-                  {t('onChainPayout')}
+              <div className="rounded-2xl border border-brand/35 bg-brand/[0.1] p-4 text-center">
+                <div className="v-eyebrow v-eyebrow--brand">{t('onChainPayout')}</div>
+                <div className="mt-1 text-2xl font-extrabold text-ink sm:text-3xl">
+                  ~<AnimatedNumber value={monthlyTokens} decimals={0} /> $VLTR
                 </div>
-                <div className="mt-1 font-mono text-2xl font-black text-cyan-300 sm:text-3xl">
-                  ~{monthlyTokens.toLocaleString()} $BONDKOIN
-                </div>
-                <div className="mt-1 text-[11px] text-slate-400">
-                  Direct BEP-20 transfer to your BNB Chain address
-                </div>
+                <div className="mt-1 text-[11px] text-ink-3">{t('payoutNote')}</div>
               </div>
             </div>
 
-            <Link
-              href={registerLink}
-              className="btn-gold mt-6 block w-full rounded-2xl py-3.5 text-center text-sm font-extrabold uppercase tracking-wider text-slate-950 shadow-xl"
-            >
+            <Link href={registerLink} className="v-btn v-btn--charge mt-6 w-full">
               {t('cta')}
+              <Icon name="arrow-up-right" size={14} />
             </Link>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-line/15 pb-3">
+      <span className="text-sm text-ink-3">{label}</span>
+      <span>{children}</span>
     </div>
   );
 }

@@ -57,17 +57,17 @@ jobs:
             export PATH=$PATH:/usr/local/bin:/usr/bin:~/.nvm/versions/node/$(node -v 2>/dev/null)/bin:$(npm root -g 2>/dev/null)/../bin
             
             # Clone repo if not exists, or pull latest changes
-            if [ ! -d "/var/www/bondkoin/.git" ]; then
+            if [ ! -d "/var/www/voltara/.git" ]; then
               echo "📥 Cloning repository for the first time..."
-              git clone https://github.com/Anupam634/Matsumoto.git /var/www/bondkoin
+              git clone https://github.com/Anupam634/Voltara.git /var/www/voltara
             else
               echo "📥 Pulling latest commits from origin main..."
-              cd /var/www/bondkoin
+              cd /var/www/voltara
               git reset --hard origin/main
               git pull origin main
             fi
             
-            cd /var/www/bondkoin/backend
+            cd /var/www/voltara/backend
             
             # Auto-write .env file from GitHub Secret (if ENV_CONTENT secret is set)
             if [ -n "$ENV_CONTENT" ]; then
@@ -99,7 +99,7 @@ jobs:
             # Reload PM2 with clean start on Port 3001
             echo "🚀 Starting PM2 process on Port 3001..."
             pm2 delete all 2>/dev/null || true
-            PORT=3001 pm2 start dist/main.js --name "bondkoin-backend" --update-env
+            PORT=3001 pm2 start dist/main.js --name "voltara-backend" --update-env
             pm2 save
 
             # `pm2 save` only writes the process list to disk — on its own it does
@@ -129,12 +129,12 @@ jobs:
             # state that surfaces in the browser as an unexplained CORS error.
             if [ "$HEALTH_CODE" != "200" ]; then
               echo "❌ Backend never became healthy (last status: ${HEALTH_CODE:-no response})."
-              pm2 logs bondkoin-backend --lines 80 --nostream || true
+              pm2 logs voltara-backend --lines 80 --nostream || true
               exit 1
             fi
             
             # Automated Nginx & Domain Reverse Proxy Setup
-            echo "🌐 Configuring automated Nginx Reverse Proxy for api.bondkoinlabs.com..."
+            echo "🌐 Configuring automated Nginx Reverse Proxy for api.voltaragrid.com..."
             if ! command -v nginx &> /dev/null; then
               if command -v dnf &> /dev/null; then
                 sudo dnf install -y nginx
@@ -157,17 +157,17 @@ jobs:
             fi
             
             sudo mkdir -p /etc/nginx/conf.d
-            sudo cp /var/www/bondkoin/backend/nginx/bondkoin.conf /etc/nginx/conf.d/bondkoin.conf
+            sudo cp /var/www/voltara/backend/nginx/voltara.conf /etc/nginx/conf.d/voltara.conf
             sudo systemctl enable nginx
             sudo nginx -t && (sudo systemctl restart nginx || sudo nginx -s reload)
             
             # Auto-provision SSL certificate via Certbot if DNS is resolved
             if command -v certbot &> /dev/null; then
-              echo "🔒 Checking & provisioning Let's Encrypt SSL certificate for api.bondkoinlabs.com..."
-              sudo certbot --nginx -d api.bondkoinlabs.com --non-interactive --agree-tos -m hello@bondkoinlabs.com --redirect || echo "⚠️ Certbot notice: SSL will activate once DNS A-record is active."
+              echo "🔒 Checking & provisioning Let's Encrypt SSL certificate for api.voltaragrid.com..."
+              sudo certbot --nginx -d api.voltaragrid.com --non-interactive --agree-tos -m hello@voltaragrid.com --redirect || echo "⚠️ Certbot notice: SSL will activate once DNS A-record is active."
             fi
             
             echo "🌐 Testing public HTTPS API endpoint..."
-            curl -v https://api.bondkoinlabs.com/api/health || echo "⚠️ HTTPS probe returned non-200"
+            curl -v https://api.voltaragrid.com/api/health || echo "⚠️ HTTPS probe returned non-200"
             
             echo "✅ Deployment & Nginx domain configuration completed successfully!"

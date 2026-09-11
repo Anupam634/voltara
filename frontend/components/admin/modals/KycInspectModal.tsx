@@ -1,4 +1,5 @@
 'use client';
+import { Icon } from '../../ui';
 
 import React, { useState, useEffect } from 'react';
 import type { AdminKycDetail } from '../../../lib/admin-api';
@@ -113,7 +114,7 @@ export function KycInspectModal({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-xl font-black text-white">
-                  🪪 KYC Document Inspection
+                  KYC Document Inspection
                 </h3>
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
@@ -166,7 +167,7 @@ export function KycInspectModal({
                 Uploaded Verification Media ({docs.length} Documents)
               </span>
               <span className="text-[11px] text-amber-400 font-bold">
-                💡 Click any image to open full size
+                Click any image to open full size
               </span>
             </div>
 
@@ -184,10 +185,10 @@ export function KycInspectModal({
                     <div className="flex items-center justify-between pb-2">
                       <span className="text-xs font-black uppercase text-amber-400">
                         {doc.kind === 'front'
-                          ? '📄 Front Document'
+                          ? 'Front Document'
                           : doc.kind === 'back'
-                          ? '📄 Back Document'
-                          : '🤳 Selfie with ID'}
+                          ? 'Back Document'
+                          : 'Selfie with ID'}
                       </span>
                       <span className="text-[10px] font-mono font-bold text-slate-500">
                         #{idx + 1} of {docs.length}
@@ -207,7 +208,7 @@ export function KycInspectModal({
                       />
                       <div className="absolute inset-0 flex items-center justify-center bg-slate-950/40 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100">
                         <span className="rounded-xl border border-white/20 bg-slate-900/90 px-3 py-1.5 text-xs font-bold text-white shadow-2xl">
-                          🔍 Click to View Full Size
+                          Click to View Full Size
                         </span>
                       </div>
                     </div>
@@ -217,7 +218,7 @@ export function KycInspectModal({
                       onClick={() => openFullscreen(idx)}
                       className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 py-2 text-xs font-bold text-slate-300 transition hover:border-amber-500 hover:text-amber-400"
                     >
-                      <span>🔍</span>
+                      <Icon name="search" size={13} />
                       <span>Open Full Image</span>
                     </button>
                   </div>
@@ -329,7 +330,7 @@ export function KycInspectModal({
                   disabled={submitting}
                   className={`rounded-xl px-6 py-2.5 text-xs font-black uppercase tracking-wider transition ${
                     decisionType === 'APPROVE'
-                      ? 'btn-gold text-slate-950 shadow-lg shadow-amber-500/20'
+                      ? 'btn-gold text-slate-950 shadow-lg shadow-violet-600/25'
                       : 'bg-red-600 text-white hover:bg-red-500 shadow-lg shadow-red-600/20'
                   } disabled:opacity-50`}
                 >
@@ -395,14 +396,14 @@ export function KycInspectModal({
                 className="rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs font-bold text-slate-200 hover:text-white"
                 title="Rotate 90°"
               >
-                🔄 Rotate 90°
+                Rotate 90°
               </button>
               <a
                 href={currentDoc.dataUrl}
                 download={`kyc_${selected.fullName || 'doc'}_${currentDoc.kind}.jpg`}
                 className="rounded-lg border border-indigo-500/40 bg-indigo-950/40 px-3 py-1.5 text-xs font-bold text-indigo-300 hover:text-white"
               >
-                💾 Download
+                Download
               </a>
               <button
                 onClick={closeFullscreen}

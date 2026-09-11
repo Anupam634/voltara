@@ -91,7 +91,7 @@ export function RateAdjustModal({ user, onClose, onSuccess }: RateAdjustModalPro
           <button
             type="submit"
             disabled={busy}
-            className="btn-gold rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider text-slate-950"
+            className="btn-gold rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider"
           >
             {busy ? 'Saving…' : 'Apply Hashrate'}
           </button>

@@ -22,16 +22,16 @@ export function AdminHeader({
     {
       group: 'DASHBOARD',
       items: [
-        { key: 'analytics' as AdminTab, label: '📊 Platform Analytics', badge: null },
+        { key: 'analytics' as AdminTab, label: 'Platform Analytics', badge: null },
       ],
     },
     {
       group: 'USERS & KYC',
       items: [
-        { key: 'miners' as AdminTab, label: `👥 Miners (${stats?.totalUsers ?? '…'})`, badge: null },
+        { key: 'miners' as AdminTab, label: `Miners (${stats?.totalUsers ?? '…'})`, badge: null },
         {
           key: 'kyc' as AdminTab,
-          label: '🪪 Identity KYC',
+          label: 'Identity KYC',
           badge: stats?.kycSummary?.pending ? `${stats.kycSummary.pending} PENDING` : null,
         },
       ],
@@ -41,24 +41,24 @@ export function AdminHeader({
       items: [
         {
           key: 'withdrawals' as AdminTab,
-          label: '💸 Withdrawals Queue',
+          label: 'Withdrawals Queue',
           badge: stats?.pendingWithdrawals ? `${stats.pendingWithdrawals} PENDING` : null,
         },
-        { key: 'boosters' as AdminTab, label: '💼 Boosters & Plans', badge: null },
+        { key: 'boosters' as AdminTab, label: 'Boosters & Plans', badge: null },
       ],
     },
     {
       group: 'GROWTH & MARKETING',
       items: [
-        { key: 'tasks' as AdminTab, label: '🎯 Tasks & Bounties', badge: null },
-        { key: 'referrals' as AdminTab, label: '🌲 6-Tier Referrals', badge: null },
+        { key: 'tasks' as AdminTab, label: 'Tasks & Bounties', badge: null },
+        { key: 'referrals' as AdminTab, label: '6-Tier Referrals', badge: null },
       ],
     },
     {
       group: 'SYSTEM & SUPPORT',
       items: [
-        { key: 'support' as AdminTab, label: '💬 Support Tickets', badge: null },
-        { key: 'security' as AdminTab, label: '🛡️ Security & Anti-Abuse', badge: null },
+        { key: 'support' as AdminTab, label: 'Support Tickets', badge: null },
+        { key: 'security' as AdminTab, label: 'Security & Anti-Abuse', badge: null },
         { key: 'audit' as AdminTab, label: '⚙️ Audit & Chain', badge: null },
       ],
     },
@@ -74,7 +74,7 @@ export function AdminHeader({
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-black tracking-tight text-white sm:text-lg">
-                  BONDKOIN Command Center
+                  VOLTARA Command Center
                 </span>
                 <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-400">
                   Cluster v2.4 Active
@@ -109,7 +109,7 @@ export function AdminHeader({
                     onClick={() => onSelectTab(item.key)}
                     className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-extrabold uppercase tracking-wider transition-all ${
                       active
-                        ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                        ? 'bg-violet-600 text-white shadow-md shadow-violet-600/25'
                         : 'border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -119,7 +119,7 @@ export function AdminHeader({
                         className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${
                           active
                             ? 'bg-slate-950 text-amber-400'
-                            : 'bg-amber-400 text-slate-950'
+                            : 'bg-violet-500 text-white'
                         }`}
                       >
                         {item.badge}

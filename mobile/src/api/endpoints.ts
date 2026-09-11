@@ -103,16 +103,48 @@ export const getProfile = () => apiFetch<Profile>('/auth/me');
 
 /* ────────────────────────────── Mining ────────────────────────────── */
 
+/** A rung on the streak ladder. */
+export interface StreakTierDto {
+  days: number;
+  bonusPercent: number;
+}
+
+/** Consecutive daily claims, and what the run is currently worth. */
+export interface StreakDto {
+  days: number;
+  bestDays: number;
+  /** 0, 3, 7, 10 or 15. */
+  bonusPercent: number;
+  /** The rung being climbed towards, or null at the top. */
+  nextTier: StreakTierDto | null;
+  /** ISO — claim before this or the run resets. Null if never mined. */
+  keepsUntil: string | null;
+}
+
+/** The three things a new miner has to do before the app makes sense. */
+export interface OnboardingDto {
+  claimedFirst: boolean;
+  rigRunning: boolean;
+  invited: boolean;
+  done: boolean;
+}
+
 export interface MiningStatus {
   ratePerHour: number;
   pendingPoints: number;
+  /** Parts currently socketed — not parts owned. */
   activeBoosters: number;
+  /** Live rig readout, so the gauge never lags the rate it explains. */
+  rig: RigTelemetryDto;
   canClaim: boolean;
   referralTier: { level: number; multiplier: number };
   /** ISO timestamp the 24h cooldown lifts, or null if never mined. */
   nextClaimAt: string | null;
   /** Accrual ceiling (rate × 24h) — pending stops growing here. */
   maxPendingPoints: number;
+  /** Optional until the streak API ships; absent means "render nothing". */
+  streak?: StreakDto;
+  onboarding?: OnboardingDto;
 }
 
 export const getMiningStatus = () => apiFetch<MiningStatus>('/mining/status');
@@ -305,6 +337,12 @@ export interface LeaderboardEntry {
   isCurrentUser: boolean;
   isMiningActive: boolean;
   joinedAt: string | null;
+  /**
+   * The miner's referral code, already public — it is the key in every share
+   * link. Present so a row can open the spectator view. Optional so the app
+   * survives an API that predates it.
+   */
+  watchCode?: string | null;
 }
 
 export interface LeaderboardResponse {
@@ -375,22 +413,270 @@ export const submitKyc = (body: {
     body: JSON.stringify(body),
   });
 
-/* ───────────────────────────── Boosters ───────────────────────────── */
+/* ─────────────────────────────── Rig ──────────────────────────────── */
+
+export type RigPartKind = 'CORE' | 'COOLER' | 'PSU' | 'MODULE';
+
+/** What a rig is producing, what it costs to run, and what survives. */
+export interface RigTelemetryDto {
+  hashPerHour: number;
+  baseHashPerHour: number;
+  heatLoad: number;
+  coolingCapacity: number;
+  powerDraw: number;
+  powerSupply: number;
+  /** 0–1 each. */
+  thermalEfficiency: number;
+  powerEfficiency: number;
+  /** 0–100 — the headline number the whole UI is built around. */
+  gridStability: number;
+  overheating: boolean;
+  brownout: boolean;
+  installedCount: number;
+  /** Installed parts currently burned out by an overclock roll. */
+  disabledCount?: number;
+  coolingSurplus?: number;
+  powerSurplus?: number;
+  modifiers?: {
+    heatMultBp: number;
+    drawMultBp: number;
+    hashMultBp: number;
+    overclock: boolean;
+    squadCooling: number;
+    squadPower: number;
+  };
+}
+
+export type BoosterSource = 'PURCHASE' | 'LOANER' | 'REFERRAL' | 'CRAFT' | 'TRADE' | 'CHALLENGE';
+
+/** One owned part, in a slot or waiting in inventory. */
+export interface RigPartDto {
+  id: string;
+  planId: string;
+  code: string | null;
+  name: string;
+  kind: RigPartKind;
+  tier: number;
+  priceUsd: number;
+  hashPerHour: number;
+  heat: number;
+  cooling: number;
+  watts: number;
+  wattsSupplied: number;
+  hashBoostPercent: number;
+  startedAt: string;
+  expiresAt: string;
+  installedAt: string | null;
+  source?: BoosterSource;
+  disabledUntil?: string | null;
+  /** Burned by an overclock roll and still cooling off. */
+  burned?: boolean;
+}
+
+/** A world event bending every rig's physics for a few hours. */
+export interface GridEventDto {
+  id: string;
+  code: 'HEATWAVE' | 'COLD_SNAP' | 'CHEAP_POWER' | 'GRID_STRAIN' | 'SOLAR_SURGE' | string;
+  title: string;
+  body: string;
+  heatMultBp: number;
+  drawMultBp: number;
+  hashMultBp: number;
+  /** (bp − 10000) / 100, e.g. +30, −50. */
+  heatPercent: number;
+  drawPercent: number;
+  hashPercent: number;
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface GridEventBoard {
+  active: GridEventDto | null;
+  upcoming: GridEventDto | null;
+  recent: GridEventDto[];
+  serverTime: string;
+}
+
+export const getGridEvent = () => apiFetch<GridEventBoard>('/grid/event');
+
+export interface OverclockDto {
+  active: boolean;
+  until: string | null;
+  hashBoostPercent: number;
+  heatPercent: number;
+  rateOff: number;
+  rateOn: number;
+  stabilityOff: number;
+  stabilityOn: number;
+}
+
+export interface RigOverview {
+  chassis: {
+    slots: number;
+    baseCooling: number;
+    basePower: number;
+    bonusCooling: number;
+    bonusPower: number;
+    skin?: string;
+  };
+  grid: { index: number; part: RigPartDto | null }[];
+  inventory: RigPartDto[];
+  telemetry: RigTelemetryDto;
+  rate: {
+    ratePerHour: number;
+    /** What the same build would earn with no throttle — the upsell. */
+    potentialRatePerHour: number;
+    throttledAwayPerHour: number;
+    referralTier: { level: number; multiplier: number };
+  };
+  scrap?: number;
+  squadId?: string | null;
+  event?: GridEventDto | null;
+  overclock?: OverclockDto;
+  /** Today's weather where this miner lives, when the grid has a reading. */
+  weather?: {
+    countryCode: string;
+    city: string;
+    tempC: number;
+    heatPercent: number;
+  } | null;
+  /** The platform-wide stability bonus this rig currently earns. */
+  collective?: { bonusPercent: number; holding: boolean };
+}
+
+export const setOverclock = (on: boolean) =>
+  apiFetch<RigOverview>('/rig/overclock', { method: 'POST', body: JSON.stringify({ on }) });
+
+export const salvagePart = (boosterId: string) =>
+  apiFetch<{ scrap: number; salvagedId: string; gained?: number }>('/rig/salvage', {
+    method: 'POST',
+    body: JSON.stringify({ boosterId }),
+  });
+
+export const craftPart = () =>
+  apiFetch<{ part: RigPartDto; scrap: number; slot: number | null }>('/rig/craft', {
+    method: 'POST',
+  });
+
+export interface SkinDto {
+  id: string;
+  name: string;
+  priceVolts: number;
+  description: string;
+  accent: string;
+  owned: boolean;
+  equipped: boolean;
+}
+
+export interface SkinsDto {
+  equipped: string;
+  owned: string[];
+  catalog: SkinDto[];
+}
+
+export const getSkins = () => apiFetch<SkinsDto>('/rig/skins');
+export const buySkin = (skin: string) =>
+  apiFetch<SkinsDto>('/rig/skins/buy', { method: 'POST', body: JSON.stringify({ skin }) });
+export const equipSkin = (skin: string) =>
+  apiFetch<SkinsDto>('/rig/skins/equip', { method: 'POST', body: JSON.stringify({ skin }) });
+
+export const getRig = () => apiFetch<RigOverview>('/rig');
+
+export const installPart = (boosterId: string, slot: number) =>
+  apiFetch<{ installed: true; index: number; telemetry: RigTelemetryDto }>(
+    '/rig/install',
+    { method: 'POST', body: JSON.stringify({ boosterId, slot }) },
+  );
+
+export const uninstallPart = (slot: number) =>
+  apiFetch<{
+    uninstalled: true;
+    index: number;
+    boosterId: string;
+    telemetry: RigTelemetryDto;
+  }>('/rig/uninstall', { method: 'POST', body: JSON.stringify({ slot }) });
+
+/* ──────────────────────── Parts shop (boosters) ────────────────────── */
+
+/** A catalogue part. `rateBonusPerHour` is hash; the rest is running cost. */
+/** One step of a suggested fix: a part the rig needs to run what was added. */
+export interface PartFixStep {
+  code: string;
+  name: string;
+  priceUsd: number;
+}
+
+/** The cheap working set that gets a deficit build back to full output. */
+export interface PartFix {
+  steps: PartFixStep[];
+  extraUsd: number;
+  totalUsd: number;
+  stability: number;
+  ratePerHour: number;
+  /** Whether it truly reaches 100%, or only improves things. */
+  clean: boolean;
+}
+
+/**
+ * This part simulated against the caller's OWN rig, by the same engine the
+ * dashboard and the claim use.
+ *
+ * Null when the rig could not be read. Every figure here beats a locally
+ * computed projection: adding `rateBonusPerHour` to the current rate ignores
+ * GRID STABILITY, so on a rig with no spare cooling it promises a gain the
+ * miner will not get.
+ */
+export interface PartFit {
+  code: string;
+  freeSlots: number;
+  fits: boolean;
+  stabilityBefore: number;
+  stabilityAfter: number;
+  ratePerHourBefore: number;
+  ratePerHourAfter: number;
+  heatShort: number;
+  wattsShort: number;
+  clean: boolean;
+  fix: PartFix | null;
+}
 
 export interface BoosterPlanDto {
   id: string;
+  code: string | null;
+  name: string;
+  kind: RigPartKind;
+  tier: number;
   priceUsd: number;
   rateBonusPerHour: number;
+  heat: number;
+  cooling: number;
+  watts: number;
+  wattsSupplied: number;
+  hashBoostPercent: number;
   durationDays: number;
+  /** Stock-chassis figure — decoration once a miner owns parts. Use `fit`. */
   resultingRatePerHour: number;
+  fit: PartFit | null;
 }
 
 export interface ActiveBoosterDto {
   id: string;
+  planId: string;
+  code: string | null;
+  name: string;
+  kind: RigPartKind;
+  tier: number;
   priceUsd: number;
   rateBonusPerHour: number;
+  heat: number;
+  cooling: number;
+  watts: number;
+  wattsSupplied: number;
+  hashBoostPercent: number;
   startedAt: string;
   expiresAt: string;
+  /** Slot it is running in, or null when it is sitting in inventory. */
+  installedSlot: number | null;
 }
 
 export type PurchaseStatus =
@@ -441,7 +727,16 @@ export const createBoosterIntent = (planId: string, fromAddress: string) =>
 export const submitBoosterPayment = (purchaseId: string, txHash: string) =>
   apiFetch<{
     activated: boolean;
-    booster: { id: string; rateBonusPerHour: number; expiresAt: string };
+    booster: {
+      id: string;
+      code: string | null;
+      name: string;
+      kind: RigPartKind;
+      rateBonusPerHour: number;
+      expiresAt: string;
+      /** Slot it was auto-installed into, or null when the rig was full. */
+      installedSlot: number | null;
+    };
   }>(`/boosters/purchase/${purchaseId}/submit`, {
     method: 'POST',
     body: JSON.stringify({ txHash }),
@@ -455,7 +750,7 @@ export interface WithdrawalDto {
   id: string;
   /** Points debited, in whole points. */
   points: number;
-  /** $BONDKOIN to be paid out — points ÷ 3, as a decimal string. */
+  /** $VLTR to be paid out — points ÷ 3, as a decimal string. */
   tokenAmount: string;
   toAddress: string;
   status: WithdrawalStatus;
@@ -469,8 +764,24 @@ export interface WithdrawalDto {
 /** Rules the server enforces on a request (SPEC §4) — mirrored for the UI. */
 export const WITHDRAWAL_MIN_POINTS = 100;
 export const WITHDRAWAL_COOLDOWN_DAYS = 7;
-/** SPEC §3: 3 points = 1 mainnet $BONDKOIN. */
+/** SPEC §3: 3 points = 1 mainnet $VLTR. */
 export const POINTS_PER_TOKEN = 3;
+
+/**
+ * Whether payouts are open yet.
+ *
+ * $VLTR is not on-chain until the token launches, and a request accepted
+ * before then debits the miner's balance into an escrow nobody can release.
+ * The server refuses those, so the screen asks first.
+ */
+export interface PayoutWindowDto {
+  open: boolean;
+  /** Announced opening instant, ISO, or null if no date is set yet. */
+  opensAt: string | null;
+}
+
+export const getPayoutWindow = () =>
+  apiFetch<PayoutWindowDto>('/withdrawals/window');
 
 export const getWithdrawals = () => apiFetch<WithdrawalDto[]>('/withdrawals');
 
@@ -517,3 +828,418 @@ export const replyToSupportTicket = (id: string, body: string) =>
     method: 'POST',
     body: JSON.stringify({ body }),
   });
+
+/* ────────────────────────── Rig duels ──────────────────────────────── */
+
+export type DuelStatus = 'OPEN' | 'ACTIVE' | 'SETTLED' | 'CANCELLED' | 'EXPIRED';
+
+export interface DuelSide {
+  id: string;
+  name: string;
+  ratePerHour: number;
+  gridStability: number;
+  countryCode: string | null;
+}
+
+export interface DuelDto {
+  id: string;
+  code: string;
+  status: DuelStatus;
+  stakeBp: number;
+  stakePercent: number;
+  startsAt: string | null;
+  endsAt: string | null;
+  createdAt: string;
+  challenger: DuelSide;
+  opponent: DuelSide | null;
+  winnerId: string | null;
+  transferPoints: number;
+  liveScore: { challenger: number; opponent: number };
+  mine: 'challenger' | 'opponent' | null;
+}
+
+export interface DuelBoard {
+  open: DuelDto | null;
+  active: DuelDto | null;
+  history: DuelDto[];
+}
+
+export const getDuels = () => apiFetch<DuelBoard>('/duels/mine');
+export const getDuel = (code: string) => apiFetch<DuelDto>(`/duels/${code}`);
+export const createDuel = () => apiFetch<DuelDto>('/duels', { method: 'POST' });
+export const acceptDuel = (code: string) =>
+  apiFetch<DuelDto>(`/duels/${code}/accept`, { method: 'POST' });
+export const cancelDuel = (code: string) =>
+  apiFetch<DuelDto>(`/duels/${code}/cancel`, { method: 'POST' });
+
+/* ──────────────────────────── Squads ───────────────────────────────── */
+
+export interface SquadMemberDto {
+  id: string;
+  name: string;
+  isOwner: boolean;
+  joinedAt: string;
+  ratePerHour: number;
+  gridStability: number;
+  coolingSurplus: number;
+  powerSurplus: number;
+  lent: { cooling: number; power: number };
+}
+
+export interface SquadDto {
+  id: string;
+  name: string;
+  code: string;
+  ownerId: string;
+  maxMembers: number;
+  createdAt: string;
+  members: SquadMemberDto[];
+  pool: {
+    coolingSurplus: number;
+    powerSurplus: number;
+    coolingLent: number;
+    powerLent: number;
+  };
+  earnedPoints7d: number;
+}
+
+export interface SquadRankDto {
+  id: string;
+  name: string;
+  members: number;
+  earnedPoints: number;
+  rank: number;
+}
+
+export const getSquad = () => apiFetch<{ squad: SquadDto | null }>('/squads/mine');
+export const getSquadLeaderboard = () =>
+  apiFetch<{ squads: SquadRankDto[] }>('/squads/leaderboard');
+export const createSquad = (name: string) =>
+  apiFetch<SquadDto>('/squads', { method: 'POST', body: JSON.stringify({ name }) });
+export const joinSquad = (code: string) =>
+  apiFetch<SquadDto>('/squads/join', { method: 'POST', body: JSON.stringify({ code }) });
+export const leaveSquad = () => apiFetch<{ left: true }>('/squads/leave', { method: 'POST' });
+
+/* ───────────────────────── Player part market ──────────────────────── */
+
+export type ListingStatus = 'ACTIVE' | 'SOLD' | 'CANCELLED';
+
+export interface ListingDto {
+  id: string;
+  status: ListingStatus;
+  priceVolts: number;
+  createdAt: string;
+  soldAt: string | null;
+  seller: { id: string; name: string };
+  buyer: { id: string; name: string } | null;
+  part: RigPartDto & { daysLeft: number };
+  mine: boolean;
+}
+
+export const getListings = (kind?: RigPartKind) =>
+  apiFetch<{ listings: ListingDto[]; feeBp: number }>(
+    kind ? `/market/parts?kind=${kind}` : '/market/parts',
+  );
+export const getMyListings = () =>
+  apiFetch<{ selling: ListingDto[]; sold: ListingDto[]; bought: ListingDto[] }>(
+    '/market/parts/mine',
+  );
+export const listPart = (boosterId: string, priceVolts: number) =>
+  apiFetch<ListingDto>('/market/parts', {
+    method: 'POST',
+    body: JSON.stringify({ boosterId, priceVolts }),
+  });
+export const cancelListing = (id: string) =>
+  apiFetch<ListingDto>(`/market/parts/${id}`, { method: 'DELETE' });
+export const buyListing = (id: string) =>
+  apiFetch<{ listing: ListingDto; slot: number | null }>(`/market/parts/${id}/buy`, {
+    method: 'POST',
+  });
+
+/* ─────────────────────── Weekly blueprint challenge ────────────────── */
+
+export interface ChallengeDto {
+  id: string;
+  weekKey: string;
+  title: string;
+  body: string;
+  targetHashPerHour: number;
+  startsAt: string;
+  endsAt: string;
+  submissions: number;
+  rewards: string[];
+}
+
+export interface BlueprintPartDto {
+  code: string;
+  name: string;
+  kind: RigPartKind;
+  priceUsd: number;
+  hashPerHour: number;
+  heat: number;
+  cooling: number;
+  watts: number;
+  wattsSupplied: number;
+  hashBoostPercent: number;
+  tier: number;
+}
+
+export interface SubmissionDto {
+  id: string;
+  rank: number;
+  user: { id: string; name: string };
+  partCodes: string[];
+  costUsd: number;
+  hashPerHour: number;
+  gridStability: number;
+  createdAt: string;
+  mine: boolean;
+}
+
+export interface ChallengeBoard {
+  challenge: ChallengeDto;
+  catalog: BlueprintPartDto[];
+  mine: SubmissionDto | null;
+  top: SubmissionDto[];
+  previous: { challenge: ChallengeDto; winners: SubmissionDto[] } | null;
+}
+
+export const getChallenge = () => apiFetch<ChallengeBoard>('/challenge');
+export const submitBlueprint = (partCodes: string[]) =>
+  apiFetch<{ mine: SubmissionDto; rank: number }>('/challenge/submit', {
+    method: 'POST',
+    body: JSON.stringify({ partCodes }),
+  });
+
+/* ────────────────────────── Weekly season ──────────────────────────── */
+
+export interface SeasonStandingDto {
+  rank: number;
+  id: string;
+  displayName: string;
+  countryCode: string;
+  /** VOLTS mined inside the season window. */
+  earned: number;
+  /** VOLTS the place pays — projected while the season is still running. */
+  prize: number;
+  isCurrentUser: boolean;
+  watchCode: string | null;
+}
+
+export interface SeasonDto {
+  weekKey: string;
+  startsAt: string;
+  endsAt: string;
+  /** Null while the season is running. */
+  closedAt: string | null;
+  poolVolts: number;
+  prizes: number[];
+  places: number;
+  standings: SeasonStandingDto[];
+  me: { rank: number | null; earned: number; prize: number; totalRanked: number };
+}
+
+export const getSeason = () =>
+  apiFetch<{ current: SeasonDto; previous: SeasonDto | null }>('/season');
+
+/* ──────────── Real-world weather and the collective grid goal ───────── */
+
+export interface WeatherEntryDto {
+  countryCode: string;
+  city: string;
+  tempC: number;
+  /** Signed: +13 means coolers are working 13% harder today. */
+  heatPercent: number;
+}
+
+export const getGridWeather = () =>
+  apiFetch<{ countries: WeatherEntryDto[]; updatedAt: string | null }>('/grid/weather');
+
+export interface CollectiveDto {
+  stablePercent: number;
+  threshold: number;
+  active: number;
+  /** What every miner earns while the grid holds. Never negative. */
+  bonusPercent: number;
+  holding: boolean;
+  pointsToGo: number;
+  updatedAt: string;
+}
+
+export const getGridCollective = () => apiFetch<CollectiveDto>('/grid/collective');
+
+/* ────────────────────────── Daily rig puzzle ───────────────────────── */
+
+export interface DailyPuzzleDto {
+  dayKey: string;
+  /** 1-based, so the share line reads "#214". */
+  number: number;
+  budgetUsd: number;
+  targetHashPerHour: number;
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface DailySubmissionDto {
+  id: string;
+  rank: number;
+  user: { id: string; name: string };
+  partCodes: string[];
+  costUsd: number;
+  hashPerHour: number;
+  gridStability: number;
+  attempts: number;
+  solvedAt: string;
+  /** The two-line block, built server-side so every client agrees. */
+  shareText: string;
+  mine: boolean;
+}
+
+export interface DailyBoard {
+  puzzle: DailyPuzzleDto;
+  catalog: BlueprintPartDto[];
+  mine: DailySubmissionDto | null;
+  solvedCount: number;
+  distribution: { cost: number; count: number }[];
+  top: DailySubmissionDto[];
+  yesterday: { dayKey: string; number: number; best: DailySubmissionDto[] } | null;
+}
+
+export interface DailySubmitResult {
+  mine: DailySubmissionDto;
+  rank: number;
+  beatPercent: number;
+  shareText: string;
+}
+
+export const getDaily = () => apiFetch<DailyBoard>('/daily');
+
+export const submitDaily = (partCodes: string[]) =>
+  apiFetch<DailySubmitResult>('/daily/submit', {
+    method: 'POST',
+    body: JSON.stringify({ partCodes }),
+  });
+
+/* ───────────────────── Spectating a rig ────────────────────────────── */
+
+export interface WatchSlotDto {
+  index: number;
+  kind: RigPartKind;
+  code: string | null;
+  name: string;
+  tier: number;
+  heat: number;
+  cooling: number;
+  watts: number;
+  wattsSupplied: number;
+  hot: boolean;
+  burned: boolean;
+}
+
+export interface RigWatchDto {
+  name: string;
+  countryCode: string | null;
+  ratePerHour: number;
+  gridStability: number;
+  partCount: number;
+  skin: string;
+  streakDays: number;
+  joinedAt: string;
+  telemetry: {
+    gridStability: number;
+    heatLoad: number;
+    coolingCapacity: number;
+    powerDraw: number;
+    powerSupply: number;
+    thermalEfficiency: number;
+    powerEfficiency: number;
+    overheating: boolean;
+    brownout: boolean;
+    installedCount: number;
+    disabledCount: number;
+  };
+  overclocking: boolean;
+  slotsDetail: (WatchSlotDto | null)[];
+  event: { code: string; title: string; endsAt: string } | null;
+}
+
+/** Public: no session needed. */
+export const getRigWatch = (code: string) =>
+  apiFetch<RigWatchDto>(`/rig/watch/${encodeURIComponent(code)}`);
+
+/* ──────────────────────── Apprenticeship ───────────────────────────── */
+
+export type ApprenticeshipStatus = 'PENDING' | 'ACTIVE' | 'ENDED';
+
+export interface ApprenticePeerDto {
+  id: string;
+  name: string;
+  countryCode: string | null;
+  joinedAt: string;
+  watchCode: string;
+  ratePerHour: number;
+  gridStability: number;
+}
+
+export interface ApprenticeshipDto {
+  id: string;
+  status: ApprenticeshipStatus;
+  role: 'mentor' | 'apprentice';
+  cutPercent: number;
+  createdAt: string;
+  acceptedAt: string | null;
+  endedAt: string | null;
+  cutExpiresAt: string | null;
+  other: ApprenticePeerDto | null;
+}
+
+export type MentorBlock = 'TOO_NEW' | 'RIG_UNSTABLE' | 'AT_CAPACITY' | 'IS_APPRENTICE';
+
+export interface ApprenticeOverviewDto {
+  asMentor: ApprenticeshipDto[];
+  pendingOffers: ApprenticeshipDto[];
+  asApprentice: ApprenticeshipDto | null;
+  invitesOpen: ApprenticeshipDto[];
+  eligible: {
+    canMentor: boolean;
+    reason: MentorBlock | null;
+    daysToWait: number;
+    activeCount: number;
+    capacity: number;
+  };
+  cutDays: number;
+  maxApprentices: number;
+  mentorEarnedPoints: number;
+}
+
+export const getApprentice = () => apiFetch<ApprenticeOverviewDto>('/apprentice');
+
+export const offerApprenticeship = (apprenticeCode: string) =>
+  apiFetch<ApprenticeshipDto>('/apprentice/offer', {
+    method: 'POST',
+    body: JSON.stringify({ apprenticeCode }),
+  });
+
+export const acceptApprenticeship = (id: string) =>
+  apiFetch<ApprenticeshipDto>('/apprentice/accept', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  });
+
+export const declineApprenticeship = (id: string) =>
+  apiFetch<ApprenticeshipDto>('/apprentice/decline', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  });
+
+export const endApprenticeship = (id: string) =>
+  apiFetch<ApprenticeshipDto>('/apprentice/end', {
+    method: 'POST',
+    body: JSON.stringify({ id }),
+  });
+
+export const giftPart = (apprenticeshipId: string, boosterId: string) =>
+  apiFetch<{ gifted: true; boosterId: string; partCode: string | null; slot: number | null }>(
+    '/apprentice/gift',
+    { method: 'POST', body: JSON.stringify({ apprenticeshipId, boosterId }) },
+  );

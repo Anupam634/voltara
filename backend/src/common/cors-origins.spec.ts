@@ -20,17 +20,17 @@ describe('allowedOrigins', () => {
 });
 
 describe('isOriginAllowed', () => {
-  const origins = ['https://www.bondkoinlabs.com'];
+  const origins = ['https://www.voltaragrid.com'];
 
   it('allows a listed origin', () => {
-    expect(isOriginAllowed('https://www.bondkoinlabs.com', origins)).toBe(true);
+    expect(isOriginAllowed('https://www.voltaragrid.com', origins)).toBe(true);
   });
 
   it('refuses anything else — the bug this replaced reflected them all', () => {
     expect(isOriginAllowed('https://evil.example.com', origins)).toBe(false);
     // Not a prefix or suffix match: a lookalike host must not slip through.
-    expect(isOriginAllowed('https://www.bondkoinlabs.com.evil.com', origins)).toBe(false);
-    expect(isOriginAllowed('http://www.bondkoinlabs.com', origins)).toBe(false);
+    expect(isOriginAllowed('https://www.voltaragrid.com.evil.com', origins)).toBe(false);
+    expect(isOriginAllowed('http://www.voltaragrid.com', origins)).toBe(false);
   });
 
   it('allows a request with no Origin at all (curl, health checks)', () => {

@@ -17,7 +17,7 @@ import { Text } from './Text';
 import { useTheme } from '../../theme/ThemeProvider';
 import { useFeedback } from '../../lib/feedback';
 
-type Variant = 'primary' | 'gold' | 'secondary' | 'ghost' | 'danger';
+type Variant = 'primary' | 'charge' | 'gold' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps {
@@ -40,11 +40,13 @@ const HEIGHT: Record<Size, number> = { sm: 38, md: 48, lg: 56 };
 const PADDING: Record<Size, number> = { sm: 14, md: 18, lg: 22 };
 
 /**
- * The app's button — the site's `.btn-gold` / `.btn-primary`.
+ * The app's button — the site's `.v-btn`.
  *
- * Primary and gold are gradient fills with a coloured halo (sapphire → violet
- * on the blue themes, crimson on the red one); secondary is the translucent
- * outlined pill. Springs down to 0.97 on press and carries the haptic with it.
+ * `primary` is the violet gradient; `charge` is the lime gradient (dark text
+ * on the dark themes, white on Substation) and is reserved for the one live
+ * action on a screen — the site keeps lime scarce. `gold` is an alias of
+ * `charge` kept for older call sites. `secondary` is the outlined ghost pill.
+ * Springs down to 0.97 on press and carries the haptic with it.
  */
 export function Button({
   label,
@@ -60,7 +62,7 @@ export function Button({
   silent,
   testID,
 }: ButtonProps) {
-  const { c, radius, glow } = useTheme();
+  const { c, radius, glow, alpha } = useTheme();
   const feedback = useFeedback();
   const scale = useSharedValue(1);
 
@@ -74,6 +76,13 @@ export function Button({
       gradient: c.primaryGradient,
       halo: c.primaryGlow,
     },
+    charge: {
+      bg: c.gold,
+      fg: c.onGold,
+      border: 'transparent',
+      gradient: c.goldGradient,
+      halo: c.gold,
+    },
     gold: {
       bg: c.gold,
       fg: c.onGold,
@@ -82,9 +91,9 @@ export function Button({
       halo: c.gold,
     },
     secondary: {
-      bg: c.surfaceAlt,
+      bg: alpha(c.surfaceAlt, 0.6),
       fg: c.textPrimary,
-      border: c.borderStrong,
+      border: alpha(c.borderStrong, 0.6),
       gradient: null,
       halo: null,
     },

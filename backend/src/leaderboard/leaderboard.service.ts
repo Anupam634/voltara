@@ -105,6 +105,8 @@ export class LeaderboardService {
           user?.lastMineAt && now - user.lastMineAt.getTime() <= ACTIVE_WINDOW_MS
         ),
         joinedAt: user?.createdAt.toISOString() ?? null,
+        /** Watch this rig: /api/rig/watch/:code. Null only if hydration missed. */
+        watchCode: user?.referralCode ?? null,
       };
     });
 
@@ -330,6 +332,7 @@ export class LeaderboardService {
           countryCode: string | null;
           lastMineAt: Date | null;
           createdAt: Date;
+          referralCode: string;
         }
       >();
     }
@@ -341,6 +344,10 @@ export class LeaderboardService {
         countryCode: true,
         lastMineAt: true,
         createdAt: true,
+        // Already public: it is the code in every share link and the key the
+        // public rig card is fetched by. Carrying it here is what lets a
+        // leaderboard row link through to the spectator view.
+        referralCode: true,
       },
     });
     return new Map(users.map((u) => [u.id, u]));

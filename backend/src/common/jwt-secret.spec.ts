@@ -18,11 +18,11 @@ describe('checkJwtSecret', () => {
   it('refuses the values that shipped in the repo', () => {
     expect(() =>
       checkJwtSecret(
-        'bondkoin_super_secret_jwt_key_production_fallback_key_2026',
+        'voltara_super_secret_jwt_key_production_fallback_key_2026',
       ),
     ).toThrow(/repository/i);
     expect(() =>
-      checkJwtSecret('bondkoin_super_secret_jwt_key_change_me_in_production'),
+      checkJwtSecret('voltara_super_secret_jwt_key_change_me_in_production'),
     ).toThrow(/repository/i);
   });
 

@@ -16,14 +16,18 @@ import {
 } from '../../lib/push';
 import {
   getBoosters,
+  getRig,
   getSupportTickets,
   getTasks,
   getWithdrawals,
   type BoosterOverview,
+  type RigOverview,
   type SupportTicketDto,
   type TaskDto,
   type WithdrawalDto,
 } from '../../api/endpoints';
+import { findLoaner } from '../onboarding/LoanerCard';
+import { fill, useOnboarding } from '../onboarding/strings';
 
 /**
  * Keeps the OS notification schedule in step with the account, and feeds the
@@ -37,21 +41,39 @@ import {
  */
 
 const IDS = {
-  miningReady: 'bondkoin.mining-ready',
-  tasksReady: 'bondkoin.tasks-ready',
-  boosterExpiring: 'bondkoin.booster-expiring',
+  miningReady: 'voltara.mining-ready',
+  tasksReady: 'voltara.tasks-ready',
+  boosterExpiring: 'voltara.booster-expiring',
+  loanerExpiring: 'voltara.loaner-expiring',
+  streakLapsing: 'voltara.streak-lapsing',
 };
+
+/** How long before the free core lapses to warn — GROWTH.md §2b. */
+const LOANER_WARN_MS = 12 * 3_600_000;
+/** How long before a streak resets to warn. */
+const STREAK_WARN_MS = 3 * 3_600_000;
+/** Below this run length a streak is not yet worth interrupting someone for. */
+const STREAK_MIN_DAYS = 3;
 
 /** Secondary poll — slower than the dashboard's, since none of it ticks. */
 const SLOW_POLL_MS = 90_000;
 
 export function NotificationScheduler() {
   const { t, locale } = useI18n();
+  const S = useOnboarding();
   const router = useRouter();
   const { state, mining, profile } = useSession();
   const { settings } = useSettings();
   const { sync } = useNotifications();
   const lastScheduledClaim = useRef<string | null>(null);
+  const lastScheduledStreak = useRef<string | null>(null);
+  const lastScheduledLoaner = useRef<string | null>(null);
+
+  // The onboarding copy is read inside the slow poll's closure, which is not
+  // re-created on a language change; a ref keeps it current without making
+  // the poll restart.
+  const copy = useRef(S);
+  copy.current = S;
 
   // The dashboard hands back new profile/mining objects on every poll. Holding
   // them in refs keeps the slow poll below on a fixed 90s cadence instead of
@@ -122,6 +144,56 @@ export function NotificationScheduler() {
     })();
   }, [state, mining?.nextClaimAt, mining?.canClaim, settings.notifications, settings.quietHours, t, locale]);
 
+  /* A streak about to reset. Rides the same preference as the mining
+   * reminder — both are "come and tap" — and stays quiet below a run long
+   * enough to be worth protecting. */
+  useEffect(() => {
+    if (state !== 'signedIn') return;
+    const prefs = settings.notifications;
+    const streak = mining?.streak;
+
+    (async () => {
+      if (!prefs.enabled || !prefs.miningReady || !streak) {
+        await cancel(IDS.streakLapsing);
+        lastScheduledStreak.current = null;
+        return;
+      }
+      if ((await getPermissionState()) !== 'granted') return;
+
+      const keepsUntil = streak.keepsUntil;
+      // Nothing to protect: too short a run, no deadline, or the miner has
+      // already claimed inside this window.
+      if (!keepsUntil || streak.days < STREAK_MIN_DAYS || mining?.canClaim) {
+        await cancel(IDS.streakLapsing);
+        lastScheduledStreak.current = null;
+        return;
+      }
+
+      const at = new Date(Date.parse(keepsUntil) - STREAK_WARN_MS);
+      const scheduleKey = `${keepsUntil}|${streak.days}|${locale}`;
+      if (lastScheduledStreak.current === scheduleKey) return;
+      lastScheduledStreak.current = scheduleKey;
+
+      await scheduleAt({
+        id: IDS.streakLapsing,
+        title: S.notifyStreakTitle,
+        body: fill(S.notifyStreakBody, { n: streak.days }),
+        at,
+        channel: 'mining',
+        data: { href: '/' },
+        quiet: settings.quietHours,
+      });
+    })();
+  }, [
+    state,
+    mining?.streak,
+    mining?.canClaim,
+    settings.notifications,
+    settings.quietHours,
+    S,
+    locale,
+  ]);
+
   /* Slow poll: the routes the dashboard does not fetch. */
   useEffect(() => {
     if (state !== 'signedIn') return;
@@ -130,11 +202,12 @@ export function NotificationScheduler() {
 
     const run = async () => {
       // Each call is independent: a failure in one must not blank the others.
-      const [withdrawals, tickets, boosters, tasks] = await Promise.all([
+      const [withdrawals, tickets, boosters, tasks, rig] = await Promise.all([
         getWithdrawals().catch(() => null),
         getSupportTickets().catch(() => null),
         getBoosters().catch(() => null),
         getTasks().catch(() => null),
+        getRig().catch(() => null),
       ]);
       if (!alive) return;
 
@@ -150,6 +223,34 @@ export function NotificationScheduler() {
 
       await scheduleTaskReminder(tasks as TaskDto[] | null);
       await scheduleBoosterReminder(boosters as BoosterOverview | null);
+      await scheduleLoanerReminder(rig as RigOverview | null);
+    };
+
+    /* The free starter core lapsing — the first purchase decision a miner
+     * ever makes, so it gets its own warning rather than being folded into
+     * the generic booster one. Shares the booster preference. */
+    const scheduleLoanerReminder = async (rig: RigOverview | null) => {
+      const prefs = settings.notifications;
+      const loaner = prefs.enabled && prefs.boosters ? findLoaner(rig) : null;
+      if (!loaner) {
+        await cancel(IDS.loanerExpiring);
+        lastScheduledLoaner.current = null;
+        return;
+      }
+
+      const scheduleKey = `${loaner.expiresAt}|${locale}`;
+      if (lastScheduledLoaner.current === scheduleKey) return;
+      lastScheduledLoaner.current = scheduleKey;
+
+      await scheduleAt({
+        id: IDS.loanerExpiring,
+        title: copy.current.notifyLoanerTitle,
+        body: copy.current.notifyLoanerBody,
+        at: new Date(Date.parse(loaner.expiresAt) - LOANER_WARN_MS),
+        channel: 'rewards',
+        data: { href: '/boosters' },
+        quiet: settings.quietHours,
+      });
     };
 
     const scheduleTaskReminder = async (tasks: TaskDto[] | null) => {
@@ -230,7 +331,7 @@ export function NotificationScheduler() {
       alive = false;
       clearInterval(id);
     };
-  }, [state, settings.notifications, settings.quietHours, sync, t]);
+  }, [state, settings.notifications, settings.quietHours, sync, t, locale]);
 
   return null;
 }

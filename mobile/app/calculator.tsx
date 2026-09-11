@@ -23,13 +23,27 @@ import { useFeedback } from '../src/lib/feedback';
 import { POINTS_PER_TOKEN, type MiningStatus } from '../src/api/endpoints';
 import { formatPoints, formatUsd } from '../src/lib/format';
 
-/** Booster options, mirroring the plans the server sells (SPEC §2). */
-const BOOSTERS = [
-  { id: 'free', price: 0, rate: 0.9 },
-  { id: 'b1', price: 1, rate: 2.9 },
-  { id: 'b5', price: 5, rate: 10.9 },
-  { id: 'b10', price: 10, rate: 20.9 },
-  { id: 'b50', price: 50, rate: 90.9 },
+/**
+ * Whole BUILDS, not parts (SPEC §2a).
+ *
+ * A part on its own is not a rate any more: a VC-5 dropped on a bare chassis
+ * overheats and browns out immediately, so quoting "$5 → 10.9/h" would be an
+ * overpromise. Each option here is the core plus exactly the cooling and
+ * power it needs to hold 100% grid stability, priced accordingly — which is
+ * also the clearest way to explain the mechanic.
+ *
+ * Mirrors the web calculator and `backend/prisma/seed.js`.
+ */
+const BUILDS = [
+  { id: 'free', price: 0, rate: 0.9, partCount: 0 },
+  // 10 TU and 45 W both fit the free chassis — nothing else to buy.
+  { id: 'vc1', price: 1, rate: 2.9, partCount: 1 },
+  // Core + vapor cooler + feeder unit.
+  { id: 'vc5', price: 10, rate: 10.9, partCount: 3 },
+  // Core + cryo loop + feeder unit.
+  { id: 'vc10', price: 19, rate: 20.9, partCount: 3 },
+  // Core + immersion bath + substation.
+  { id: 'vc50', price: 82, rate: 90.9, partCount: 3 },
 ];
 
 /** Referral tiers (SPEC §2) — the same ladder the server applies. */
@@ -47,17 +61,17 @@ function tierFor(invites: number): { level: number; multiplier: number } {
  * visitor: the $10 plan and a dozen invites. Used here only when the session
  * has not loaded, so both surfaces open on the same worked example.
  */
-const DEFAULT_BOOSTER_INDEX = 3;
+const DEFAULT_BUILD_INDEX = 3;
 const DEFAULT_INVITES = 12;
 
-/** The plan whose rate is nearest the miner's own base rate. */
+/** The build whose rate is nearest the miner's own base rate. */
 function boosterIndexFor(status: MiningStatus | null): number {
-  if (!status) return DEFAULT_BOOSTER_INDEX;
+  if (!status) return DEFAULT_BUILD_INDEX;
   if (status.activeBoosters <= 0) return 0;
   const base = status.ratePerHour / Math.max(1, status.referralTier.multiplier);
   let best = 0;
-  BOOSTERS.forEach((option, i) => {
-    if (Math.abs(option.rate - base) < Math.abs(BOOSTERS[best].rate - base)) best = i;
+  BUILDS.forEach((option, i) => {
+    if (Math.abs(option.rate - base) < Math.abs(BUILDS[best].rate - base)) best = i;
   });
   return best;
 }
@@ -84,7 +98,7 @@ export default function CalculatorScreen() {
     () => profile?.referralCount ?? DEFAULT_INVITES,
   );
 
-  const booster = BOOSTERS[boosterIndex];
+  const booster = BUILDS[boosterIndex];
   const tier = tierFor(invites);
 
   const projection = useMemo(() => {
@@ -145,7 +159,7 @@ export default function CalculatorScreen() {
               <Text variant="title3" mono tone="info">
                 {formatPoints(projection.hourly, 2, locale)}
                 <Text variant="caption" tone="tertiary" weight="700">
-                  {'  '}BONDKOIN/h
+                  {'  '}VOLTS/h
                 </Text>
               </Text>
             </ResultRow>
@@ -187,7 +201,7 @@ export default function CalculatorScreen() {
                   ~{formatPoints(projection.tokens, 0, locale)}
                 </Text>
                 <Text variant="callout" tone="info" weight="800">
-                  $BONDKOIN
+                  $VLTR
                 </Text>
               </View>
               <Text variant="caption" tone="tertiary" center>
@@ -211,7 +225,7 @@ export default function CalculatorScreen() {
                 marginTop: spacing.md,
               }}
             >
-              {BOOSTERS.map((option, i) => (
+              {BUILDS.map((option, i) => (
                 <BoosterTile
                   key={option.id}
                   label={
@@ -220,6 +234,11 @@ export default function CalculatorScreen() {
                       : formatUsd(option.price, locale)
                   }
                   rate={`${option.rate} /h`}
+                  note={
+                    option.partCount > 1
+                      ? `${option.partCount} ${t('landing.calculator.parts')}`
+                      : undefined
+                  }
                   active={i === boosterIndex}
                   onPress={() => {
                     feedback.select();
@@ -305,12 +324,12 @@ export default function CalculatorScreen() {
           >
             <Ionicons name="calculator-outline" size={17} color={c.primary} />
             <Text variant="caption" tone="secondary" style={{ flex: 1 }}>
-              {booster.rate} /h × {tier.multiplier} (L{tier.level}) ={' '}
+              {booster.rate} /h × 100% × {tier.multiplier} (L{tier.level}) ={' '}
               <Text variant="caption" tone="info" mono weight="800">
                 {formatPoints(projection.hourly, 2, locale)} /h
               </Text>
               {' · '}
-              {POINTS_PER_TOKEN} {t('withdraw.pointsShort')} = 1 $BONDKOIN
+              {POINTS_PER_TOKEN} {t('withdraw.pointsShort')} = 1 $VLTR
             </Text>
           </View>
         </Animated.View>
@@ -370,11 +389,14 @@ function ResultRow({ label, children }: { label: string; children: React.ReactNo
 function BoosterTile({
   label,
   rate,
+  note,
   active,
   onPress,
 }: {
   label: string;
   rate: string;
+  /** e.g. "3 parts" — shown when the build is more than just a core. */
+  note?: string;
   active: boolean;
   onPress: () => void;
 }) {
@@ -436,6 +458,11 @@ function BoosterTile({
         >
           {rate}
         </Text>
+        {note ? (
+          <Text variant="caption" tone="tertiary" mono style={{ fontSize: 10, marginTop: 1 }}>
+            {note}
+          </Text>
+        ) : null}
       </Pressable>
     </Animated.View>
   );

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { LogoMark } from '../Logo';
+import { Icon, type IconName } from '../ui';
 import type { AdminTab } from './types';
 import type { AdminStats } from '../../lib/admin-api';
 
@@ -26,48 +27,50 @@ export function AdminSidebar({
     {
       group: 'MAIN',
       items: [
-        { key: 'dashboard' as AdminTab, label: 'Dashboard', icon: '📊', badge: null },
+        { key: 'dashboard' as AdminTab, label: 'Dashboard', icon: 'gauge' as IconName, badge: null },
       ],
     },
     {
       group: 'MINER ACCOUNTS',
       items: [
-        { key: 'users' as AdminTab, label: 'All Miners', icon: '👥', badge: stats?.totalUsers ? String(stats.totalUsers) : null },
-        { key: 'kyc' as AdminTab, label: 'KYC & Verification', icon: '🪪', badge: stats?.kycSummary?.pending ? `${stats.kycSummary.pending}` : null },
+        { key: 'users' as AdminTab, label: 'All Miners', icon: 'users' as IconName, badge: stats?.totalUsers ? String(stats.totalUsers) : null },
+        { key: 'kyc' as AdminTab, label: 'KYC & Verification', icon: 'shield' as IconName, badge: stats?.kycSummary?.pending ? `${stats.kycSummary.pending}` : null },
       ],
     },
     {
       group: 'MINING & PROTOCOL',
       items: [
-        { key: 'mining-engine' as AdminTab, label: 'Mining Engine', icon: '⛏️', badge: 'LIVE' },
-        { key: 'boosters' as AdminTab, label: 'Hashrate Boosters', icon: '⚡', badge: stats?.boostersActive ? `${stats.boostersActive}` : null },
-        { key: 'referrals' as AdminTab, label: '6-Tier Referrals', icon: '🌲', badge: '1×–8×' },
+        { key: 'mining-engine' as AdminTab, label: 'Mining Engine', icon: 'rig' as IconName, badge: 'LIVE' },
+        { key: 'grid' as AdminTab, label: 'Grid Operations', icon: 'globe' as IconName, badge: 'LIVE' },
+        { key: 'seasons' as AdminTab, label: 'Weekly Seasons', icon: 'trophy' as IconName, badge: 'VOLTS' },
+        { key: 'social' as AdminTab, label: 'Competitive & Social', icon: 'swords' as IconName, badge: null },
+        { key: 'boosters' as AdminTab, label: 'Hashrate Boosters', icon: 'chip' as IconName, badge: stats?.boostersActive ? `${stats.boostersActive}` : null },
+        { key: 'referrals' as AdminTab, label: '6-Tier Referrals', icon: 'share' as IconName, badge: '1×–8×' },
       ],
     },
     {
       group: 'TREASURY & ON-CHAIN',
       items: [
-        { key: 'withdrawals' as AdminTab, label: 'Withdrawals Queue', icon: '💸', badge: stats?.pendingWithdrawals ? `${stats.pendingWithdrawals}` : null },
-        { key: 'payments' as AdminTab, label: 'Booster Payments', icon: '💳', badge: null },
-        { key: 'revenue' as AdminTab, label: 'Revenue Analytics', icon: '💰', badge: 'USD' },
-        { key: 'blockchain' as AdminTab, label: 'Blockchain & BSC', icon: '⛓️', badge: 'BEP-20' },
+        { key: 'withdrawals' as AdminTab, label: 'Withdrawals Queue', icon: 'wallet' as IconName, badge: stats?.pendingWithdrawals ? `${stats.pendingWithdrawals}` : null },
+        { key: 'payments' as AdminTab, label: 'Booster Payments', icon: 'card' as IconName, badge: null },
+        { key: 'revenue' as AdminTab, label: 'Revenue Analytics', icon: 'chart' as IconName, badge: 'USD' },
+        { key: 'blockchain' as AdminTab, label: 'Blockchain & BSC', icon: 'chain' as IconName, badge: 'BEP-20' },
       ],
     },
     {
       group: 'ECOSYSTEM & COMMERCE',
       items: [
-        { key: 'marketplace' as AdminTab, label: 'Marketplace Store', icon: '🛒', badge: 'NEW' },
-        { key: 'tasks' as AdminTab, label: 'Bounties & Tasks', icon: '🎯', badge: 'Quiz/Wheel' },
-        { key: 'support' as AdminTab, label: 'Support Helpdesk', icon: '💬', badge: null },
-        { key: 'cms' as AdminTab, label: 'Content & FAQs', icon: '📝', badge: null },
+        { key: 'tasks' as AdminTab, label: 'Bounties & Tasks', icon: 'star' as IconName, badge: 'Quiz/Wheel' },
+        { key: 'support' as AdminTab, label: 'Support Helpdesk', icon: 'chat' as IconName, badge: null },
+        { key: 'cms' as AdminTab, label: 'Content & FAQs', icon: 'doc' as IconName, badge: null },
       ],
     },
     {
       group: 'ENTERPRISE & OPS',
       items: [
-        { key: 'reports' as AdminTab, label: 'Reports & Export', icon: '📑', badge: 'CSV' },
-        { key: 'security' as AdminTab, label: 'Security & Abuse', icon: '🛡️', badge: stats?.blockedUsers ? `${stats.blockedUsers} Ban` : null },
-        { key: 'system' as AdminTab, label: 'System Settings', icon: '⚙️', badge: null },
+        { key: 'reports' as AdminTab, label: 'Reports & Export', icon: 'download' as IconName, badge: 'CSV' },
+        { key: 'security' as AdminTab, label: 'Security & Abuse', icon: 'lock' as IconName, badge: stats?.blockedUsers ? `${stats.blockedUsers} Ban` : null },
+        { key: 'system' as AdminTab, label: 'System Settings', icon: 'settings' as IconName, badge: null },
       ],
     },
   ];
@@ -93,8 +96,8 @@ export function AdminSidebar({
           <div className="flex items-center gap-3">
             <LogoMark size={32} priority />
             <div>
-              <span className="font-black tracking-tight text-white">BONDKOIN</span>
-              <span className="ml-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] font-black text-amber-400">
+              <span className="font-black tracking-tight text-white">VOLTARA</span>
+              <span className="ml-1.5 rounded-full border border-violet-500/30 bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-black text-violet-300">
                 PRO
               </span>
               <div className="text-[10px] font-mono text-slate-500">Enterprise Admin Console</div>
@@ -103,8 +106,9 @@ export function AdminSidebar({
           <button
             onClick={onToggle}
             className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-900 lg:hidden"
+            aria-label="Close navigation"
           >
-            ✕
+            <Icon name="x" size={16} />
           </button>
         </div>
 
@@ -127,20 +131,26 @@ export function AdminSidebar({
                       }}
                       className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-xs font-bold transition-all ${
                         isActive
-                          ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                          ? 'bg-violet-600 text-white font-black shadow-md shadow-violet-600/25'
                           : 'text-slate-400 hover:bg-slate-900/90 hover:text-slate-200'
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className="text-sm">{item.icon}</span>
+                        <Icon name={item.icon} size={15} className="shrink-0" />
                         <span>{item.label}</span>
                       </div>
                       {item.badge && (
+                        // Lime is reserved for what is genuinely live. Counts
+                        // and format labels ("CSV", "BEP-20") are not events,
+                        // so they stay neutral — otherwise the one badge that
+                        // means "happening now" reads like all the others.
                         <span
                           className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase ${
-                            isActive
-                              ? 'bg-slate-950 text-amber-400'
-                              : 'bg-slate-800 text-amber-400 border border-slate-700'
+                            item.badge === 'LIVE'
+                              ? 'border border-amber-500/40 bg-amber-500/15 text-amber-400'
+                              : isActive
+                                ? 'bg-slate-950/60 text-violet-200'
+                                : 'border border-slate-700 bg-slate-800 text-slate-300'
                           }`}
                         >
                           {item.badge}
@@ -158,12 +168,12 @@ export function AdminSidebar({
         <div className="border-t border-white/[0.08] p-4">
           <div className="flex items-center justify-between rounded-xl bg-slate-900 p-2.5">
             <div className="flex items-center gap-2 overflow-hidden">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500 font-black text-slate-950 text-xs">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-violet-600 text-xs font-black text-white">
                 OP
               </div>
               <div className="overflow-hidden text-left">
                 <div className="truncate text-xs font-bold text-white">Super Admin</div>
-                <div className="truncate text-[10px] text-slate-400">admin@bondkoinlabs.com</div>
+                <div className="truncate text-[10px] text-slate-400">admin@voltaragrid.com</div>
               </div>
             </div>
             <button
@@ -171,7 +181,7 @@ export function AdminSidebar({
               className="rounded-lg p-1.5 text-xs text-red-400 hover:bg-red-950/50 hover:text-red-300"
               title="Sign Out"
             >
-              🚪
+              <Icon name="logout" size={14} />
             </button>
           </div>
         </div>

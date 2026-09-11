@@ -3,9 +3,9 @@
     "network": {
       "chain": "BNB 스마트 체인",
       "mainnetStatus": "메인넷 엔진: 활성화됨",
-      "tokenStandard": "토큰: $BONDKOIN (BEP-20)",
-      "baseRateSpec": "기본 해시레이트: 0.90 BONDKOIN/h",
-      "conversionSpec": "3 포인트 = 1 $BONDKOIN",
+      "tokenStandard": "토큰: $VLTR (BEP-20)",
+      "baseRateSpec": "기본 해시레이트: 0.90 VOLTS/h",
+      "conversionSpec": "3 포인트 = 1 $VLTR",
       "minWithdrawalSpec": "최소 출금: 100 포인트"
     },
     "nav": {
@@ -18,18 +18,19 @@
       "faq": "자주 묻는 질문",
       "signIn": "로그인",
       "getStarted": "무료 마이닝 시작",
-      "dashboard": "마이닝 터미널 실행"
+      "dashboard": "마이닝 터미널 실행",
+      "rig": "리그"
     },
     "hero": {
-      "badge": "⚡ BNB 체인 · 하드웨어 비용 0원 · 24시간 정기 보상",
-      "title": "차세대 노드 마이닝 및",
-      "titleAccent": "BNB 체인 리워드 플랫폼",
-      "subtitle": "몇 초 만에 무료 가입. 배터리 소모 없음. 매일 디지털 자산 적립. 탭 한 번으로 마이닝.",
-      "ctaPrimary": "무료 마이닝 시작",
-      "ctaSecondary": "Web3 터미널 열기",
-      "honesty": "BONDKOIN는 친환경 정기 노드 적립 모델을 사용합니다(전기 및 하드웨어 소모 0).",
-      "activeMinersBadge": "24시간 정기 노드 적립 · 배터리 소모 0",
-      "verifiedNode": "KYC 보안 인증 체계 · BEP-20 직결 정산",
+      "badge": "⚡ BNB 체인 · 슬롯 6개 · 발열과 전력이 실제로 작동",
+      "title": "리그를 조립하고,",
+      "titleAccent": "그리드를 지켜라.",
+      "subtitle": "또 하나의 탭 투 언이 아닙니다. 코어·쿨러·PSU를 슬롯 6개에 장착하세요. 코어는 해시와 함께 열을 만들고, 냉각과 전력에는 비용이 듭니다. 과열되면 출력이 제한됩니다 — 수익은 직접 만들어야 합니다.",
+      "ctaPrimary": "무료로 리그 만들기",
+      "ctaSecondary": "그리드 보기",
+      "honesty": "VOLTARA는 예약 누적 방식의 보상 플랫폼입니다. 리그와 발열, 전력은 실제 경제 규칙을 가진 시뮬레이션이며 물리적 하드웨어나 전기 요금은 없습니다.",
+      "activeMinersBadge": "슬롯 6개 · 부품 30일 · 그리드 안정도가 속도를 결정",
+      "verifiedNode": "필수 KYC · BEP-20 직접 지급",
       "playVideo": "소개 영상 재생",
       "pauseVideo": "소개 영상 일시정지"
     },
@@ -37,7 +38,7 @@
       "title": "인터랙티브 노드 마이닝 터미널",
       "subtitle": "실시간 노드 채굴 알고리즘 및 적립 시뮬레이션 체험",
       "networkStatus": "노드 온라인",
-      "simulatedRate": "0.90 BONDKOIN/h",
+      "simulatedRate": "0.90 VOLTS/h",
       "baseSpeed": "기본 해시레이트",
       "tapToMine": "탭하여 마이닝 시뮬레이션",
       "miningActive": "마이닝 진행 중...",
@@ -50,9 +51,9 @@
     },
     "figures": {
       "baseRate": "무료 기본 해시레이트",
-      "baseRateSub": "0.90 BONDKOIN / 시간",
+      "baseRateSub": "0.90 VOLTARA / 시간",
       "conversion": "토큰 전환 비율",
-      "conversionSub": "3 포인트 = 1 $BONDKOIN",
+      "conversionSub": "3 포인트 = 1 $VLTR",
       "minWithdrawal": "최소 출금 기준",
       "minWithdrawalSub": "100 포인트 이상 출금 가능",
       "boosterDuration": "부스터 유지 기간",
@@ -68,42 +69,45 @@
       "learnMore": "더 알아보기"
     },
     "how": {
-      "title": "BONDKOIN 마이닝 운영 원리",
-      "subtitle": "글로벌 Web3 커뮤니티를 위해 설계된 투명하고 강력한 보상 엔진입니다.",
+      "title": "VOLTARA 작동 방식",
+      "subtitle": "네 단계. 세 번째는 다른 곳에서는 시키지 않는 단계입니다.",
       "register": {
-        "title": "1. 무료 계정 가입",
-        "body": "이메일만으로 간편 가입. 고가의 하드웨어나 입금 없이 기본 해시레이트로 즉시 시작합니다."
+        "title": "1. 무료 섀시",
+        "body": "이메일로 가입하면 슬롯 6개짜리 리그를 받습니다. 냉각 12 TU와 120 W가 무료로 제공되며, 아무것도 장착하지 않아도 0.9 VOLTS/시간의 기본 속도로 채굴합니다."
       },
       "mine": {
-        "title": "2. 24시간마다 탭 한 번",
-        "body": "한 번의 탭으로 24시간 보상 창이 열립니다. 노드 장비가 고속 클러스터에서 자동으로 포인트를 누적합니다."
+        "title": "2. 24시간마다 한 번 탭",
+        "body": "한 번의 탭이 24시간 누적 창을 엽니다. 리그는 그 창 내내 채굴하고, 탭이 그것을 적립합니다."
       },
       "boost": {
-        "title": "3. 부스터 및 친구 초대",
-        "body": "30일 노드 부스터로 최대 +90.0 BONDKOIN/h를 추가하고, 친구 초대로 배수를 최대 ×8까지 강화하세요."
+        "title": "3. 리그를 조립하고 균형 맞추기",
+        "body": "코어를 꽂아 해시를 얻고 — 그 열을 식히고 전력을 대세요. 냉각을 넘는 발열, 공급을 넘는 소비는 비례해 출력을 깎습니다. 지켜야 할 것은 그리드 안정도 100%입니다."
       },
       "withdraw": {
-        "title": "4. BNB 체인 온체인 출금",
-        "body": "3:1 확정 비율로 포인트를 $BONDKOIN BEP-20 토큰으로 전환해 본인의 개인지갑으로 직접 수령하세요."
+        "title": "4. BNB 체인으로 온체인 지급",
+        "body": "VOLTS를 고정 3:1 비율로 $VLTR BEP-20 토큰으로 바꿔 자기 지갑으로 바로 받습니다."
       }
     },
     "boosters": {
-      "title": "노드 마이닝 부스터 팩",
-      "subtitle": "고성능 30일 노드 컴퓨팅 노드로 채굴 속도를 대폭 향상시키세요. 무제한 중첩 가능.",
+      "title": "코어 라인업",
+      "subtitle": "코어 네 종, 가격 네 단계 — 그리고 각 코어가 안정도 100%를 유지하는 데 필요한 냉각과 전력. 중요한 건 두 번째 숫자입니다.",
       "resultingRate": "적용 후 해시레이트",
-      "terms": "30일 활성화 · 무제한 중첩 · 즉시 적용",
-      "starter": "스타터 장비",
-      "power": "어드밴스드 장비",
-      "pro": "프로 클러스터",
-      "enterprise": "엔터프라이즈 장비",
+      "terms": "30일 유효 · 중첩 가능 · 빈 슬롯이 있으면 자동 장착",
+      "starter": "입문 코어",
+      "power": "아크 코어",
+      "pro": "플라즈마 코어",
+      "enterprise": "퓨전 코어",
       "popularBadge": "인기 최고",
       "maxYieldBadge": "최대 해시레이트",
-      "activateButton": "부스터 배포하기",
-      "hashBoost": "+{rate}/h 추가 해시"
+      "activateButton": "이 코어로 시작",
+      "hashBoost": "+{rate}/h 추가 해시",
+      "fitsChassis": "무료 섀시에서 100%로 작동 — 추가 구매 없음.",
+      "fullBuild": "냉각과 전력 필요: 안정도 100% 풀 빌드 ${price}.",
+      "hashpower": "코어 해시파워"
     },
     "calculator": {
       "title": "마이닝 수익성 시뮬레이터",
-      "subtitle": "부스터 패키지 및 추천인 크루 규모에 따른 예상 마이닝 포인트와 온체인 $BONDKOIN 토큰 수령액을 계산해 보세요.",
+      "subtitle": "부품이 아니라 빌드 전체의 가격입니다. 각 옵션에는 코어를 100% 그리드 안정도로 돌리는 데 필요한 냉각과 전력이 포함되어 있습니다 — 실제로 내는 돈과 실제로 버는 수익입니다.",
       "selectBooster": "노드 부스터 패키지 선택",
       "selectInvites": "추천 팀 규모 (초대한 채굴자 수)",
       "invitesLabel": "{count}명 초대 (배수: ×{mult})",
@@ -111,8 +115,18 @@
       "hourlyRate": "실제 해시레이트",
       "dailyYield": "일일 24시간 적립량",
       "monthlyYield": "30일 예상 총 적립량",
-      "onChainPayout": "예상 $BONDKOIN (BEP-20) 출금액",
-      "cta": "이 설정으로 마이닝 시작"
+      "onChainPayout": "예상 $VLTR (BEP-20) 출금액",
+      "cta": "이 설정으로 마이닝 시작",
+      "selectBuild": "빌드 선택",
+      "freeBase": "무료 기본",
+      "parts": "개 부품",
+      "buildContents": "이 빌드의 구성",
+      "buildTotal": "합계",
+      "stability100": "안정도 100%",
+      "stabilityWord": "안정도",
+      "engineLabel": "보상 엔진:",
+      "freeBaseNote": "기본 섀시: 냉각 {cooling} TU와 {watts} W를 무료로 제공합니다. 살 것도, 식힐 것도 없습니다.",
+      "payoutNote": "BNB 체인 주소로 BEP-20 직접 전송"
     },
     "referrals": {
       "title": "단계별 추천 배수 매트릭스",
@@ -126,9 +140,9 @@
     },
     "tasksSection": {
       "title": "바운티 미션 및 추가 보너스",
-      "subtitle": "일일 참여 미션과 소셜 퀘스트를 완료하고 즉시 보너스 BONDKOIN 포인트를 획득하세요.",
+      "subtitle": "일일 참여 미션과 소셜 퀘스트를 완료하고 즉시 보너스 VOLTARA 포인트를 획득하세요.",
       "viewAll": "전체 미션 확인",
-      "rewardBadge": "+{amount} BONDKOIN",
+      "rewardBadge": "+{amount} VOLTARA",
       "actionButton": "미션 완료하기",
       "instantCredit": "즉시 포인트 지급"
     },
@@ -154,27 +168,29 @@
     },
     "faq": {
       "title": "자주 묻는 질문 (FAQ)",
-      "subtitle": "Everything you need to know about BONDKOIN Mining, Token Conversion, and On-Chain Payouts.",
-      "q1": "What is BONDKOIN Mining and how does it work?",
-      "a1": "BONDKOIN is a mining reward platform on BNB Smart Chain. You register for free, tap 'Mine' once every 24 hours, and your device node terminal accrues BONDKOIN Points. There is zero battery drain and zero electricity cost.",
-      "q2": "포인트를 $BONDKOIN 토큰으로 어떻게 전환하나요?",
-      "a2": "모든 내부 포인트는 3:1 고정 비율(3 포인트 = 1 $BONDKOIN BEP-20 토큰)로 전환됩니다. 출금 신청 시 본인의 BNB 체인 지갑 주소로 직접 토큰이 전송됩니다.",
-      "q3": "부스터 패키지를 여러 개 중첩할 수 있나요?",
-      "a3": "네! 모든 부스터 패키지는 무제한 중첩이 가능합니다. $1, $5, $10, $50 부스터를 원하는 만큼 복수로 활성화하여 시간당 해시레이트를 극대화할 수 있습니다.",
+      "subtitle": "리그, 그리드 안정도, 토큰 전환, 온체인 지급에 대해 알아야 할 모든 것.",
+      "q1": "VOLTARA는 무엇이며 어떻게 작동하나요?",
+      "a1": "VOLTARA는 BNB 스마트 체인의 채굴 보상 플랫폼입니다. 무료로 가입하면 슬롯 6개짜리 리그를 받습니다. 24시간마다 '채굴'을 한 번 누르면 직접 만든 속도로 VOLTS가 쌓입니다. 배터리 소모도 전기 요금도 없습니다 — 발열과 전력은 게임의 일부이지 당신의 청구서가 아닙니다.",
+      "q2": "포인트를 $VLTR 토큰으로 어떻게 전환하나요?",
+      "a2": "모든 내부 포인트는 3:1 고정 비율(3 포인트 = 1 $VLTR BEP-20 토큰)로 전환됩니다. 출금 신청 시 본인의 BNB 체인 지갑 주소로 직접 토큰이 전송됩니다.",
+      "q3": "부품을 여러 개 겹칠 수 있나요?",
+      "a3": "네, 동시에 최대 6개까지 — 그리고 그 한계가 바로 재미있는 부분입니다. 코어의 해시는 더해지지만 발열과 소비 전력도 똑같이 더해집니다. 냉각 없이 코어 네 개를 꽂으면 25% 발열 하한에 걸려 균형 잡힌 코어 한 개보다 못 벌게 됩니다. 그에 맞는 냉각과 전력을 함께 사면 상한은 없습니다.",
       "q4": "추천 배수는 어떻게 적용되나요?",
       "a4": "초대 링크로 친구를 초대하면 인원수에 따라 레벨 1(×1)부터 최고 레벨 6(×8)까지 상승하며, 모든 24시간 채굴 수익에 곱해집니다.",
       "q5": "출금 조건은 무엇인가요?",
-      "a5": "출금 조건: 1) 최소 100 포인트 이상 보유, 2) 본인 확인을 위한 기본 KYC 인증 완료, 3) 이전 출금 신청 후 7일 경과입니다."
+      "a5": "출금하려면: 1) 최소 100 VOLTS, 2) 본인 확인을 위한 기본 KYC 완료, 3) 출금 요청 간 7일 간격 유지.",
+      "q6": "그리드 안정도란 무엇인가요?",
+      "a6": "채굴량 전체에 곱해지는 0–100%의 숫자 하나입니다. 두 가지 페널티가 합쳐진 값으로, 부품의 발열이 냉각을 넘거나 소비 전력이 공급을 넘으면 각각 비례해 출력을 깎습니다. 냉각이 발열의 60%만 감당하면 출력도 60%입니다. 100%에서는 돈 주고 산 해시가 전부 일합니다."
     },
     "cta": {
       "badge": "30초 만에 노드 마이닝 시작",
-      "title": "$BONDKOIN 채굴을 시작할 준비가 되셨나요?",
+      "title": "$VLTR 채굴을 시작할 준비가 되셨나요?",
       "body": "초기 하드웨어 투자 없이 지금 바로 0.90/h 기본 해시레이트로 무료 적립을 시작하세요.",
       "buttonPrimary": "지금 무료 계정 생성",
       "buttonSecondary": "마이닝 대시보드 로그인"
     },
     "footer": {
-      "brandDesc": "BONDKOIN (bondkoinlabs.com)은 BNB 스마트 체인 최고의 마이닝 플랫폼입니다. 정기 보상을 통해 전 세계 사용자가 온체인 암호화폐 리워드를 획득할 수 있습니다.",
+      "brandDesc": "VOLTARA (voltaragrid.com)은 BNB 스마트 체인 최고의 마이닝 플랫폼입니다. 정기 보상을 통해 전 세계 사용자가 온체인 암호화폐 리워드를 획득할 수 있습니다.",
       "quickLinks": "빠른 링크",
       "ecosystem": "생태계",
       "legal": "투명성 및 보안",
@@ -182,12 +198,49 @@
       "bscScan": "BSCScan 탐색기",
       "audit": "보안 감사 보고서",
       "whitepaper": "플랫폼 백서",
-      "disclaimer": "면책 조항: BONDKOIN는 물리적 작업증명 하드웨어 요구 사항 없이 운영되는 친환경 정기 보상 노드 마이닝 플랫폼입니다. BONDKOIN 포인트는 KYC 인증 및 보안 검토 후 온체인 $BONDKOIN BEP-20 토큰으로 전환할 수 있습니다.",
-      "copyright": "© BONDKOIN 마이닝 플랫폼. BNB 체인 생태계를 위해 제작되었습니다. All rights reserved.",
+      "disclaimer": "면책 조항: VOLTARA는 물리적 작업증명 하드웨어 요구 사항 없이 운영되는 친환경 정기 보상 노드 마이닝 플랫폼입니다. VOLTARA 포인트는 KYC 인증 및 보안 검토 후 온체인 $VLTR BEP-20 토큰으로 전환할 수 있습니다.",
+      "copyright": "© VOLTARA 마이닝 플랫폼. BNB 체인 생태계를 위해 제작되었습니다. All rights reserved.",
       "faq": "자주 묻는 질문",
       "support": "고객 지원",
       "terms": "이용약관",
       "privacy": "개인정보처리방침"
+    },
+    "rig": {
+      "title": "슬롯 6개, 한계 2개, 숫자 하나.",
+      "subtitle": "보유한 모든 부품은 냉각되고 전력을 공급받아야 합니다. 그리드 안정도가 그 여부를 알려주며, 채굴량 전체에 곱해집니다.",
+      "kicker": "맨 섀시에서는 10달러 코어가 1달러 코어보다 못 법니다. 그게 이 게임의 전부입니다 — 100%로 계속 돌릴 수 있는 속도만이 진짜 내 속도입니다.",
+      "stability": "그리드 안정도",
+      "rate": "실시간 속도",
+      "heat": "발열",
+      "watts": "소비",
+      "points": {
+        "cores": {
+          "icon": "◈",
+          "title": "코어가 해시를 만든다",
+          "body": "VC-1부터 VC-50까지. 해시가 클수록 발열과 전력도 반드시 커집니다 — 주기만 하는 부품은 없습니다."
+        },
+        "cooling": {
+          "icon": "❄",
+          "title": "냉각이 여유를 만든다",
+          "body": "증기식, 크라이오 루프, 완전 침수식까지. 열을 없애지만 그만큼 전력을 씁니다."
+        },
+        "power": {
+          "icon": "⚡",
+          "title": "전력이 빌드를 떠받친다",
+          "body": "기본 섀시는 120 W를 무료로 제공합니다. 서브스테이션은 900 W를 더하고, 자신도 약간 발열합니다."
+        },
+        "stability": {
+          "icon": "📊",
+          "title": "안정도가 수익을 결정한다",
+          "body": "냉각이 발열의 60%만 감당하면 출력도 60%입니다. 균형을 맞추면 돈 주고 산 해시를 전부 가져갑니다."
+        }
+      },
+      "step": {
+        "empty": "맨 섀시: 빈 슬롯 6개, 냉각 12 TU와 무료 전력 120 W. 기본 속도, 지출 0.",
+        "firstCore": "VC-1 코어 하나. 무료 냉각과 무료 전력에 정확히 맞습니다 — 안정도 100%, 2.9 VOLTS/시간.",
+        "overheat": "여기에 VC-10을 추가. 발열 58 TU 대 냉각 12 TU, 소비 245 W 대 공급 120 W — 리그가 크게 제한됩니다.",
+        "fixed": "크라이오 루프와 피더 유닛이 두 한계를 모두 해결. 코어는 그대로, 안정도는 100%로, 속도는 원래 있어야 할 자리로."
+      }
     }
   },
   "dashboard": {
@@ -202,7 +255,7 @@
     "referralTier": "추천 등급",
     "mineButton": "마이닝",
     "cooldown": "다음 마이닝까지 {time}",
-    "boosters": "활성 부스터",
+    "boosters": "장착된 부품",
     "referrals": "초대한 사용자",
     "referralLink": "내 추천 링크",
     "kycRequired": "KYC 상태: {status}. 출금하려면 승인이 필요합니다.",
@@ -217,12 +270,12 @@
     "tasksSubtitle": "추가 포인트 적립",
     "claim": "수령",
     "cooldownShort": "남음:",
-    "pointsShort": "포인트",
+    "pointsShort": "VOLTS",
     "working": "잠시만 기다려 주세요…",
     "verifyCta": "본인 인증하기",
-    "buyBoosters": "부스터 구매",
+    "buyBoosters": "부품 구매",
     "cloudMining": "노드 마이닝",
-    "heroBody": "장비가 매시간 BONDKOIN 포인트를 적립합니다. 하루에 한 번 탭하여 보관하세요.",
+    "heroBody": "장비가 매시간 VOLTARA 포인트를 적립합니다. 하루에 한 번 탭하여 보관하세요.",
     "totalEarnings": "총 획득 포인트",
     "atRate": "3 포인트 = 1",
     "kycVerified": "인증 완료 — 출금 가능.",
@@ -230,8 +283,8 @@
     "navDashboard": "마이닝",
     "navBoosters": "부스터",
     "navProfile": "프로필",
-    "plansTitle": "부스터 패키지",
-    "plansSubtitle": "30일 동안 시간당 적립률 증가. 중첩 가능.",
+    "plansTitle": "리그 부품",
+    "plansSubtitle": "코어, 냉각, 전력. 모든 부품에는 운영 비용이 있습니다.",
     "viewAll": "전체 보기",
     "popular": "인기",
     "resultingRate": "적용 후 적립률",
@@ -242,7 +295,7 @@
     "f1b": "모든 무료 계정의 기본 적립률.",
     "f2t": "24시간 윈도우",
     "f2b": "하루 한 번 탭하여 계속 적립.",
-    "f3t": "3 포인트 = 1 $BONDKOIN",
+    "f3t": "3 포인트 = 1 $VLTR",
     "f3b": "출금 시 확정 전환 비율.",
     "f4t": "검토 후 출금",
     "f4b": "온체인 전송 전 KYC 승인 필요.",
@@ -260,7 +313,18 @@
     "bnbRewards": "BNB Chain 상의 보상",
     "chainIndicator": "BNB Chain",
     "navWithdraw": "출금",
-    "viewReferrals": "추천 네트워크 보기"
+    "viewReferrals": "추천 네트워크 보기",
+    "navRig": "리그",
+    "stability": "그리드 안정도",
+    "partsRunning": "{count}개 가동 중",
+    "openRig": "리그 열기",
+    "rigTitle": "리그 텔레메트리",
+    "rigStable": "발열과 전력이 모두 감당되고 있습니다. 보유한 해시가 전부 채굴 중입니다.",
+    "rigThrottled": "리그가 출력을 제한하고 있습니다. 막힌 쪽을 해결하면 속도가 바로 돌아옵니다.",
+    "thermal": "발열",
+    "power": "전력",
+    "slotsUsed": "장착된 부품",
+    "hashTotal": "해시 {amount} VOLTS/시간"
   },
   "auth": {
     "signIn": "로그인",
@@ -301,43 +365,64 @@
     "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요."
   },
   "boosters": {
-    "title": "채굴 부스터 패키지",
-    "subtitle": "부스터는 30일간 시간당 채굴 속도를 향상시키며, 무제한으로 중첩 구매할 수 있습니다.",
+    "title": "부품 상점",
+    "subtitle": "코어, 냉각, 전력, 모듈. 각 30일이며 중첩 가능 — 다만 리그에 들어간 부품은 모두 냉각과 전력이 필요합니다.",
     "backToDashboard": "대시보드로 돌아가기",
-    "activeTitle": "활성 부스터",
-    "activeTotal": "+{rate} BONDKOIN/h ({count}개 부스터 적용 중)",
-    "activeExpires": "{date} 만료",
-    "paymentsDisabled": "부스터 결제가 아직 활성화되지 않았습니다. 서버에 결제 수신 지갑이 설정되지 않았습니다.",
-    "historyTitle": "구매 내역",
-    "resultingRate": "최종 속도",
-    "duration": "유지 기간",
+    "activeTitle": "보유 부품",
+    "expires": "만료일",
+    "historyTitle": "최근 구매 내역",
+    "resultingRate": "적용 후 적립률",
     "days": "일",
-    "stackable": "무제한 중첩 가능",
+    "stackable": "중첩 가능",
     "buy": "구매하기",
+    "working": "잠시만 기다려 주세요…",
     "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
+    "paymentsDisabled": "부스터 구매가 아직 활성화되지 않았습니다.",
     "payTitle": "결제 전송",
-    "fromTitle": "결제 지갑 연결",
-    "step": "2단계 중 {n}단계",
-    "chainName": "BNB Chain",
-    "fromBody": "결제를 보낼 BNB Chain 지갑 주소를 입력해 주세요. 온체인 트랜잭션 검증에 사용됩니다.",
-    "fromLabel": "결제 출금 지갑 주소",
-    "fromInvalid": "올바른 0x… 형식의 BNB Chain 주소를 입력해 주세요.",
-    "close": "닫기",
-    "working": "처리 중…",
-    "continue": "결제 진행",
-    "payBody": "아래 프로토콜 수신 주소로 정확한 수량을 송금한 후 트랜잭션 해시를 입력해 주세요.",
-    "amount": "정확한 송금 수량",
-    "payTo": "프로토콜 결제 수신 지갑",
-    "scanNote": "메타마스크, 트러스트월렛 또는 바이낸스 앱으로 QR 코드를 스캔하여 결제",
+    "payBody": "입력하신 지갑 주소에서 정확한 금액을 전송한 후 트랜잭션 해시를 아래에 붙여넣으세요.",
+    "amount": "금액",
+    "payTo": "입금 주소",
     "payFrom": "출금 지갑",
-    "payWarning": "BNB Smart Chain 네트워크의 BEP-20 토큰만 전송해 주세요. {confirmations}개 블록 컨펌이 필요합니다.",
-    "txHash": "트랜잭션 해시 (TxID)",
-    "submit": "검증 및 부스터 활성화",
-    "copied": "클립보드에 복사되었습니다!"
+    "copy": "복사",
+    "txHash": "트랜잭션 해시 (TxHash)",
+    "verify": "결제 확인",
+    "verifying": "확인 중…",
+    "close": "취소",
+    "payWarning": "결제는 BNB Chain에서 자동 검증됩니다. {confirmations}회 컨펌이 필요하므로 컨펌 대기 중일 때는 1분 후 다시 시도하세요.",
+    "poweredByBnb": "BNB Chain 기반",
+    "chainName": "BNB Chain",
+    "fromTitle": "어느 지갑에서 결제하시나요?",
+    "fromBody": "결제를 전송할 BNB Chain 지갑 주소를 입력하세요. 타인이 가로채지 못하도록 해당 주소에서 온 전송만 인정됩니다.",
+    "fromLabel": "내 지갑 주소",
+    "fromInvalid": "유효한 BNB Chain 주소가 아닙니다 (0x로 시작하는 42자리).",
+    "continue": "계속",
+    "step": "2단계 중 {n}단계",
+    "scanNote": "QR코드를 스캔해 주소를 지갑 앱에 자동 입력하세요 (금액은 직접 입력).",
+    "kindCore": "코어",
+    "kindCoreHint": "해시 — 그리고 그에 따르는 발열과 전력",
+    "kindCooler": "냉각",
+    "kindCoolerHint": "열을 제거하지만 자체 전력을 소비",
+    "kindPsu": "전력",
+    "kindPsuHint": "리그에 전력 공급; 약간의 발열",
+    "kindModule": "모듈",
+    "kindModuleHint": "기존 코어 해시를 배수로 증폭",
+    "inInventory": "보관함에 있음",
+    "inSlot": "슬롯 {slot}",
+    "duration": "기간",
+    "fitTitle": "내 리그 기준",
+    "fitRate": "내 산출량",
+    "fitStability": "안정도",
+    "fitClean": "100%로 안정 가동",
+    "fitAdd": "추가",
+    "fitTotal": "작동하는 구성",
+    "fitNoSlot": "빈 슬롯이 없습니다 — 부품을 먼저 분해하세요",
+    "fitNoFix": "상점의 어떤 부품으로도 이 격차를 메울 수 없습니다",
+    "fitHeatShort": "냉각 부족",
+    "fitWattsShort": "전력 부족"
   },
   "withdraw": {
     "title": "출금",
-    "subtitle": "포인트를 $BONDKOIN로 전환해 BNB Chain 지갑으로 전송합니다.",
+    "subtitle": "포인트를 $VLTR로 전환해 BNB Chain 지갑으로 전송합니다.",
     "paidOnChain": "BNB Chain으로 지급",
     "backToDashboard": "대시보드로 돌아가기",
     "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
@@ -347,6 +432,10 @@
     "verifyCta": "인증하기",
     "needMore": "출금하려면 최소 {min} 포인트가 필요합니다.",
     "cooldown": "주 1회 출금 가능합니다. {date}에 다시 신청할 수 있습니다.",
+    "closedTitle": "토큰 출시 후 출금이 열립니다",
+    "closedBody": "$VLTR가 아직 온체인에 없어 지급할 수 있는 토큰이 없습니다. 토큰이 출시되는 날 출금이 열리며, 날짜는 여기에서 안내합니다.",
+    "closedOn": "$VLTR는 {date}에 출시되며, 같은 날 출금이 열립니다.",
+    "closedKeepMining": "기다리는 동안 잃는 것은 없습니다. 지금 채굴한 VOLTS는 창구가 열릴 때 3 VOLTS = 1 $VLTR로 전환됩니다.",
     "amount": "수량",
     "minNote": "최소 {min} 포인트",
     "useMax": "전액 입력",
@@ -403,41 +492,6 @@
       "DRIVERS_LICENSE": "운전면허증"
     },
     "countryPlaceholder": "국가를 선택하세요"
-  },
-  "boosters": {
-    "title": "부스터 패키지",
-    "subtitle": "부스터는 30일 동안 시간당 마이닝 적립률을 올려주며 무제한 중첩됩니다.",
-    "backToDashboard": "대시보드로 돌아가기",
-    "activeTitle": "활성 부스터",
-    "expires": "만료일",
-    "historyTitle": "최근 구매 내역",
-    "resultingRate": "적용 후 적립률",
-    "days": "일",
-    "stackable": "중첩 가능",
-    "buy": "구매하기",
-    "working": "잠시만 기다려 주세요…",
-    "offline": "서버에 연결할 수 없습니다. 다시 시도해 주세요.",
-    "paymentsDisabled": "부스터 구매가 아직 활성화되지 않았습니다.",
-    "payTitle": "결제 전송",
-    "payBody": "입력하신 지갑 주소에서 정확한 금액을 전송한 후 트랜잭션 해시를 아래에 붙여넣으세요.",
-    "amount": "금액",
-    "payTo": "입금 주소",
-    "payFrom": "출금 지갑",
-    "copy": "복사",
-    "txHash": "트랜잭션 해시 (TxHash)",
-    "verify": "결제 확인",
-    "verifying": "확인 중…",
-    "close": "취소",
-    "payWarning": "결제는 BNB Chain에서 자동 검증됩니다. {confirmations}회 컨펌이 필요하므로 컨펌 대기 중일 때는 1분 후 다시 시도하세요.",
-    "poweredByBnb": "BNB Chain 기반",
-    "chainName": "BNB Chain",
-    "fromTitle": "어느 지갑에서 결제하시나요?",
-    "fromBody": "결제를 전송할 BNB Chain 지갑 주소를 입력하세요. 타인이 가로채지 못하도록 해당 주소에서 온 전송만 인정됩니다.",
-    "fromLabel": "내 지갑 주소",
-    "fromInvalid": "유효한 BNB Chain 주소가 아닙니다 (0x로 시작하는 42자리).",
-    "continue": "계속",
-    "step": "2단계 중 {n}단계",
-    "scanNote": "QR코드를 스캔해 주소를 지갑 앱에 자동 입력하세요 (금액은 직접 입력)."
   },
   "profile": {
     "title": "프로필",
@@ -511,8 +565,8 @@
     "intro": "마이닝, 부스터, 본인 인증 및 출금의 실제 운영 방식에 대한 안내입니다.",
     "q": {
       "mining": {
-        "q": "BONDKOIN에서 '마이닝'이란 무슨 뜻인가요?",
-        "a": "하드웨어 채굴이 아닌 정기 보상 누적 시스템입니다. 컴퓨터가 해시를 계산하는 것이 아니라 계정의 시간당 적립률에 따라 포인트가 적립됩니다.\n\n포인트는 플랫폼 내부 단위이며, 출금할 때 온체인 $BONDKOIN로 전환됩니다."
+        "q": "VOLTARA에서 '마이닝'이란 무슨 뜻인가요?",
+        "a": "하드웨어 채굴이 아닌 정기 보상 누적 시스템입니다. 컴퓨터가 해시를 계산하는 것이 아니라 계정의 시간당 적립률에 따라 포인트가 적립됩니다.\n\n포인트는 플랫폼 내부 단위이며, 출금할 때 온체인 $VLTR로 전환됩니다."
       },
       "cooldown": {
         "q": "왜 하루에 한 번만 마이닝을 탭할 수 있나요?",
@@ -520,7 +574,7 @@
       },
       "conversion": {
         "q": "포인트 전환 비율은 어떻게 되나요?",
-        "a": "3 포인트당 1개의 $BONDKOIN로 전환됩니다. 비율은 플랫폼에 고정되어 있으며 출금 시 적용됩니다."
+        "a": "3 포인트당 1개의 $VLTR로 전환됩니다. 비율은 플랫폼에 고정되어 있으며 출금 시 적용됩니다."
       },
       "minWithdrawal": {
         "q": "최소 출금 금액은 얼마인가요?",
@@ -555,12 +609,12 @@
   "terms": {
     "title": "이용약관",
     "backHome": "홈으로 돌아가기",
-    "intro": "BONDKOIN 서비스 이용을 위한 기본 규칙 안내입니다.",
+    "intro": "VOLTARA 서비스 이용을 위한 기본 규칙 안내입니다.",
     "updated": "본 약관은 작업 초안입니다.",
     "q": {
       "service": {
         "q": "서비스 개요",
-        "a": "BONDKOIN는 리워드 플랫폼입니다. '마이닝'은 계정에 정기적으로 누적되는 보상을 의미하며 물리적 채굴 장비나 수익을 보장하지 않습니다."
+        "a": "VOLTARA는 리워드 플랫폼입니다. '마이닝'은 계정에 정기적으로 누적되는 보상을 의미하며 물리적 채굴 장비나 수익을 보장하지 않습니다."
       },
       "eligibility": {
         "q": "이용 자격",
@@ -626,7 +680,7 @@
   },
   "referrals": {
     "title": "추천인 및 네트워크 허브",
-    "subtitle": "친구를 초대하여 BONDKOIN 노드 네트워크를 확장하고 최대 8배 채굴 해시레이트 부스트를 잠금 해제하세요.",
+    "subtitle": "친구를 초대하여 VOLTARA 노드 네트워크를 확장하고 최대 8배 채굴 해시레이트 부스트를 잠금 해제하세요.",
     "back": "대시보드",
     "yourLink": "나만의 전용 초대 링크",
     "copyLink": "링크 복사",
@@ -657,18 +711,18 @@
     "active": "채굴 중 🟢",
     "idle": "대기 중 ⚪",
     "calculatorTitle": "추천 해시레이트 배율 계산기",
-    "calculatorSubtitle": "초대한 광부 수에 따라 매일 획득하는 $BONDKOIN이 얼마나 증가하는지 확인해보세요",
+    "calculatorSubtitle": "초대한 광부 수에 따라 매일 획득하는 $VLTR이 얼마나 증가하는지 확인해보세요",
     "baseRateLabel": "기본 채굴 속도",
     "invitesCount": "초대한 광부 수",
     "projectedSpeed": "배율 적용된 실시간 속도",
     "dailyPts": "일일 적립 포인트",
-    "monthlyTokens": "30일 예상 $BONDKOIN",
+    "monthlyTokens": "30일 예상 $VLTR",
     "integrityTitle": "탈중앙화 네트워크 보안",
-    "integrityBody": "BONDKOIN은 기기 핑거프린트 기반 시빌 방지 시스템을 적용하여 자가 추천 및 중복 계정을 엄격히 차단합니다."
+    "integrityBody": "VOLTARA은 기기 핑거프린트 기반 시빌 방지 시스템을 적용하여 자가 추천 및 중복 계정을 엄격히 차단합니다."
   },
-  "leaderboard":   {
+  "leaderboard": {
     "title": "글로벌 채굴 리더보드",
-    "subtitle": "BONDKOIN 네트워크의 모든 광부 중 내 노드의 순위를 확인하세요. 신원은 마스킹되며 성과만 공개됩니다.",
+    "subtitle": "VOLTARA 네트워크의 모든 광부 중 내 노드의 순위를 확인하세요. 신원은 마스킹되며 성과만 공개됩니다.",
     "back": "대시보드",
     "categoryLabel": "순위 기준",
     "catEarnings": "총 채굴량",
@@ -711,5 +765,38 @@
     "integrityTitle": "순위 산정 방식",
     "integrityBody": "순위는 정산에 쓰이는 것과 동일한 원장에서 계산됩니다. 적립 내역만 반영하므로 출금해도 순위가 내려가지 않습니다. 차단된 계정은 제외되고, 동점은 같은 순위를 공유하며, 수치는 약 30초마다 갱신됩니다.",
     "nav": "리더보드"
+  },
+  "rig": {
+    "title": "내 리그",
+    "subtitle": "슬롯 6개. 코어는 해시와 열을 만들고, 쿨러는 전력을 써서 열을 없애며, PSU는 전체에 전력을 공급합니다. 그리드 안정도를 100%로 유지하지 않으면 출력이 제한됩니다.",
+    "backToDashboard": "대시보드",
+    "shopCta": "부품 구매",
+    "offline": "그리드에 연결할 수 없습니다. 다시 시도해 주세요.",
+    "stabilityLabel": "그리드 안정도",
+    "liveRate": "실시간 속도",
+    "voltsPerHour": "VOLTS/시간",
+    "throttledAway": "제한으로 −{amount} VOLTS/시간 손실",
+    "thermal": "발열",
+    "power": "전력",
+    "overheating": "과열 — 출력 제한됨",
+    "brownout": "전력 부족 — 출력 제한됨",
+    "headroom": "여유 {amount}",
+    "hash": "해시",
+    "multiplier": "추천 배수",
+    "chassis": "섀시",
+    "slots": "슬롯",
+    "gridTitle": "슬롯 그리드",
+    "gridHint": "슬롯 {total}개 중 {used}개 가동 중",
+    "slotEmpty": "빈 슬롯",
+    "slotTapToFill": "아래에서 부품 선택",
+    "remove": "제거",
+    "burnsIn": "남은 수명",
+    "inventoryTitle": "보관함",
+    "inventoryHint": "가동 중이 아닌 보유 부품",
+    "inventoryPickFor": "부품을 눌러 슬롯 {slot}에 장착",
+    "inventoryEmpty": "보관함이 비어 있습니다. 빈 슬롯이 있으면 구매한 부품은 자동으로 장착됩니다.",
+    "install": "장착",
+    "rigFull": "슬롯 가득 참",
+    "footnote": "부품은 장착된 동안에만 채굴합니다. 냉각을 넘는 발열과 공급을 넘는 소비 전력은 각각 비례해 출력을 깎습니다 — 냉각이 발열의 60%만 감당하면 출력도 60%입니다. 부품은 구매 30일 후 소손됩니다."
   }
 }

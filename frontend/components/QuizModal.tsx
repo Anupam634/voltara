@@ -2,14 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useTranslations } from 'next-intl';
 import type { ClaimTaskResultDto } from '../lib/api';
+import { Button, Chip, Eyebrow, Icon, Notice, Progress } from './ui';
 
 /**
  * A question as the client sees it. No `correctIndex`, no `explanation`:
- * this modal used to be handed both and decide for itself whether the miner
- * had passed, which meant the answers sat in the network payload and the
- * grade meant nothing. The server marks the submission now.
+ * the server marks the submission and withholds the answers until then.
  */
 interface QuizQuestion {
   id: number;
@@ -20,43 +18,23 @@ interface QuizQuestion {
 const QUIZ_QUESTIONS: QuizQuestion[] = [
   {
     id: 1,
-    question: 'Which blockchain network settles BONDKOIN ($BONDKOIN) token withdrawals?',
-    options: [
-      'BNB Smart Chain (BEP-20)',
-      'Ethereum Mainnet (ERC-20)',
-      'Solana Network (SPL)',
-      'Bitcoin Lightning Network',
-    ],
+    question: 'Which blockchain network settles VOLTARA ($VLTR) token withdrawals?',
+    options: ['BNB Smart Chain (BEP-20)', 'Ethereum Mainnet (ERC-20)', 'Solana Network (SPL)', 'Bitcoin Lightning Network'],
   },
   {
     id: 2,
-    question: 'What is the official BONDKOIN Point to $BONDKOIN token conversion standard?',
-    options: [
-      '1 Point = 1 $BONDKOIN',
-      '3 Points = 1 $BONDKOIN',
-      '10 Points = 1 $BONDKOIN',
-      '5 Points = 1 $BONDKOIN',
-    ],
+    question: 'What is the official VOLTARA Point to $VLTR token conversion standard?',
+    options: ['1 Point = 1 $VLTR', '3 Points = 1 $VLTR', '10 Points = 1 $VLTR', '5 Points = 1 $VLTR'],
   },
   {
     id: 3,
     question: 'What is the standard base node mining rate per hour?',
-    options: [
-      '0.25 BONDKOIN/h',
-      '0.50 BONDKOIN/h',
-      '0.90 BONDKOIN/h',
-      '1.50 BONDKOIN/h',
-    ],
+    options: ['0.25 VOLTS/h', '0.50 VOLTS/h', '0.90 VOLTS/h', '1.50 VOLTS/h'],
   },
   {
     id: 4,
     question: 'How often do miners need to check in to sustain continuous node mining?',
-    options: [
-      'Every 1 Hour',
-      'Every 6 Hours',
-      'Every 12 Hours',
-      'Every 24 Hours',
-    ],
+    options: ['Every 1 Hour', 'Every 6 Hours', 'Every 12 Hours', 'Every 24 Hours'],
   },
 ];
 
@@ -68,8 +46,7 @@ function useQuizSound(muted: boolean) {
     if (!ctxRef.current) {
       const Ctor =
         window.AudioContext ??
-        (window as unknown as { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext;
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Ctor) return null;
       ctxRef.current = new Ctor();
     }
@@ -167,9 +144,8 @@ export function QuizModal({
   const isAnswered = selectedIdx !== null;
   const isLast = currentIdx + 1 === questionsList.length;
 
-  // Selecting is now just recording a choice — there is nothing to mark
-  // against until the whole set goes to the server, so an answer can still be
-  // changed while the miner is on the question.
+  // Selecting only records a choice — marking happens on the server once
+  // the whole set is submitted, so an answer can still be changed.
   const handleSelect = (idx: number) => {
     setAnswers((prev) => {
       const next = [...prev];
@@ -209,214 +185,199 @@ export function QuizModal({
   const answeredCount = answers.filter((a) => a !== undefined).length;
   const progressPercent = (answeredCount / questionsList.length) * 100;
   const quiz = outcome?.quiz ?? null;
+  const perfect = quiz ? quiz.correctCount === quiz.total : false;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl animate-in fade-in duration-200">
-      {/* Radiant ambient aura */}
-      <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-blue-600/20 blur-3xl" />
+    <div
+      className="fixed inset-0 z-[80] grid place-items-end bg-bg/75 p-0 backdrop-blur-md animate-fade sm:place-items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget && !submitting) onClose();
+      }}
+    >
+      <div className="pointer-events-none absolute h-96 w-96 rounded-full bg-brand/20 blur-3xl" />
 
-      {/* Transparent Glassmorphism Modal Card */}
-      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-slate-950/80 p-6 sm:p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.8)] backdrop-blur-3xl ring-1 ring-white/10 transition-all">
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
-            <div className="flex items-center gap-2.5 text-left">
-              <div className="grid h-9 w-9 place-items-center rounded-2xl bg-cyan-500/20 border border-cyan-500/30 text-lg">
-                🧠
-              </div>
-              <div>
-                <h2 className="text-lg font-black tracking-tight text-slate-100">
-                  Web3 Knowledge Challenge
-                </h2>
-                <p className="text-[11px] font-medium text-slate-400">
-                  Answer correctly to earn +{rewardPoints} BONDKOIN points
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setMuted((m) => !m)}
-                className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-slate-900/60 text-slate-300 transition hover:border-cyan-400/50 hover:text-cyan-400"
-              >
-                {muted ? '🔇' : '🔊'}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="grid h-8 w-8 place-items-center rounded-xl border border-white/10 bg-slate-900/60 text-slate-400 transition hover:border-slate-700 hover:text-white"
-              >
-                ✕
-              </button>
+      <div
+        className="v-panel v-hud relative w-full animate-pop overflow-hidden rounded-b-none rounded-t-3xl p-5 sm:max-w-lg sm:rounded-3xl sm:p-7"
+        style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3 border-b border-line/15 pb-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand/12 text-brand-hi">
+              <Icon name="help" size={18} />
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate font-display text-lg font-bold text-ink">Web3 Knowledge Challenge</h2>
+              <p className="text-xs text-ink-3">
+                Answer correctly to earn <span className="v-num font-extrabold text-charge">+{rewardPoints}</span> VOLTS
+              </p>
             </div>
           </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMuted((m) => !m)}
+              aria-label={muted ? 'Unmute' : 'Mute'}
+              className={`grid h-8 w-8 place-items-center rounded-full border transition ${
+                muted ? 'border-line/25 text-ink-3' : 'border-brand/40 bg-brand/10 text-brand-hi'
+              }`}
+            >
+              <Icon name="bell" size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="grid h-8 w-8 place-items-center rounded-full border border-line/25 text-ink-3 transition hover:border-heat/60 hover:text-heat"
+            >
+              <Icon name="x" size={14} />
+            </button>
+          </div>
+        </div>
 
-          {!quiz ? (
-            <div className="mt-5 text-left">
-              {/* Progress Bar */}
-              <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-400">
-                <span>QUESTION {currentIdx + 1} OF {questionsList.length}</span>
-                <span className="text-cyan-400">ANSWERED: {answeredCount}/{questionsList.length}</span>
-              </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800/80">
-                <div
-                  className="h-full bg-gradient-to-r from-cyan-400 to-amber-400 transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
+        {!quiz ? (
+          <div className="mt-5">
+            <div className="flex items-center justify-between">
+              <Eyebrow>
+                Question {currentIdx + 1} / {questionsList.length}
+              </Eyebrow>
+              <Chip tone="brand">
+                <span className="v-num">{answeredCount}</span> / {questionsList.length}
+              </Chip>
+            </div>
+            <Progress value={progressPercent} charge={progressPercent >= 100} className="mt-2.5" />
 
-              {/* Question Box */}
-              <div className="mt-5 rounded-2xl border border-white/10 bg-slate-900/40 p-4 backdrop-blur-md">
-                <p className="text-base font-extrabold text-slate-100 leading-snug">
-                  {currentQ.question}
-                </p>
-              </div>
+            <div key={currentIdx} className="v-inset mt-5 animate-rise p-4">
+              <p className="text-base font-extrabold leading-snug text-ink">{currentQ.question}</p>
+            </div>
 
-              {/* Options List. Selection only — the marking comes back with
-                  the claim, so there is nothing to colour green here yet. */}
-              <div className="mt-4 space-y-2.5">
-                {currentQ.options.map((option, idx) => {
-                  const isSelected = selectedIdx === idx;
-                  const btnStyle = isSelected
-                    ? 'border-cyan-400/80 bg-cyan-500/15 text-cyan-200 ring-1 ring-cyan-400/50 shadow-lg'
-                    : 'border-white/10 bg-slate-900/40 text-slate-200 hover:border-cyan-400/50 hover:bg-slate-900/60';
-
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSelect(idx)}
-                      disabled={submitting}
-                      className={`w-full text-left rounded-2xl border p-3.5 text-sm font-semibold transition-all duration-200 flex items-center justify-between disabled:opacity-60 ${btnStyle}`}
-                    >
-                      <span>{option}</span>
-                      {isSelected && <span className="text-xs font-bold">●</span>}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 space-y-3">
-                {currentIdx > 0 && !submitting && (
+            <div key={`opts-${currentIdx}`} className="v-stagger mt-4 space-y-2.5">
+              {currentQ.options.map((option, idx) => {
+                const isSelected = selectedIdx === idx;
+                return (
                   <button
+                    key={idx}
                     type="button"
-                    onClick={() => setCurrentIdx((c) => c - 1)}
-                    className="w-full rounded-2xl border border-white/10 bg-slate-900/40 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 transition hover:border-slate-700 hover:text-slate-200"
+                    onClick={() => handleSelect(idx)}
+                    disabled={submitting}
+                    className={`flex w-full items-center justify-between gap-3 rounded-2xl border p-3.5 text-left text-sm font-semibold transition-all disabled:opacity-60 ${
+                      isSelected
+                        ? 'border-charge/60 bg-charge/10 text-ink shadow-charge'
+                        : 'border-line/20 bg-surface-2/50 text-ink-2 hover:border-brand-hi/60 hover:text-ink'
+                    }`}
                   >
-                    ← Back
+                    <span className="flex items-center gap-3">
+                      <span
+                        className={`grid h-6 w-6 shrink-0 place-items-center rounded-full border text-[11px] font-extrabold ${
+                          isSelected ? 'border-charge bg-charge text-bg' : 'border-line/30 text-ink-3'
+                        }`}
+                      >
+                        {String.fromCharCode(65 + idx)}
+                      </span>
+                      <span>{option}</span>
+                    </span>
+                    {isSelected && <Icon name="check" size={14} className="shrink-0 text-charge" />}
                   </button>
-                )}
+                );
+              })}
+            </div>
 
-                {error && (
-                  <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs font-semibold text-red-300">
-                    {error}
+            {error && (
+              <Notice tone="heat" className="mt-4" icon={<Icon name="flame" size={16} />}>
+                {error}
+              </Notice>
+            )}
+
+            <div className="mt-4 flex gap-2">
+              {currentIdx > 0 && !submitting && (
+                <Button variant="ghost" onClick={() => setCurrentIdx((c) => c - 1)} className="shrink-0">
+                  <Icon name="chevron-left" size={14} />
+                </Button>
+              )}
+              <Button
+                variant={isLast && isAnswered ? 'charge' : 'primary'}
+                onClick={handleNext}
+                disabled={!isAnswered || submitting}
+                loading={submitting}
+                className="flex-1"
+              >
+                {submitting ? 'Marking…' : !isAnswered ? 'Choose an answer' : isLast ? 'Submit answers' : 'Next question'}
+                {!submitting && isAnswered && <Icon name="chevron-right" size={14} />}
+              </Button>
+            </div>
+
+            {isLast && isAnswered && !submitting && (
+              <p className="mt-3 text-center text-[11px] text-ink-3">
+                Answers are marked once. You can try again after the cooldown.
+              </p>
+            )}
+          </div>
+        ) : (
+          /* Result screen — everything here comes from the server's marking. */
+          <div className="mt-6 animate-pop">
+            <div className="text-center">
+              <span
+                className={`inline-grid h-16 w-16 place-items-center rounded-2xl ${
+                  perfect ? 'bg-charge/15 text-charge shadow-charge' : 'bg-brand/15 text-brand-hi'
+                }`}
+              >
+                <Icon name={perfect ? 'trophy' : 'check'} size={28} />
+              </span>
+              <h3 className="mt-4 font-display text-2xl font-bold text-ink">{perfect ? 'Perfect score' : 'Quiz completed'}</h3>
+              <p className="mt-1 text-sm text-ink-2">
+                You answered <span className="v-num font-extrabold text-ink">{quiz.correctCount}</span> of {quiz.total} correctly.
+              </p>
+
+              <div className={`v-panel mt-5 p-4 ${outcome && outcome.earnedPoints > 0 ? 'v-panel--charge' : ''}`}>
+                <Eyebrow tone={outcome && outcome.earnedPoints > 0 ? 'charge' : 'default'}>
+                  {outcome && outcome.earnedPoints > 0 ? 'Bounty credited' : 'No points this round'}
+                </Eyebrow>
+                <div className="v-num mt-1 text-3xl font-extrabold text-charge">+{outcome?.earnedPoints ?? 0} VOLTS</div>
+                {quiz.correctCount < quiz.total && (
+                  <div className="mt-1 text-[11px] text-ink-3">
+                    {quiz.correctCount}/{quiz.total} of the full {rewardPoints} VOLTS
                   </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  disabled={!isAnswered || submitting}
-                  className="btn-gold w-full rounded-2xl py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-lg disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {submitting
-                    ? 'Marking…'
-                    : !isAnswered
-                      ? 'Choose an answer'
-                      : isLast
-                        ? 'Submit Answers →'
-                        : 'Next Question →'}
-                </button>
-
-                {isLast && isAnswered && !submitting && (
-                  <p className="text-center text-[11px] font-medium text-slate-500">
-                    Answers are marked once. You can try again after the cooldown.
-                  </p>
                 )}
               </div>
             </div>
-          ) : (
-            /* Result screen — everything here comes from the server's
-               marking, including the explanations, which are withheld until
-               the answers are in. */
-            <div className="mt-6 animate-in zoom-in-95 duration-300">
-              <div className="text-center">
-                <div className="inline-grid h-16 w-16 place-items-center rounded-3xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-3xl shadow-xl">
-                  {quiz.correctCount === quiz.total ? '🏆' : '📘'}
-                </div>
-                <h3 className="mt-4 text-2xl font-black text-slate-100">
-                  {quiz.correctCount === quiz.total
-                    ? 'Perfect Score!'
-                    : 'Quiz Completed'}
-                </h3>
-                <p className="mt-1 text-sm text-slate-400">
-                  You answered {quiz.correctCount} of {quiz.total} correctly.
-                </p>
 
-                <div className="mt-5 rounded-2xl border border-amber-400/40 bg-gradient-to-r from-amber-500/20 via-yellow-500/20 to-amber-500/20 p-4 backdrop-blur-md">
-                  <div className="text-xs uppercase font-black tracking-widest text-amber-400">
-                    {outcome && outcome.earnedPoints > 0
-                      ? 'Bounty Credited'
-                      : 'No Points This Round'}
-                  </div>
-                  <div className="mt-1 font-mono text-3xl font-black text-cyan-300">
-                    +{outcome?.earnedPoints ?? 0} BONDKOIN PTS
-                  </div>
-                  {quiz.correctCount < quiz.total && (
-                    <div className="mt-1 text-[11px] font-medium text-amber-200/80">
-                      {quiz.correctCount}/{quiz.total} of the full {rewardPoints} pts
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Per-question review */}
-              <div className="mt-5 max-h-64 space-y-2.5 overflow-y-auto pr-1 text-left">
-                {quiz.results.map((r, i) => {
-                  const q = questionsList[i];
-                  return (
-                    <div
-                      key={r.id}
-                      className={`rounded-2xl border p-3 backdrop-blur-md ${
-                        r.correct
-                          ? 'border-emerald-500/40 bg-emerald-500/10'
-                          : 'border-red-500/40 bg-red-500/10'
-                      }`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <span className="text-sm font-black">
-                          {r.correct ? '✓' : '✕'}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold leading-snug text-slate-100">
-                            {q?.question}
-                          </p>
-                          {!r.correct && (
-                            <p className="mt-1 text-[11px] font-semibold text-emerald-300">
-                              Correct answer: {q?.options[r.correctIndex]}
-                            </p>
-                          )}
-                          <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                            💡 {r.explanation}
-                          </p>
-                        </div>
+            <div className="v-stagger mt-5 max-h-64 space-y-2.5 overflow-y-auto pr-1 text-left">
+              {quiz.results.map((r, i) => {
+                const q = questionsList[i];
+                return (
+                  <div
+                    key={r.id}
+                    className={`rounded-2xl border p-3 ${
+                      r.correct ? 'border-ok/35 bg-ok/[0.08]' : 'border-heat/35 bg-heat/[0.08]'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <span className={`mt-0.5 shrink-0 ${r.correct ? 'text-ok' : 'text-heat'}`}>
+                        <Icon name={r.correct ? 'check' : 'x'} size={14} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold leading-snug text-ink">{q?.question}</p>
+                        {!r.correct && (
+                          <p className="mt-1 text-[11px] font-semibold text-ok">Correct answer: {q?.options[r.correctIndex]}</p>
+                        )}
+                        <p className="mt-1 text-[11px] leading-relaxed text-ink-2">{r.explanation}</p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn-brand mt-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-xl"
-              >
-                Close →
-              </button>
+                  </div>
+                );
+              })}
             </div>
+
+            <Button variant="primary" onClick={onClose} className="mt-6 w-full">
+              Close
+              <Icon name="chevron-right" size={14} />
+            </Button>
+          </div>
         )}
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

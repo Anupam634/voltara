@@ -52,7 +52,7 @@ export function ReportsTab() {
   }[] = [
     {
       id: 'users',
-      title: '👥 Miner Accounts Directory',
+      title: 'Miner Accounts Directory',
       desc: 'All registered users, balances, live rates, countries, referral counts, and account statuses.',
       count: summary?.usersCount ?? 0,
       badge: 'Database Users',
@@ -66,35 +66,35 @@ export function ReportsTab() {
     },
     {
       id: 'withdrawals',
-      title: '💸 Withdrawals & Payouts Queue',
+      title: 'Withdrawals & Payouts Queue',
       desc: 'All settled, pending, approved, and rejected BEP-20 payouts on BNB Smart Chain.',
       count: summary?.withdrawalsCount ?? 0,
       badge: 'Payout Records',
     },
     {
       id: 'referrals',
-      title: '🌲 Referral Downlines & Matrix',
+      title: 'Referral Downlines & Matrix',
       desc: 'Active referral links, parent inviter mapping, direct downlines, and tier qualifications.',
       count: summary?.referralsCount ?? 0,
       badge: 'Downline Links',
     },
     {
       id: 'kyc',
-      title: '🪪 Identity KYC Applications',
+      title: 'Identity KYC Applications',
       desc: 'Government document submissions, applicant full names, document numbers, and reviewer notes.',
       count: summary?.kycCount ?? 0,
       badge: 'KYC Records',
     },
     {
       id: 'revenue',
-      title: '💰 Booster Purchases & Revenue',
+      title: 'Booster Purchases & Revenue',
       desc: 'On-chain hashrate booster package payments, transaction hashes, and confirmed revenues.',
       count: summary?.revenueCount ?? 0,
       badge: 'Purchases',
     },
     {
       id: 'revenue-by-user',
-      title: '🧾 Spend Per Paying Miner',
+      title: 'Spend Per Paying Miner',
       desc: 'One row per paying miner: total USD paid, purchase count, first and last payment, and the quantity bought of every booster category.',
       count: summary?.payingUsersCount ?? 0,
       badge: 'Payers',
@@ -107,7 +107,7 @@ export function ReportsTab() {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black text-white">
-              📑 Real-Time Database Reports & CSV Exporter
+              Real-Time Database Reports & CSV Exporter
             </h2>
             <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-400">
               Live PostgreSQL
@@ -122,13 +122,13 @@ export function ReportsTab() {
           onClick={loadSummary}
           className="rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-bold text-slate-300 hover:border-amber-500 hover:text-amber-400 transition"
         >
-          🔄 Refresh Counts
+          Refresh Counts
         </button>
       </div>
 
       {error && (
         <div className="rounded-xl border border-red-500/40 bg-red-950/40 p-4 text-xs text-red-300">
-          <span className="font-bold">⚠ Error:</span> {error}
+          <span className="font-bold">Error:</span> {error}
         </div>
       )}
 
@@ -169,9 +169,9 @@ export function ReportsTab() {
             <button
               onClick={() => handleExport(r.id, r.title)}
               disabled={downloading === r.id || !summary}
-              className="btn-gold mt-6 w-full rounded-xl py-2.5 text-xs font-black uppercase text-slate-950 shadow-md transition disabled:opacity-50"
+              className="btn-gold mt-6 w-full rounded-xl py-2.5 text-xs font-black uppercase shadow-md transition disabled:opacity-50"
             >
-              {downloading === r.id ? '⚡ Querying & Generating CSV…' : '📥 Export Real CSV Data'}
+              {downloading === r.id ? '⚡ Querying & Generating CSV…' : 'Export Real CSV Data'}
             </button>
           </div>
         ))}

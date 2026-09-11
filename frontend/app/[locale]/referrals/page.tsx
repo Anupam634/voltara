@@ -13,7 +13,7 @@ export async function generateMetadata({
 }) {
   const t = await getTranslations({ locale: params.locale, namespace: 'referrals' });
   return {
-    title: `${t('title')} | BONDKOIN Labs`,
+    title: `${t('title')} | VOLTARA Labs`,
     description: t('subtitle'),
   };
 }

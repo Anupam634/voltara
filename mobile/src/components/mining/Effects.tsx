@@ -109,10 +109,10 @@ export function ProgressRing({
 /* ───────────────────────────── Mine button ─────────────────────────────── */
 
 /**
- * The round `.btn-gold` Mine control from the dashboard hero: a brand-gradient
- * disc with ⚡ + label, a `.pulse-ring` halo and amber glow while a claim is
- * available, the countdown while the window is still filling, and a spinner
- * while the claim is in flight.
+ * The round Mine control from the dashboard hero. Lime gradient (`.v-btn--charge`)
+ * with a `.v-dot` pulse ring while a claim is ready — the one lime thing on
+ * the screen; a dimmed violet disc with the countdown while the window is
+ * still filling; a spinner while the claim is in flight.
  */
 export function MineButton({
   size = 120,
@@ -143,6 +143,8 @@ export function MineButton({
   const halo = ready
     ? glow(c.gold, c.dark ? 3 : 2)
     : elevation(claiming ? 1 : 2);
+  const gradient = ready ? c.goldGradient : c.primaryGradient;
+  const fg = ready ? c.onGold : c.onPrimary;
 
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
@@ -167,13 +169,13 @@ export function MineButton({
             overflow: 'hidden',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: c.primary,
+            backgroundColor: ready ? c.gold : c.primary,
             opacity: ready || claiming ? 1 : 0.55,
           }}
         >
           <LinearGradient
             pointerEvents="none"
-            colors={[...c.primaryGradient] as [string, string, ...string[]]}
+            colors={[...gradient] as [string, string, ...string[]]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
@@ -193,15 +195,15 @@ export function MineButton({
           ) : null}
 
           {claiming ? (
-            <ActivityIndicator color={c.onPrimary} size="large" />
+            <ActivityIndicator color={fg} size="large" />
           ) : ready ? (
             <>
-              <Text style={{ fontSize: 26, lineHeight: 32 }}>⚡</Text>
+              <Ionicons name="flash" size={30} color={fg} />
               <Text
                 variant="caption"
                 weight="900"
                 uppercase
-                style={{ color: c.onPrimary, letterSpacing: 1.4, marginTop: 2 }}
+                style={{ color: fg, letterSpacing: 1.4, marginTop: 2 }}
               >
                 {label}
               </Text>
@@ -334,8 +336,8 @@ function Particle({
 }
 
 /**
- * `.float-up`: the "+X.XX PTS" emerald pill that rises off the control after a
- * claim lands. Mounted only while the celebration is live.
+ * `.v-float-up`: the "+X VOLTS" lime numeral that rises off the control after
+ * a claim lands. Mounted only while the celebration is live.
  */
 export function FloatUp({ label, style }: { label: string; style?: StyleProp<ViewStyle> }) {
   const { c, radius, alpha, glow } = useTheme();
@@ -358,17 +360,17 @@ export function FloatUp({ label, style }: { label: string; style?: StyleProp<Vie
           paddingHorizontal: 14,
           paddingVertical: 6,
           borderRadius: radius.pill,
-          backgroundColor: alpha(c.success, c.dark ? 0.2 : 0.12),
+          backgroundColor: alpha(c.gold, c.dark ? 0.16 : 0.1),
           borderWidth: 1,
-          borderColor: alpha(c.success, 0.45),
+          borderColor: alpha(c.gold, 0.45),
           zIndex: 20,
-          ...(c.dark ? glow(c.success, 2) : null),
+          ...(c.dark ? glow(c.gold, 2) : null),
         },
         animated,
         style,
       ]}
     >
-      <Text variant="title3" tone="success" mono weight="900">
+      <Text variant="title3" tone="gold" mono weight="900">
         {label}
       </Text>
     </Animated.View>

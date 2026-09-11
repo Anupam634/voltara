@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
 
 /**
@@ -90,24 +91,32 @@ export class AntiabuseService {
     return hit !== null;
   }
 
-  /** Record (or refresh) the device/IP a user was last seen on. */
+  /**
+   * Record (or refresh) the device/IP a user was last seen on.
+   *
+   * Takes an optional transaction client so signup can write the account,
+   * its device signal and its starter core as one unit — a half-registered
+   * account with no device row is exactly the state the abuse checks would
+   * later misread.
+   */
   async recordDevice(
     userId: string,
     signals: { fingerprint?: string; ip?: string },
+    client: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<void> {
     const fingerprint = signals.fingerprint ?? 'unknown';
-    const existing = await this.prisma.deviceFingerprint.findFirst({
+    const existing = await client.deviceFingerprint.findFirst({
       where: { userId, fingerprint },
       select: { id: true },
     });
     if (existing) {
-      await this.prisma.deviceFingerprint.update({
+      await client.deviceFingerprint.update({
         where: { id: existing.id },
         data: { lastIp: signals.ip, seenAt: new Date() },
       });
       return;
     }
-    await this.prisma.deviceFingerprint.create({
+    await client.deviceFingerprint.create({
       data: { userId, fingerprint, lastIp: signals.ip },
     });
   }

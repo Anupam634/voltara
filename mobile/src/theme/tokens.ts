@@ -3,32 +3,52 @@ import { Platform } from 'react-native';
 /**
  * Design tokens — a native port of the web app's `globals.css`.
  *
- * Four themes, exactly the web's: Midnight Sapphire (the default dark),
- * Executive Light, Corporate Royal Blue ("cyber") and Crimson Scarlet ("red").
- * Every screen reads semantic names (`c.textPrimary`, `c.primary`), never a raw
- * hex, so switching theme restyles the whole app the way it does on the site.
+ * Four themes, exactly the web's: Grid (the default dark), Substation
+ * (light), Overdrive ("cyber") and Overheat ("red"). Every screen
+ * reads semantic names (`c.textPrimary`, `c.primary`), never a raw hex, so
+ * switching theme restyles the whole app the way it does on the site.
+ *
+ * The VOLTARA palette is three colours doing three jobs, and the app is only
+ * coherent while they keep them:
+ *
+ *   obsidian  the ground everything sits on
+ *   violet    structure — chrome, borders, primary actions
+ *   lime      charge — rates, live figures, a rig at full stability
+ *
+ * Lime is the scarce one. If it starts appearing on ordinary furniture the
+ * screens stop having a focal point.
+ *
+ * The key names are the ones the app was built against (`gold`, `sapphire`,
+ * `cyan`), kept so a rebrand did not have to touch ninety screens. What they
+ * hold is VOLTARA.
  */
 
 export type ThemeName = 'dark' | 'light' | 'cyber' | 'red';
 
 const brand = {
-  blue: '#1D4ED8',
-  sapphire: '#2563EB',
-  sapphireLight: '#3B82F6',
-  indigo: '#4F46E5',
-  indigoSoft: '#6366F1',
-  violet: '#7C3AED',
-  cyan: '#06B6D4',
-  cyanBright: '#22D3EE',
-  gold: '#F59E0B',
-  goldSoft: '#FBBF24',
+  /** Violet — structure. (Was the blue ramp.) */
+  blue: '#6D28D9',
+  sapphire: '#7C3AED',
+  sapphireLight: '#A78BFA',
+  indigo: '#7C3AED',
+  indigoSoft: '#8B5CF6',
+  violet: '#6D28D9',
+  /** Token amounts, a lit violet rather than cyan. */
+  cyan: '#9B7BFB',
+  cyanBright: '#B49BFF',
+  /** Lime — charge. (Was the amber ramp.) */
+  gold: '#84CC16',
+  goldSoft: '#A3E635',
+  goldBright: '#BEF264',
   emerald: '#10B981',
   emeraldBright: '#34D399',
   rose: '#F43F5E',
   crimson: '#E11D48',
   crimsonDeep: '#BE123C',
   roseSoft: '#FB7185',
-  amber: '#D97706',
+  amber: '#65A30D',
+  /** True cyan, reserved for one thing: cooling parts on the rig screen. */
+  coolant: '#22D3EE',
 };
 
 export interface Palette {
@@ -69,7 +89,7 @@ export interface Palette {
   warningMuted: string;
   danger: string;
   dangerMuted: string;
-  /** Cyan — token amounts, the marketplace accent. */
+  /** Cyan - token amounts. */
   info: string;
   infoMuted: string;
   /** Skeleton shimmer base. */
@@ -90,135 +110,169 @@ export interface Palette {
   dark: boolean;
 }
 
-/* ───────────── Midnight Sapphire — the site's default dark theme ───────────── */
+/* ───────────── GRID — the site's default: obsidian, violet, lime ─────────────
+   Values are the web's `html[data-theme='grid']` tokens, verbatim. */
 export const darkPalette: Palette = {
-  bg: '#030714',
-  bgSunken: '#030714',
-  surface: '#081432',
-  surfaceGradient: ['rgba(10,25,60,0.92)', 'rgba(3,7,20,0.98)'],
-  surfaceAlt: 'rgba(255,255,255,0.05)',
-  chrome: 'rgba(5,7,15,0.88)',
-  border: 'rgba(59,130,246,0.16)',
-  borderStrong: 'rgba(59,130,246,0.45)',
-  textPrimary: '#F8FAFC',
-  textSecondary: '#CBD5E1',
-  textTertiary: '#94A3B8',
-  textInverse: '#030714',
-  primary: brand.sapphireLight,
-  primaryPressed: brand.sapphire,
-  primaryMuted: 'rgba(37,99,235,0.16)',
+  bg: '#07060B',
+  bgSunken: '#07060B',
+  surface: '#100D18',
+  // The web panel: surface-2 at the top fading to surface — flat, not glass.
+  surfaceGradient: ['rgba(23,19,39,0.9)', 'rgba(16,13,24,0.96)'],
+  surfaceAlt: '#1E1930',
+  chrome: 'rgba(7,6,11,0.72)',
+  border: 'rgba(167,139,250,0.14)',
+  borderStrong: 'rgba(196,181,253,0.42)',
+  textPrimary: '#F4F1FA',
+  textSecondary: '#B7B0C9',
+  textTertiary: '#7A7192',
+  textInverse: '#07060B',
+  primary: '#A78BFA',
+  primaryPressed: '#7C3AED',
+  primaryMuted: 'rgba(124,58,237,0.15)',
   onPrimary: '#FFFFFF',
-  primaryGradient: [brand.blue, brand.sapphire, brand.indigo, brand.violet],
-  primaryGlow: 'rgba(37,99,235,0.55)',
-  gold: brand.goldSoft,
-  goldMuted: 'rgba(245,158,11,0.14)',
-  onGold: '#1A1203',
-  goldGradient: [brand.gold, brand.goldSoft],
-  success: brand.emeraldBright,
-  successMuted: 'rgba(16,185,129,0.14)',
-  warning: brand.goldSoft,
-  warningMuted: 'rgba(245,158,11,0.14)',
-  danger: '#F87171',
-  dangerMuted: 'rgba(239,68,68,0.14)',
-  info: brand.cyanBright,
-  infoMuted: 'rgba(6,182,212,0.14)',
-  skeleton: 'rgba(255,255,255,0.06)',
+  primaryGradient: ['#7C3AED', '#A78BFA'],
+  primaryGlow: 'rgba(124,58,237,0.55)',
+  gold: '#A3E635',
+  goldMuted: 'rgba(163,230,53,0.1)',
+  // Lime is bright: text on top of it has to be the obsidian, not white.
+  onGold: '#0B1204',
+  goldGradient: ['#A3E635', '#D9F99D'],
+  success: '#34D399',
+  successMuted: 'rgba(52,211,153,0.12)',
+  warning: '#FBBF24',
+  warningMuted: 'rgba(251,191,36,0.12)',
+  danger: '#F43F5E',
+  dangerMuted: 'rgba(244,63,94,0.12)',
+  info: '#A78BFA',
+  infoMuted: 'rgba(167,139,250,0.12)',
+  skeleton: '#171327',
   shadow: '#000000',
-  scrim: 'rgba(0,0,0,0.65)',
+  scrim: 'rgba(7,6,11,0.7)',
   overlay: 'rgba(0,0,0,0.62)',
   onOverlay: '#FFFFFF',
-  glow: ['rgba(37,99,235,0.28)', 'rgba(99,102,241,0.2)', 'rgba(6,182,212,0.16)'],
-  grid: 'rgba(59,130,246,0.06)',
-  tabActive: brand.goldSoft,
-  tabActiveMuted: 'rgba(245,158,11,0.15)',
+  // The three aurora blobs (--aurora-1/2/3 at --aurora-a).
+  glow: ['rgba(124,58,237,0.28)', 'rgba(76,29,149,0.28)', 'rgba(163,230,53,0.15)'],
+  grid: 'rgba(167,139,250,0.045)',
+  tabActive: '#A3E635',
+  tabActiveMuted: 'rgba(163,230,53,0.14)',
   dark: true,
 };
 
-/* ───────────── Executive High-Contrast Light ───────────── */
+/* ───────────── SUBSTATION — daylight, high contrast ───────────── */
 export const lightPalette: Palette = {
-  bg: '#F8FAFC',
-  bgSunken: '#F1F5F9',
+  bg: '#F6F4FB',
+  bgSunken: '#F0ECF9',
   surface: '#FFFFFF',
   surfaceGradient: ['#FFFFFF', '#FFFFFF'],
-  surfaceAlt: '#F1F5F9',
-  chrome: 'rgba(255,255,255,0.95)',
-  border: '#E2E8F0',
-  borderStrong: '#CBD5E1',
-  textPrimary: '#0A1E5C',
-  textSecondary: '#334155',
-  textTertiary: '#64748B',
+  surfaceAlt: '#F0ECF9',
+  chrome: 'rgba(246,244,251,0.9)',
+  border: 'rgba(76,29,149,0.12)',
+  borderStrong: 'rgba(109,40,217,0.4)',
+  textPrimary: '#14101F',
+  textSecondary: '#4A4360',
+  textTertiary: '#7A7192',
   textInverse: '#FFFFFF',
-  primary: brand.sapphire,
-  primaryPressed: brand.blue,
-  primaryMuted: '#EFF6FF',
+  primary: '#6D28D9',
+  primaryPressed: '#5B21B6',
+  primaryMuted: '#EDE9FE',
   onPrimary: '#FFFFFF',
-  primaryGradient: [brand.blue, brand.sapphire, brand.indigo],
-  primaryGlow: 'rgba(37,99,235,0.35)',
-  // The site maps every amber accent to blue in light mode.
-  gold: brand.blue,
-  goldMuted: '#EFF6FF',
+  primaryGradient: ['#6D28D9', '#7C3AED'],
+  primaryGlow: 'rgba(109,40,217,0.35)',
+  // Lime at 400 is illegible on white, so daylight drops to the deep end of
+  // the ramp rather than dropping the colour — the accent stays VOLTARA's.
+  gold: '#65A30D',
+  goldMuted: '#F7FEE7',
   onGold: '#FFFFFF',
-  goldGradient: [brand.blue, brand.sapphire],
-  success: '#15803D',
-  successMuted: '#DCFCE7',
-  warning: brand.amber,
+  goldGradient: ['#65A30D', '#4D7C0F'],
+  success: '#059669',
+  successMuted: '#D1FAE5',
+  warning: '#D97706',
   warningMuted: '#FEF3C7',
-  danger: '#DC2626',
-  dangerMuted: '#FEE2E2',
-  info: '#0284C7',
-  infoMuted: '#E0F2FE',
-  skeleton: '#E2E8F0',
-  shadow: '#0A1E5C',
-  scrim: 'rgba(10,30,92,0.45)',
-  overlay: 'rgba(10,30,92,0.62)',
+  danger: '#E11D48',
+  dangerMuted: '#FFE4E6',
+  info: '#6D28D9',
+  infoMuted: '#EDE9FE',
+  skeleton: '#E7E2F4',
+  shadow: '#14101F',
+  scrim: 'rgba(20,16,31,0.45)',
+  overlay: 'rgba(20,16,31,0.62)',
   onOverlay: '#FFFFFF',
-  glow: ['rgba(37,99,235,0.12)', 'rgba(99,102,241,0.08)', 'rgba(6,182,212,0.08)'],
-  grid: 'rgba(10,30,92,0.045)',
-  tabActive: brand.sapphire,
-  tabActiveMuted: '#EFF6FF',
+  glow: ['rgba(124,58,237,0.12)', 'rgba(167,139,250,0.12)', 'rgba(132,204,22,0.07)'],
+  grid: 'rgba(76,29,149,0.05)',
+  tabActive: '#6D28D9',
+  tabActiveMuted: '#EDE9FE',
   dark: false,
 };
 
-/* ───────────── Corporate Royal Blue ("cyber") ───────────── */
+/* ───────────── OVERDRIVE — saturated violet, every glow up ───────────── */
 export const cyberPalette: Palette = {
   ...darkPalette,
-  bg: '#040D28',
-  bgSunken: '#040D28',
-  surface: '#0B1A44',
-  surfaceGradient: ['rgba(12,32,84,0.94)', 'rgba(4,13,40,0.98)'],
-  border: 'rgba(59,130,246,0.45)',
-  borderStrong: 'rgba(96,165,250,0.7)',
-  primaryGlow: 'rgba(37,99,235,0.7)',
-  glow: ['rgba(37,99,235,0.42)', 'rgba(124,58,237,0.3)', 'rgba(6,182,212,0.25)'],
-  grid: 'rgba(59,130,246,0.09)',
+  bg: '#0B0618',
+  bgSunken: '#0B0618',
+  surface: '#150B2B',
+  surfaceGradient: ['rgba(30,16,64,0.9)', 'rgba(21,11,43,0.96)'],
+  surfaceAlt: '#281652',
+  chrome: 'rgba(11,6,24,0.72)',
+  border: 'rgba(196,181,253,0.26)',
+  borderStrong: 'rgba(221,214,254,0.6)',
+  textPrimary: '#FAF8FF',
+  textSecondary: '#CDC4E8',
+  textTertiary: '#9488BE',
+  primary: '#C4B5FD',
+  primaryPressed: '#8B5CF6',
+  primaryMuted: 'rgba(139,92,246,0.18)',
+  primaryGradient: ['#8B5CF6', '#C4B5FD'],
+  primaryGlow: 'rgba(139,92,246,0.8)',
+  gold: '#BEF264',
+  goldMuted: 'rgba(190,242,100,0.12)',
+  goldGradient: ['#BEF264', '#ECFCCB'],
+  success: '#6EE7B7',
+  warning: '#FCD34D',
+  danger: '#FB7185',
+  info: '#C4B5FD',
+  infoMuted: 'rgba(196,181,253,0.14)',
+  skeleton: '#1E1040',
+  glow: ['rgba(139,92,246,0.42)', 'rgba(217,70,239,0.42)', 'rgba(190,242,100,0.23)'],
+  grid: 'rgba(196,181,253,0.08)',
+  tabActive: '#BEF264',
+  tabActiveMuted: 'rgba(190,242,100,0.14)',
 };
 
-/* ───────────── Crimson Scarlet & Dark Obsidian ("red") ───────────── */
+/* ───────────── OVERHEAT — the thermal-warning skin ─────────────
+   Named for what the rig does when the cooling stops covering the heat, and
+   coloured to match that state. The one theme where lime steps aside for amber. */
 export const redPalette: Palette = {
   ...darkPalette,
-  bg: '#0A0B0F',
-  bgSunken: '#0A0B0F',
-  surface: '#12141C',
-  surfaceGradient: ['#151823', '#0F1118'],
-  surfaceAlt: '#191C27',
-  chrome: 'rgba(14,16,22,0.95)',
-  border: 'rgba(225,29,72,0.22)',
-  borderStrong: 'rgba(244,63,94,0.6)',
-  primary: brand.rose,
-  primaryPressed: brand.crimson,
-  primaryMuted: 'rgba(225,29,72,0.15)',
-  primaryGradient: [brand.crimsonDeep, brand.crimson, brand.rose],
-  primaryGlow: 'rgba(225,29,72,0.5)',
-  gold: brand.roseSoft,
-  goldMuted: 'rgba(225,29,72,0.15)',
-  onGold: '#FFFFFF',
-  goldGradient: [brand.crimson, brand.rose],
-  info: brand.roseSoft,
-  infoMuted: 'rgba(225,29,72,0.15)',
-  glow: ['rgba(225,29,72,0.35)', 'rgba(244,63,94,0.22)', 'rgba(159,18,57,0.25)'],
-  grid: 'rgba(225,29,72,0.07)',
-  tabActive: brand.rose,
-  tabActiveMuted: 'rgba(225,29,72,0.15)',
+  bg: '#0E0408',
+  bgSunken: '#0E0408',
+  surface: '#1A0A10',
+  surfaceGradient: ['rgba(36,16,26,0.9)', 'rgba(26,10,16,0.96)'],
+  surfaceAlt: '#301622',
+  chrome: 'rgba(14,4,8,0.75)',
+  border: 'rgba(251,113,133,0.22)',
+  borderStrong: 'rgba(253,164,175,0.55)',
+  textPrimary: '#FFF6F8',
+  textSecondary: '#E2C4CD',
+  textTertiary: '#A07A86',
+  primary: '#FB7185',
+  primaryPressed: '#E11D48',
+  primaryMuted: 'rgba(225,29,72,0.16)',
+  primaryGradient: ['#E11D48', '#FB7185'],
+  primaryGlow: 'rgba(225,29,72,0.6)',
+  gold: '#FBBF24',
+  goldMuted: 'rgba(251,191,36,0.12)',
+  onGold: '#0B1204',
+  goldGradient: ['#FBBF24', '#FDE047'],
+  warning: '#FBBF24',
+  danger: '#F97316',
+  dangerMuted: 'rgba(249,115,22,0.14)',
+  info: '#FB7185',
+  infoMuted: 'rgba(251,113,133,0.14)',
+  skeleton: '#24101A',
+  glow: ['rgba(225,29,72,0.36)', 'rgba(136,19,55,0.36)', 'rgba(249,115,22,0.2)'],
+  grid: 'rgba(251,113,133,0.07)',
+  tabActive: '#FBBF24',
+  tabActiveMuted: 'rgba(251,191,36,0.14)',
   scrim: 'rgba(0,0,0,0.7)',
 };
 
@@ -235,12 +289,12 @@ export const palettes: Record<ThemeName, Palette> = {
  */
 export const wheelPalette = [
   brand.sapphire,
-  brand.gold,
+  brand.goldSoft,
   brand.emerald,
   brand.indigoSoft,
   brand.rose,
-  brand.cyan,
-  brand.goldSoft,
+  brand.coolant,
+  brand.goldBright,
   brand.blue,
 ] as const;
 

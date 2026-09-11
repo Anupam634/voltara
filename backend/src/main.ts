@@ -67,7 +67,7 @@ async function bootstrap() {
   const port = 3001;
   await app.listen(port, '0.0.0.0');
   // eslint-disable-next-line no-console
-  console.log(`Matsumoto API listening on http://0.0.0.0:${port}/api`);
+  console.log(`Voltara API listening on http://0.0.0.0:${port}/api`);
   // eslint-disable-next-line no-console
   console.log(`CORS origins: ${origins.join(', ')}`);
 }

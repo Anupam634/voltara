@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { AntiabuseModule } from './antiabuse/antiabuse.module';
 import { MiningModule } from './mining/mining.module';
+import { RigModule } from './rig/rig.module';
 import { WithdrawalsModule } from './withdrawals/withdrawals.module';
 import { AdminModule } from './admin/admin.module';
 import { TasksModule } from './tasks/tasks.module';
@@ -17,6 +18,14 @@ import { HealthModule } from './health/health.module';
 import { EmailModule } from './email/email.module';
 import { ReferralsModule } from './referrals/referrals.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { GridModule } from './grid/grid.module';
+import { DuelsModule } from './duels/duels.module';
+import { SquadsModule } from './squads/squads.module';
+import { PartMarketModule } from './part-market/part-market.module';
+import { ChallengesModule } from './challenges/challenges.module';
+import { DailyModule } from './daily/daily.module';
+import { ApprenticeModule } from './apprentice/apprentice.module';
+import { SeasonsModule } from './seasons/seasons.module';
 
 /**
  * Root module.
@@ -36,6 +45,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
     AuthModule,
     AntiabuseModule,
     MiningModule,
+    RigModule,
     WithdrawalsModule,
     AdminModule,
     TasksModule,
@@ -45,6 +55,14 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
     BoostersModule,
     ReferralsModule,
     LeaderboardModule,
+    GridModule,
+    DuelsModule,
+    SquadsModule,
+    PartMarketModule,
+    ChallengesModule,
+    DailyModule,
+    ApprenticeModule,
+    SeasonsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

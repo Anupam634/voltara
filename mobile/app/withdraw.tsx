@@ -21,11 +21,13 @@ import { useToast } from '../src/components/ui/Toast';
 import { useFeedback } from '../src/lib/feedback';
 import { useAsyncData } from '../src/lib/hooks';
 import {
+  getPayoutWindow,
   getWithdrawals,
   POINTS_PER_TOKEN,
   requestWithdrawal,
   WITHDRAWAL_COOLDOWN_DAYS,
   WITHDRAWAL_MIN_POINTS,
+  type PayoutWindowDto,
   type WithdrawalDto,
   type WithdrawalStatus,
 } from '../src/api/endpoints';
@@ -41,7 +43,7 @@ import {
 /**
  * Withdrawals.
  *
- * Points convert at 3:1 into $BONDKOIN and are paid on BNB Chain after an
+ * Points convert at 3:1 into $VLTR and are paid on BNB Chain after an
  * operator reviews the request. Every gate the server enforces — verification,
  * the 100-point floor, one request a week — is stated before the form, so a
  * blocked miner learns why here rather than from a rejected submit.
@@ -64,6 +66,10 @@ export default function WithdrawScreen() {
   const { data: history, error, loading, refreshing, reload } = useAsyncData<
     WithdrawalDto[]
   >(load, toMessage);
+
+  const loadWindow = useCallback(() => getPayoutWindow(), []);
+  const { data: payoutWindow, reload: reloadWindow } =
+    useAsyncData<PayoutWindowDto>(loadWindow, toMessage);
 
   const [points, setPoints] = useState('');
   const [address, setAddress] = useState('');
@@ -89,9 +95,22 @@ export default function WithdrawScreen() {
     return free > Date.now() ? new Date(free) : null;
   }, [history]);
 
+  // Payouts are shut until $VLTR launches. Three states, not two: until the
+  // window has actually been fetched we block the form but say nothing —
+  // claiming "closed until launch" on the back of a failed request would be
+  // inventing an answer we do not have.
+  const windowKnown = payoutWindow !== null;
+  const payoutsClosed = windowKnown && !payoutWindow.open;
+
   const kycOk = profile?.kycStatus === 'APPROVED';
   const enoughBalance = balance >= WITHDRAWAL_MIN_POINTS;
-  const blocked = !historyReady || !kycOk || !enoughBalance || cooldownUntil !== null;
+  const blocked =
+    !historyReady ||
+    !windowKnown ||
+    payoutsClosed ||
+    !kycOk ||
+    !enoughBalance ||
+    cooldownUntil !== null;
 
   // Some keyboards type a decimal comma; the server wants a number either way.
   const amount = Number(points.trim().replace(',', '.'));
@@ -138,7 +157,10 @@ export default function WithdrawScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => void reload()}
+            onRefresh={() => {
+              void reload();
+              void reloadWindow();
+            }}
             tintColor={c.primary}
             colors={[c.primary]}
           />
@@ -196,7 +218,7 @@ export default function WithdrawScreen() {
               <Text variant="footnote" mono tone="info" weight="700">
                 {formatPoints(balance / POINTS_PER_TOKEN, 4, locale)}
               </Text>{' '}
-              $BONDKOIN · {t('withdraw.paidOnChain')}
+              $VLTR · {t('withdraw.paidOnChain')}
             </Text>
           </Card>
         </Animated.View>
@@ -207,7 +229,30 @@ export default function WithdrawScreen() {
         ) : null}
 
         {/* ── Gates ── */}
-        {!kycOk ? (
+        {payoutsClosed ? (
+          <Animated.View entering={FadeInDown.delay(40).duration(260)}>
+            <Card>
+              <View
+                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}
+              >
+                <Ionicons name="time-outline" size={18} color={c.info} />
+                <Text variant="callout" weight="800" style={{ flex: 1 }}>
+                  {t('withdraw.closedTitle')}
+                </Text>
+              </View>
+              <Text variant="footnote" tone="secondary" style={{ marginTop: spacing.sm }}>
+                {payoutWindow?.opensAt
+                  ? t('withdraw.closedOn', {
+                      date: formatDate(payoutWindow.opensAt, locale),
+                    })
+                  : t('withdraw.closedBody')}
+              </Text>
+              <Text variant="caption" tone="tertiary" style={{ marginTop: spacing.sm }}>
+                {t('withdraw.closedKeepMining')}
+              </Text>
+            </Card>
+          </Animated.View>
+        ) : !kycOk ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`${t('withdraw.kycRequired')} ${t('withdraw.verifyCta')}`}
@@ -248,8 +293,8 @@ export default function WithdrawScreen() {
           />
         ) : null}
 
-        {/* ── Form ── */}
-        {loading ? (
+        {/* ── Form — omitted entirely while payouts are shut ── */}
+        {payoutsClosed ? null : loading ? (
           <Skeleton height={300} radius={radius.xl} />
         ) : (
           <Animated.View entering={FadeInDown.delay(40).duration(260)}>
@@ -340,7 +385,7 @@ export default function WithdrawScreen() {
                     <Text variant="headline" mono tone="info" numberOfLines={1}>
                       {formatPoints(amount / POINTS_PER_TOKEN, 4, locale)}{' '}
                       <Text variant="caption" tone="tertiary" weight="700">
-                        $BONDKOIN
+                        $VLTR
                       </Text>
                     </Text>
                   </View>
@@ -458,7 +503,7 @@ export default function WithdrawScreen() {
           />
           <StatRow
             label={t('withdraw.youReceive')}
-            value={`${formatPoints((amount || 0) / POINTS_PER_TOKEN, 4, locale)} $BONDKOIN`}
+            value={`${formatPoints((amount || 0) / POINTS_PER_TOKEN, 4, locale)} $VLTR`}
             mono
             tone="brand"
           />
@@ -572,7 +617,7 @@ function WithdrawalRow({ row, last }: { row: WithdrawalDto; last?: boolean }) {
             <Text variant="caption" mono tone="info" weight="700">
               {formatPoints(Number(row.tokenAmount), 4, locale)}
             </Text>{' '}
-            $BONDKOIN
+            $VLTR
           </Text>
         </View>
         <Badge label={t(`withdraw.status.${row.status}`)} tone={STATUS_TONE[row.status]} dot />

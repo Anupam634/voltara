@@ -8,7 +8,7 @@
 # whatever the start command is set to here.
 services:
   - type: web
-    name: matsumoto-api
+    name: voltara-api
     runtime: node
     rootDir: backend
     plan: free
@@ -18,7 +18,7 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: matsumoto-db
+          name: voltara-db
           property: connectionString
       # Secrets are deliberately not committed. `sync: false` makes Render
       # prompt for them at deploy time instead of expecting a value here.
@@ -32,6 +32,22 @@ services:
       - key: ADMIN_PASSWORD
         sync: false
       - key: HOT_WALLET_PRIVATE_KEY
+        sync: false
+      # Signup REQUIRES a 6-digit email code, so without working SMTP nobody
+      # can create an account at all — `send-otp` answers 502 and the form
+      # dead-ends. The transporter is only built when BOTH a user and a
+      # password are present, so an unset SMTP_PASS silently disables email
+      # rather than failing at boot. These were missing entirely, which made
+      # a fresh deploy look healthy while being impossible to sign up to.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
         sync: false
       # Booster payments stay disabled until these two are set — see DEPLOY.md.
       - key: BOOSTER_PAY_TO_ADDRESS
@@ -50,7 +66,7 @@ services:
         value: "6"
 
 databases:
-  - name: matsumoto-db
+  - name: voltara-db
     plan: free
 
 envVarGroups: []

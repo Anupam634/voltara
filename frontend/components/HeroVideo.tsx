@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { Icon } from './ui';
 
 /**
  * The landing hero clip.
@@ -41,7 +42,7 @@ export function HeroVideo() {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl shadow-2xl ring-1 ring-slate-900/10">
+    <div className="v-panel v-hud relative overflow-hidden rounded-3xl p-1.5">
       <video
         ref={ref}
         poster="/hero-poster.jpg"
@@ -49,7 +50,7 @@ export function HeroVideo() {
         loop
         playsInline
         preload="metadata"
-        className="block h-auto w-full bg-slate-950"
+        className="block h-auto w-full rounded-[1.25rem] bg-bg"
         // Decorative: the surrounding copy already carries the message.
         aria-hidden
         tabIndex={-1}
@@ -65,16 +66,14 @@ export function HeroVideo() {
         type="button"
         onClick={toggle}
         aria-label={playing ? t('hero.pauseVideo') : t('hero.playVideo')}
-        className="absolute bottom-3 left-3 grid h-9 w-9 place-items-center rounded-full bg-slate-950/60 text-white backdrop-blur transition hover:bg-slate-950/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        className="v-glass absolute bottom-4 left-4 grid h-9 w-9 place-items-center rounded-full border text-ink transition hover:border-charge/60 hover:text-charge"
       >
         {playing ? (
           <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden>
             <path d="M8 5h3v14H8zM13 5h3v14h-3z" />
           </svg>
         ) : (
-          <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4" aria-hidden>
-            <path d="M8 5v14l11-7z" />
-          </svg>
+          <Icon name="play" size={14} />
         )}
       </button>
     </div>

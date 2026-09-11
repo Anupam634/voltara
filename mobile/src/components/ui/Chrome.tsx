@@ -4,6 +4,7 @@ import {
   Pressable,
   ScrollView,
   View,
+  useWindowDimensions,
   type ScrollViewProps,
   type StyleProp,
   type ViewStyle,
@@ -11,7 +12,15 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text } from './Text';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -21,16 +30,17 @@ import { useT } from '../../i18n';
 /* ─────────────────────────── Screen shell ─────────────────────────── */
 
 /**
- * The site's `.glow-field`: soft sapphire, indigo and cyan washes bleeding in
- * from the top, right and bottom of the screen.
+ * The site's `.v-backdrop`: three aurora blobs drifting slowly, a faint
+ * circuit grid fading out towards the bottom, and a vignette.
  *
- * Deliberately built from three `LinearGradient` layers rather than SVG. A
- * percentage-sized `<Svg>` with a repeating `<Pattern>` re-measures on every
- * layout pass, and because this sits behind *every* screen, several live
- * copies also shared one set of `<Defs>` ids — together that repainted the
- * tree continuously, which stole focus from text fields (the keyboard would
- * not open), flickered the inputs and eventually brought the app down.
- * Gradient layers are composited on the GPU and never re-measure.
+ * Deliberately built from plain Views and `LinearGradient` layers rather than
+ * SVG. A percentage-sized `<Svg>` with a repeating `<Pattern>` re-measures on
+ * every layout pass, and because this sits behind *every* screen, several
+ * live copies also shared one set of `<Defs>` ids — together that repainted
+ * the tree continuously, which stole focus from text fields, flickered the
+ * inputs and eventually brought the app down. Views and gradients are
+ * composited on the GPU and never re-measure. The blobs drift on the UI
+ * thread via reanimated; nothing here touches React state.
  */
 export const GlowField = React.memo(function GlowField({
   style,
@@ -39,37 +49,122 @@ export const GlowField = React.memo(function GlowField({
 }) {
   const { c, alpha } = useTheme();
   const [g1, g2, g3] = c.glow;
-  const fill: ViewStyle = { position: 'absolute', left: 0, right: 0 };
+  const { width, height } = useWindowDimensions();
 
   return (
     <View
       pointerEvents="none"
-      style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }, style]}
+      style={[{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, overflow: 'hidden' }, style]}
     >
-      {/* Sapphire wash falling from the top. */}
+      <CircuitGrid width={width} height={height} color={c.grid} />
+      <AuroraBlob color={g1} size={width * 1.2} x={-width * 0.25} y={-width * 0.55} dx={width * 0.12} dy={height * 0.06} duration={26000} />
+      <AuroraBlob color={g2} size={width * 1.0} x={width * 0.45} y={height * 0.18} dx={-width * 0.14} dy={-height * 0.08} duration={32000} />
+      <AuroraBlob color={g3} size={width * 0.75} x={width * 0.15} y={height * 0.78} dx={width * 0.1} dy={-height * 0.04} duration={38000} />
+      {/* Vignette: the ground closing in at the edges. */}
       <LinearGradient
-        colors={[g1, alpha(g1, 0)]}
-        start={{ x: 0.5, y: 0 }}
+        colors={[alpha(c.bg, 0), alpha(c.bg, 0.85)]}
+        start={{ x: 0.5, y: 0.45 }}
         end={{ x: 0.5, y: 1 }}
-        style={[fill, { top: 0, height: '55%' }]}
-      />
-      {/* Indigo wash from the right shoulder. */}
-      <LinearGradient
-        colors={[alpha(g2, 0), g2]}
-        start={{ x: 0, y: 0.1 }}
-        end={{ x: 1, y: 0.55 }}
-        style={[fill, { top: '10%', height: '45%' }]}
-      />
-      {/* Cyan wash rising from the bottom. */}
-      <LinearGradient
-        colors={[alpha(g3, 0), g3]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={[fill, { bottom: 0, height: '42%' }]}
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: height * 0.55 }}
       />
     </View>
   );
 });
+
+/**
+ * One aurora blob. RN has no cheap blur, so softness comes from four
+ * concentric discs at falling opacity — reads as a bloom at any size.
+ */
+function AuroraBlob({
+  color,
+  size,
+  x,
+  y,
+  dx,
+  dy,
+  duration,
+}: {
+  color: string;
+  size: number;
+  x: number;
+  y: number;
+  dx: number;
+  dy: number;
+  duration: number;
+}) {
+  const t = useSharedValue(0);
+  React.useEffect(() => {
+    t.value = withRepeat(
+      withTiming(1, { duration, easing: Easing.inOut(Easing.sin) }),
+      -1,
+      true,
+    );
+    return () => cancelAnimation(t);
+  }, [t, duration]);
+  const drift = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: dx * t.value },
+      { translateY: dy * t.value },
+      { scale: 1 + 0.08 * t.value },
+    ],
+  }));
+  const rings = [1, 0.78, 0.56, 0.34];
+  return (
+    <Animated.View
+      style={[
+        { position: 'absolute', left: x, top: y, width: size, height: size },
+        drift,
+      ]}
+    >
+      {rings.map((r, i) => (
+        <View
+          key={i}
+          style={{
+            position: 'absolute',
+            left: (size * (1 - r)) / 2,
+            top: (size * (1 - r)) / 2,
+            width: size * r,
+            height: size * r,
+            borderRadius: (size * r) / 2,
+            backgroundColor: color,
+            // Each disc adds a little; the palette alpha is the total at the core.
+            opacity: 0.32,
+          }}
+        />
+      ))}
+    </Animated.View>
+  );
+}
+
+/** The circuit grid: fixed hairlines every 44pt, fading out down the screen. */
+function CircuitGrid({ width, height, color }: { width: number; height: number; color: string }) {
+  const { c, alpha } = useTheme();
+  const step = 44;
+  const cols = Math.ceil(width / step);
+  const rows = Math.ceil(height / step);
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+      {Array.from({ length: cols }).map((_, i) => (
+        <View
+          key={`c${i}`}
+          style={{ position: 'absolute', top: 0, bottom: 0, left: i * step, width: 1, backgroundColor: color }}
+        />
+      ))}
+      {Array.from({ length: rows }).map((_, i) => (
+        <View
+          key={`r${i}`}
+          style={{ position: 'absolute', left: 0, right: 0, top: i * step, height: 1, backgroundColor: color }}
+        />
+      ))}
+      <LinearGradient
+        colors={[alpha(c.bg, 0), c.bg]}
+        start={{ x: 0.5, y: 0.2 }}
+        end={{ x: 0.5, y: 1 }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+      />
+    </View>
+  );
+}
 
 export function Screen({
   children,

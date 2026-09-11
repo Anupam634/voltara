@@ -11,7 +11,7 @@
 import { ApiError } from './api';
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
-const ADMIN_TOKEN_KEY = 'matsumoto_admin_token';
+const ADMIN_TOKEN_KEY = 'voltara_admin_token';
 
 export { ApiError };
 
@@ -91,6 +91,9 @@ export interface AdminUserRow {
   referralCount: number;
   referralTier: { level: number; multiplier: number };
   activeBoosters: number;
+  /** 0–100. Below 100 the miner is losing output to heat or brownout. */
+  gridStability: number;
+  installedParts: number;
   kycStatus: string;
   isBlocked: boolean;
   lastMineAt: string | null;
@@ -375,14 +378,44 @@ export const downloadReportCsv = async (type: AdminReportType) => {
 
 // ─────────────────────────── Booster Plans & Purchases ───────────
 
+export type AdminPartKind = 'CORE' | 'COOLER' | 'PSU' | 'MODULE';
+
 export interface AdminBoosterPlan {
   id: string;
+  code: string | null;
+  name: string | null;
+  kind: AdminPartKind;
+  tier: number;
   priceUsd: number;
   rateBonusMilli: number;
   rateBonusPoints: number;
+  /** Running costs and capacities — see SPEC §2a. */
+  heat: number;
+  cooling: number;
+  watts: number;
+  wattsSupplied: number;
+  hashBoostBp: number;
+  hashBoostPercent: number;
   durationDays: number;
   active: boolean;
   activeSales: number;
+}
+
+/** Everything the panel may send when creating or editing a part. */
+export interface AdminPartInput {
+  priceUsd: number;
+  rateBonusPoints: number;
+  durationDays: number;
+  active?: boolean;
+  kind?: AdminPartKind;
+  name?: string;
+  code?: string;
+  heat?: number;
+  cooling?: number;
+  watts?: number;
+  wattsSupplied?: number;
+  hashBoostPercent?: number;
+  tier?: number;
 }
 
 export interface AdminBoosterPurchase {
@@ -407,26 +440,13 @@ export interface AdminBoosterPurchase {
 export const listAdminBoosterPlans = () =>
   adminFetch<AdminBoosterPlan[]>('/boosters/plans');
 
-export const createAdminBoosterPlan = (dto: {
-  priceUsd: number;
-  rateBonusPoints: number;
-  durationDays: number;
-  active?: boolean;
-}) =>
+export const createAdminBoosterPlan = (dto: AdminPartInput) =>
   adminFetch<AdminBoosterPlan>('/boosters/plans', {
     method: 'POST',
     body: JSON.stringify(dto),
   });
 
-export const updateAdminBoosterPlan = (
-  id: string,
-  dto: Partial<{
-    priceUsd: number;
-    rateBonusPoints: number;
-    durationDays: number;
-    active: boolean;
-  }>,
-) =>
+export const updateAdminBoosterPlan = (id: string, dto: Partial<AdminPartInput>) =>
   adminFetch<AdminBoosterPlan>(`/boosters/plans/${id}/update`, {
     method: 'POST',
     body: JSON.stringify(dto),
@@ -554,3 +574,136 @@ export interface AdminRevenueAnalytics {
 
 export const getRevenueAnalytics = () =>
   adminFetch<AdminRevenueAnalytics>('/analytics/revenue');
+
+/* ═══════════════ Operator views for the rig-era features ═══════════════ */
+
+export interface OpsGridEvent {
+  id: string;
+  code: string;
+  title: string;
+  body: string;
+  heatPercent: number;
+  drawPercent: number;
+  hashPercent: number;
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface OpsGrid {
+  event: {
+    active: OpsGridEvent | null;
+    upcoming: OpsGridEvent | null;
+    recent: OpsGridEvent[];
+    serverTime: string;
+  };
+  stats: {
+    miners: number;
+    activeRigs: number;
+    onlineNow: number;
+    countries: number;
+    stablePercent: number;
+    voltsMined24h: number;
+    updatedAt: string;
+  };
+  collective: {
+    stablePercent: number;
+    threshold: number;
+    active: number;
+    bonusPercent: number;
+    holding: boolean;
+    pointsToGo: number;
+    updatedAt: string;
+  };
+  weather: {
+    countries: { countryCode: string; city: string; tempC: number; heatPercent: number }[];
+    updatedAt: string | null;
+  };
+  rigs: {
+    slotsUsed: number;
+    overclocking: number;
+    skinsOwned: number;
+    countries: number;
+  };
+  generatedAt: string;
+}
+
+export interface OpsSeasonAward {
+  rank: number;
+  userId: string;
+  displayName: string;
+  earned: number;
+  prize: number;
+}
+
+export interface OpsSeason {
+  weekKey: string;
+  startsAt: string;
+  endsAt: string;
+  closedAt: string | null;
+  running: boolean;
+  paidCount: number;
+  paidVolts: number;
+  awards: OpsSeasonAward[];
+}
+
+export interface OpsSeasons {
+  poolVolts: number;
+  currentWeekKey: string;
+  currentEndsAt: string;
+  seasons: OpsSeason[];
+}
+
+export interface OpsSocial {
+  duels: { open: number; active: number; settled: number; expired: number; cancelled: number };
+  squads: { total: number; members: number };
+  market: {
+    active: number;
+    sold: number;
+    cancelled: number;
+    feesWeekVolts: number;
+  };
+  challenge: {
+    weekKey: string | null;
+    title: string | null;
+    endsAt: string | null;
+    rewardsGrantedAt: string | null;
+    submissionsWeek: number;
+  };
+  daily: { dayKey: string | null; solvesWeek: number };
+  apprenticeships: { total: number; cutPaidWeekVolts: number };
+  generatedAt: string;
+}
+
+export interface OpsGrowth {
+  kFactor: {
+    value: number | null;
+    referredSignups: number;
+    totalSignups: number;
+    baseUsers: number;
+    target: number;
+    windowDays: number;
+  };
+  retention: {
+    cohortSize: number;
+    d1: number | null;
+    d7: number | null;
+    targetD1: number;
+    targetD7: number;
+    cohortFrom: string;
+    cohortTo: string;
+  };
+  firstPurchase: {
+    payers: number;
+    totalUsers: number;
+    conversionPercent: number | null;
+    medianDays: number | null;
+    targetDays: number;
+  };
+  /** Null by design — nothing records a share yet. `reason` says so. */
+  shareRate: { value: number | null; reason: string; target: number };
+}
+
+export const getOpsGrid = () => adminFetch<OpsGrid>('/ops/grid');
+export const getOpsSeasons = () => adminFetch<OpsSeasons>('/ops/seasons');
+export const getOpsSocial = () => adminFetch<OpsSocial>('/ops/social');
+export const getOpsGrowth = () => adminFetch<OpsGrowth>('/ops/growth');

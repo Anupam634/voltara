@@ -47,7 +47,12 @@ export class WalletService {
             : this.config.get<string>('BSC_TESTNET_RPC_URL') ||
               'https://data-seed-prebsc-1-s1.binance.org:8545/';
         const pk = this.config.get<string>('HOT_WALLET_PRIVATE_KEY');
+        // Read the current name first, then the names this project shipped
+        // under before. A rebrand must not silently drop a host into
+        // simulated payouts because its dashboard still says BONDKOIN_*.
         const contract =
+          this.config.get<string>('VLTR_CONTRACT_ADDRESS') ??
+          this.config.get<string>('VOLTARA_CONTRACT_ADDRESS') ??
           this.config.get<string>('BONDKOIN_CONTRACT_ADDRESS') ??
           this.config.get<string>('MATSUMOTO_CONTRACT_ADDRESS');
 
@@ -67,7 +72,7 @@ export class WalletService {
     this.logger.log(`WalletService running in "${this.mode}" mode`);
   }
 
-  /** Send `amount` of $BONDKOIN to `toAddress`. Amount is a decimal string. */
+  /** Send `amount` of $VLTR to `toAddress`. Amount is a decimal string. */
   async payout(toAddress: string, amount: string): Promise<PayoutResult> {
     if (this.mode === 'offchain' || !this.token) {
       // Deterministic pseudo-hash so the ledger has a reference in dev.
@@ -76,7 +81,9 @@ export class WalletService {
       return { txHash: fake, onchain: false };
     }
     const decimals = Number(
-      this.config.get('BONDKOIN_DECIMALS') ??
+      this.config.get('VLTR_DECIMALS') ??
+        this.config.get('VOLTARA_DECIMALS') ??
+        this.config.get('BONDKOIN_DECIMALS') ??
         this.config.get('MATSUMOTO_DECIMALS') ??
         18,
     );
@@ -89,7 +96,9 @@ export class WalletService {
   async tokenBalance(address: string): Promise<string> {
     if (this.mode === 'offchain' || !this.token) return '0';
     const decimals = Number(
-      this.config.get('BONDKOIN_DECIMALS') ??
+      this.config.get('VLTR_DECIMALS') ??
+        this.config.get('VOLTARA_DECIMALS') ??
+        this.config.get('BONDKOIN_DECIMALS') ??
         this.config.get('MATSUMOTO_DECIMALS') ??
         18,
     );

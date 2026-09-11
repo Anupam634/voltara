@@ -35,7 +35,7 @@ export function MiningEngineTab() {
                 : 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
             }`}
           >
-            {engineStatus === 'RUNNING' ? '🛑 Pause Engine (Killswitch)' : '▶ Resume Mining Engine'}
+            {engineStatus === 'RUNNING' ? 'Pause Engine (Killswitch)' : '▶ Resume Mining Engine'}
           </button>
         </div>
       </div>
@@ -123,17 +123,17 @@ export function MiningEngineTab() {
               className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 font-mono text-xl font-black text-cyan-400 outline-none focus:border-cyan-500"
               required
             />
-            <span className="font-mono text-xs font-bold text-slate-400">: 1 $BONDKOIN</span>
+            <span className="font-mono text-xs font-bold text-slate-400">: 1 $VLTR</span>
           </div>
           <p className="mt-2 text-[11px] text-slate-500">
-            Fixed protocol conversion: 3.00 PTS = 1.00 BONDKOIN Token (BEP-20).
+            Fixed protocol conversion: 3.00 PTS = 1.00 VOLTARA Token (BEP-20).
           </p>
         </div>
 
         <div className="md:col-span-3 flex justify-end">
           <button
             type="submit"
-            className="btn-gold rounded-xl px-6 py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-lg shadow-amber-500/20"
+            className="btn-gold rounded-xl px-6 py-3 text-xs font-black uppercase tracking-wider shadow-lg shadow-violet-600/25"
           >
             Save Mining Parameters
           </button>

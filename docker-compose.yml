@@ -10,11 +10,11 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: matsumoto
+      POSTGRES_DB: voltara
     ports:
       - '5432:5432'
     volumes:
-      - matsumoto_postgres:/var/lib/postgresql/data
+      - voltara_postgres:/var/lib/postgresql/data
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U postgres']
       interval: 5s
@@ -27,7 +27,7 @@ services:
     ports:
       - '6379:6379'
     volumes:
-      - matsumoto_redis:/data
+      - voltara_redis:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -35,5 +35,5 @@ services:
       retries: 10
 
 volumes:
-  matsumoto_postgres:
-  matsumoto_redis:
+  voltara_postgres:
+  voltara_redis:

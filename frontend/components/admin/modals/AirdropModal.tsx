@@ -39,7 +39,7 @@ export function AirdropModal({ user, onClose, onSuccess }: AirdropModalProps) {
         onSubmit={handleSubmit}
         className="card w-full max-w-md border-slate-800 bg-slate-900 p-6 shadow-2xl"
       >
-        <h3 className="text-lg font-black text-white">🎁 Grant Manual Airdrop</h3>
+        <h3 className="text-lg font-black text-white">Grant Manual Airdrop</h3>
         <p className="mt-1 text-xs text-slate-400">
           Credited instantly to: <strong className="text-white">{user.email ?? user.id}</strong>
         </p>
@@ -103,7 +103,7 @@ export function AirdropModal({ user, onClose, onSuccess }: AirdropModalProps) {
           <button
             type="submit"
             disabled={busy}
-            className="btn-gold rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider text-slate-950"
+            className="btn-gold rounded-xl px-5 py-2.5 text-xs font-black uppercase tracking-wider"
           >
             {busy ? 'Granting…' : 'Credit Points'}
           </button>

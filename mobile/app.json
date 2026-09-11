@@ -1,39 +1,39 @@
 {
   "expo": {
-    "name": "BONDKOIN",
-    "slug": "bondkoin",
+    "name": "VOLTARA",
+    "slug": "voltara",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "bondkoin",
+    "scheme": "voltara",
     "userInterfaceStyle": "automatic",
-    "primaryColor": "#2563EB",
-    "backgroundColor": "#FFFFFF",
-    "description": "Node mining rewards on BNB Chain. Mine daily, stack boosters, invite miners and withdraw $BONDKOIN to your own wallet.",
+    "primaryColor": "#7C3AED",
+    "backgroundColor": "#07060B",
+    "description": "Build a mining rig on BNB Chain. Socket cores, coolers and PSUs into six slots, keep grid stability at 100%, and withdraw $VLTR to your own wallet.",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bondkoinlabs.app",
+      "bundleIdentifier": "com.voltaragrid.app",
       "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSCameraUsageDescription": "BONDKOIN uses the camera so you can photograph your ID document and take a selfie for identity verification.",
-        "NSPhotoLibraryUsageDescription": "BONDKOIN needs access to your photos so you can attach your ID document and selfie for identity verification.",
-        "NSFaceIDUsageDescription": "BONDKOIN uses Face ID to unlock the app when App Lock is enabled."
+        "NSCameraUsageDescription": "VOLTARA uses the camera so you can photograph your ID document and take a selfie for identity verification.",
+        "NSPhotoLibraryUsageDescription": "VOLTARA needs access to your photos so you can attach your ID document and selfie for identity verification.",
+        "NSFaceIDUsageDescription": "VOLTARA uses Face ID to unlock the app when App Lock is enabled."
       },
       "associatedDomains": [
-        "applinks:bondkoinlabs.com",
-        "applinks:www.bondkoinlabs.com"
+        "applinks:voltaragrid.com",
+        "applinks:www.voltaragrid.com"
       ]
     },
     "android": {
-      "package": "com.bondkoinlabs.app",
+      "package": "com.voltaragrid.app",
       "versionCode": 1,
       "predictiveBackGestureEnabled": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#07060B"
       },
       "permissions": [
         "android.permission.CAMERA",
@@ -55,12 +55,12 @@
           "data": [
             {
               "scheme": "https",
-              "host": "bondkoinlabs.com",
+              "host": "voltaragrid.com",
               "pathPrefix": "/"
             },
             {
               "scheme": "https",
-              "host": "www.bondkoinlabs.com",
+              "host": "www.voltaragrid.com",
               "pathPrefix": "/"
             }
           ],
@@ -83,21 +83,21 @@
         "expo-notifications",
         {
           "icon": "./assets/mark.png",
-          "color": "#2563EB",
+          "color": "#A3E635",
           "defaultChannel": "mining"
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "BONDKOIN needs access to your photos so you can attach your ID document and selfie for identity verification.",
-          "cameraPermission": "BONDKOIN uses the camera so you can photograph your ID document and take a selfie for identity verification."
+          "photosPermission": "VOLTARA needs access to your photos so you can attach your ID document and selfie for identity verification.",
+          "cameraPermission": "VOLTARA uses the camera so you can photograph your ID document and take a selfie for identity verification."
         }
       ],
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "BONDKOIN uses Face ID to unlock the app when App Lock is enabled."
+          "faceIDPermission": "VOLTARA uses Face ID to unlock the app when App Lock is enabled."
         }
       ],
       [
@@ -106,10 +106,10 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 180,
           "resizeMode": "contain",
-          "backgroundColor": "#F7F8FA",
+          "backgroundColor": "#07060B",
           "dark": {
             "image": "./assets/splash-icon-dark.png",
-            "backgroundColor": "#0B1220"
+            "backgroundColor": "#07060B"
           }
         }
       ],
@@ -119,8 +119,8 @@
       "expo-asset"
     ],
     "extra": {
-      "apiUrl": "https://api.bondkoinlabs.com/api",
-      "webUrl": "https://bondkoinlabs.com",
+      "apiUrl": "https://api.voltaragrid.com/api",
+      "webUrl": "https://voltaragrid.com",
       "router": {},
       "eas": {
         "projectId": "2c23423c-f64f-44a3-a9ce-08748d6631a0"

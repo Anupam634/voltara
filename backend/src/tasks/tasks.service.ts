@@ -74,7 +74,7 @@ export interface AdminTaskConfigDto {
 const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
   {
     id: 1,
-    question: 'Which blockchain network settles BONDKOIN ($BONDKOIN) token withdrawals?',
+    question: 'Which blockchain network settles VOLTARA ($VLTR) token withdrawals?',
     options: [
       'BNB Smart Chain (BEP-20)',
       'Ethereum Mainnet (ERC-20)',
@@ -82,31 +82,31 @@ const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
       'Bitcoin Lightning Network',
     ],
     correctIndex: 0,
-    explanation: 'BONDKOIN utilizes the high-speed, low-gas BNB Smart Chain (BEP-20) for automated withdrawals.',
+    explanation: 'VOLTARA utilizes the high-speed, low-gas BNB Smart Chain (BEP-20) for automated withdrawals.',
   },
   {
     id: 2,
-    question: 'What is the official BONDKOIN Point to $BONDKOIN token conversion standard?',
+    question: 'What is the official VOLTARA Point to $VLTR token conversion standard?',
     options: [
-      '1 Point = 1 $BONDKOIN',
-      '3 Points = 1 $BONDKOIN',
-      '10 Points = 1 $BONDKOIN',
-      '5 Points = 1 $BONDKOIN',
+      '1 Point = 1 $VLTR',
+      '3 Points = 1 $VLTR',
+      '10 Points = 1 $VLTR',
+      '5 Points = 1 $VLTR',
     ],
     correctIndex: 1,
-    explanation: 'According to tokenomics, 3 BONDKOIN Points convert directly to 1 mainnet $BONDKOIN token.',
+    explanation: 'According to tokenomics, 3 VOLTS convert directly to 1 mainnet $VLTR token.',
   },
   {
     id: 3,
     question: 'What is the standard base node mining rate per hour?',
     options: [
-      '0.25 BONDKOIN/h',
-      '0.50 BONDKOIN/h',
-      '0.90 BONDKOIN/h',
-      '1.50 BONDKOIN/h',
+      '0.25 VOLTS/h',
+      '0.50 VOLTS/h',
+      '0.90 VOLTS/h',
+      '1.50 VOLTS/h',
     ],
     correctIndex: 2,
-    explanation: 'Every verified miner receives a baseline node allocation of 0.90 BONDKOIN points every hour.',
+    explanation: 'Every verified miner receives a baseline node allocation of 0.90 Volts every hour.',
   },
   {
     id: 4,
@@ -125,9 +125,9 @@ const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
 /* ─────────────────────── Social task defaults ─────────────────────── */
 
 /** Public site, used to build the invite link inside the tweet. */
-const WEB_URL = (process.env.WEB_URL || 'https://bondkoinlabs.com').replace(/\/$/, '');
+const WEB_URL = (process.env.WEB_URL || 'https://voltaragrid.com').replace(/\/$/, '');
 /** Official X handle, without the @. */
-const X_HANDLE = process.env.X_HANDLE || 'BondKoin';
+const X_HANDLE = process.env.X_HANDLE || 'Voltara';
 /** The pinned post to repost. Falls back to the profile, where it sits on top. */
 const X_PINNED_POST_URL = process.env.X_PINNED_POST_URL || `https://x.com/${X_HANDLE}`;
 
@@ -142,12 +142,12 @@ function defaultActionUrl(type: string, referralCode: string): string | null {
   switch (type) {
     case 'TWEET': {
       const text =
-        `I'm mining $BONDKOIN every day on BNB Chain with @${X_HANDLE} ⛏️ ` +
+        `I'm mining $VLTR every day on BNB Chain with @${X_HANDLE} ⛏️ ` +
         'Free to join, no hardware, on-chain payouts. Start with my link 👇';
       const params = new URLSearchParams({
         text,
         url: `${WEB_URL}/en/login?ref=${referralCode}`,
-        hashtags: 'BONDKOIN,BNBChain,Crypto,Mining',
+        hashtags: 'VOLTARA,BNBChain,Crypto,Mining',
       });
       return `https://x.com/intent/post?${params.toString()}`;
     }
@@ -224,7 +224,7 @@ export function stripAnswer(q: QuizQuestionDto): PublicQuizQuestionDto {
 
 /** Rows seeded under the project's old working name keep their id; fix the label. */
 function brandTitle(title: string): string {
-  return title.replace(/Matsumoto/gi, 'BONDKOIN');
+  return title.replace(/Voltara/gi, 'VOLTARA');
 }
 
 /**

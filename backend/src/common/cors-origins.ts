@@ -7,8 +7,8 @@
  * defaults with CORS_ORIGINS as a comma-separated list.
  */
 export const DEFAULT_ORIGINS = [
-  'https://bondkoinlabs.com',
-  'https://www.bondkoinlabs.com',
+  'https://voltaragrid.com',
+  'https://www.voltaragrid.com',
   'http://localhost:3000',
 ];
 

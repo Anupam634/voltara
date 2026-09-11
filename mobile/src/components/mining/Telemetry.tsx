@@ -118,8 +118,56 @@ export function HashrateBadge({
         {t('mine.baseHashrate')}
       </Text>
       <Text variant="caption" mono weight="900" tone="gold" style={{ marginTop: 1 }}>
-        {formatPoints(ratePerHour, 2, locale)} BONDKOIN/h
+        {formatPoints(ratePerHour, 2, locale)} VOLTS/h
       </Text>
+    </View>
+  );
+}
+
+/* ────────────────────────────── Trace line ─────────────────────────────── */
+
+/**
+ * The site's `.v-trace`: a one-pixel line with a lime charge running along it,
+ * laid under anything that is live. UI-thread only.
+ */
+export function TraceLine({
+  color,
+  style,
+  duration = 2400,
+}: {
+  color?: string;
+  style?: StyleProp<ViewStyle>;
+  duration?: number;
+}) {
+  const { c, alpha } = useTheme();
+  const tint = color ?? c.gold;
+  const [width, setWidth] = React.useState(0);
+  const x = useSharedValue(0);
+  useEffect(() => {
+    x.value = 0;
+    x.value = withRepeat(withTiming(1, { duration, easing: Easing.linear }), -1, false);
+    return () => cancelAnimation(x);
+  }, [x, duration]);
+  const head = Math.max(48, width * 0.28);
+  const run = useAnimatedStyle(() => ({
+    transform: [{ translateX: -head + (width + head) * x.value }],
+  }));
+  return (
+    <View
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+      style={[{ height: 1, overflow: 'hidden', backgroundColor: alpha(tint, 0.12) }, style]}
+      accessibilityElementsHidden
+    >
+      {width > 0 ? (
+        <Animated.View style={[{ position: 'absolute', top: 0, left: 0, width: head, height: 1 }, run]}>
+          <LinearGradient
+            colors={[alpha(tint, 0), tint, alpha(tint, 0)]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={{ flex: 1 }}
+          />
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -165,6 +213,7 @@ export function PointsAccumulator({ points, locale }: { points: number; locale: 
           PTS
         </Text>
       </View>
+      <TraceLine style={{ alignSelf: 'stretch', marginTop: 8, marginBottom: 2 }} />
       <View
         style={{
           flexDirection: 'row',
@@ -176,7 +225,7 @@ export function PointsAccumulator({ points, locale }: { points: number; locale: 
         }}
       >
         <Text variant="caption" mono weight="700" tone="info">
-          ≈ {formatPoints(points / POINTS_PER_TOKEN, 5, locale)} $BONDKOIN
+          ≈ {formatPoints(points / POINTS_PER_TOKEN, 5, locale)} $VLTR
         </Text>
         <Text variant="caption" tone="tertiary">
           •

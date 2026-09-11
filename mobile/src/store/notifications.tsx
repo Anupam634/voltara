@@ -84,8 +84,8 @@ const EMPTY_SNAPSHOT: Snapshot = {
   announcedMiningReadyAt: null,
 };
 
-const ITEMS_KEY = 'bondkoin_notifications_v1';
-const SNAPSHOT_KEY = 'bondkoin_notify_snapshot_v1';
+const ITEMS_KEY = 'voltara_notifications_v1';
+const SNAPSHOT_KEY = 'voltara_notify_snapshot_v1';
 const MAX_ITEMS = 120;
 
 export interface SyncInput {

@@ -15,7 +15,7 @@ import { Text } from '../ui/Text';
 import { useTheme } from '../../theme/ThemeProvider';
 
 /**
- * The site's rotating 3D $BONDKOIN coin (`.coin` / `.orbit` / `animate-float`).
+ * The site's rotating 3D $VLTR coin (`.coin` / `.orbit` / `animate-float`).
  *
  * A perspective rotateY spin with two faces that swap at the quarter turn, a
  * stacked "edge" for thickness, two hologram orbit rings tilted on X and
@@ -169,7 +169,7 @@ export function Coin3D({ size = 176 }: { size?: number }) {
           ]}
         />
         <Animated.View style={[face, frontStyle]}>
-          <CoinFace size={size} caption="$BONDKOIN" gold={c.gold} monoFont={monoFont} />
+          <CoinFace size={size} caption="$VLTR" gold={c.gold} monoFont={monoFont} />
         </Animated.View>
         <Animated.View style={[face, backStyle]}>
           <CoinFace size={size} caption="BNB CHAIN BEP-20" gold={c.gold} monoFont={monoFont} />

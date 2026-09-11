@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AdminService } from './admin.service';
+import { AdminOpsService } from './ops.service';
 import { AdminAuthGuard } from './admin.guard';
 import { WithdrawalsService } from '../withdrawals/withdrawals.service';
 import { TasksService } from '../tasks/tasks.service';
@@ -53,6 +54,7 @@ export class AdminController {
 export class AdminSecureController {
   constructor(
     private readonly admin: AdminService,
+    private readonly ops: AdminOpsService,
     private readonly withdrawals: WithdrawalsService,
     private readonly tasks: TasksService,
     private readonly email: EmailService,
@@ -62,6 +64,35 @@ export class AdminSecureController {
   @Get('stats')
   stats() {
     return this.admin.stats();
+  }
+
+  /**
+   * Operator views for everything the rig rebrand added. All read-only:
+   * opening a tab cannot disturb a running season or a live grid event.
+   */
+
+  /** GET /api/admin/ops/grid — event, weather, collective goal, rig totals. */
+  @Get('ops/grid')
+  opsGrid() {
+    return this.ops.gridOps();
+  }
+
+  /** GET /api/admin/ops/seasons — season history and what each one paid. */
+  @Get('ops/seasons')
+  opsSeasons() {
+    return this.ops.seasons();
+  }
+
+  /** GET /api/admin/ops/social — duels, squads, market, challenge, mentors. */
+  @Get('ops/social')
+  opsSocial() {
+    return this.ops.social();
+  }
+
+  /** GET /api/admin/ops/growth — the four figures GROWTH.md §7 asks for. */
+  @Get('ops/growth')
+  opsGrowth() {
+    return this.ops.growth();
   }
 
   /**
@@ -185,43 +216,43 @@ export class AdminSecureController {
   @Get('reports/users/csv')
   async exportUsers() {
     const csv = await this.admin.exportUsersCsv();
-    return { csv, filename: `matsumoto_users_${Date.now()}.csv` };
+    return { csv, filename: `voltara_users_${Date.now()}.csv` };
   }
 
   @Get('reports/mining/csv')
   async exportMining() {
     const csv = await this.admin.exportMiningCsv();
-    return { csv, filename: `matsumoto_mining_ledger_${Date.now()}.csv` };
+    return { csv, filename: `voltara_mining_ledger_${Date.now()}.csv` };
   }
 
   @Get('reports/withdrawals/csv')
   async exportWithdrawals() {
     const csv = await this.admin.exportWithdrawalsCsv();
-    return { csv, filename: `matsumoto_withdrawals_${Date.now()}.csv` };
+    return { csv, filename: `voltara_withdrawals_${Date.now()}.csv` };
   }
 
   @Get('reports/referrals/csv')
   async exportReferrals() {
     const csv = await this.admin.exportReferralsCsv();
-    return { csv, filename: `matsumoto_referrals_${Date.now()}.csv` };
+    return { csv, filename: `voltara_referrals_${Date.now()}.csv` };
   }
 
   @Get('reports/kyc/csv')
   async exportKyc() {
     const csv = await this.admin.exportKycCsv();
-    return { csv, filename: `matsumoto_kyc_${Date.now()}.csv` };
+    return { csv, filename: `voltara_kyc_${Date.now()}.csv` };
   }
 
   @Get('reports/revenue/csv')
   async exportRevenue() {
     const csv = await this.admin.exportRevenueCsv();
-    return { csv, filename: `matsumoto_revenue_${Date.now()}.csv` };
+    return { csv, filename: `voltara_revenue_${Date.now()}.csv` };
   }
 
   @Get('reports/revenue-by-user/csv')
   async exportRevenueByUser() {
     const csv = await this.admin.exportRevenueByUserCsv();
-    return { csv, filename: `matsumoto_revenue_by_user_${Date.now()}.csv` };
+    return { csv, filename: `voltara_revenue_by_user_${Date.now()}.csv` };
   }
 
   // ───────────────────── Booster Plans & Transactions ─────────────────────

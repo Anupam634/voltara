@@ -36,7 +36,7 @@ export interface NotificationPrefs {
   referrals: boolean;
   /** Booster activated or about to expire. */
   boosters: boolean;
-  /** Product news from BONDKOIN Labs. */
+  /** Product news from VOLTARA Labs. */
   announcements: boolean;
 }
 
@@ -91,7 +91,7 @@ export const DEFAULT_SETTINGS: Settings = {
   onboarded: false,
 };
 
-const STORAGE_KEY = 'bondkoin_settings_v1';
+const STORAGE_KEY = 'voltara_settings_v1';
 
 interface SettingsContextValue {
   settings: Settings;

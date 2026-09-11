@@ -20,13 +20,37 @@ import {
   type Profile,
 } from '../../../lib/api';
 import TasksSection from './tasks-section';
-import { LogoMark } from '../../../components/Logo';
-import { LocaleSwitcher } from '../../../components/LocaleSwitcher';
-import { ThemeToggle } from '../../../components/ThemeToggle';
-import { MobileTabBar } from '../../../components/MobileTabBar';
-import { BnbBadge, BnbLogo } from '../../../components/BnbLogo';
+import { AppShell } from '../../../components/AppShell';
+import { Coin3D } from '../../../components/Coin3D';
+import { BnbLogo } from '../../../components/BnbLogo';
+import {
+  AnimatedNumber,
+  Button,
+  Chip,
+  Eyebrow,
+  Gauge,
+  Icon,
+  Notice,
+  Panel,
+  Progress,
+  Reveal,
+  Skeleton,
+  Stat,
+  type ChipTone,
+  type IconName,
+} from '../../../components/ui';
 import { useMiningFX } from '../../../lib/use-mining-fx';
 import { usePolling } from '../../../lib/use-polling';
+import { GridEventBanner } from '../../../components/grid/GridEventBanner';
+import { LiveGridMap } from '../../../components/grid/LiveGridMap';
+import { GridPulse } from '../../../components/grid/GridPulse';
+import { useS } from '../../../components/grid/strings';
+import { StarterChecklist } from '../../../components/onboarding/StarterChecklist';
+import { LoanerBanner } from '../../../components/onboarding/LoanerBanner';
+import { RescueBanner } from '../../../components/rescue/RescueBanner';
+import { StreakCard, StreakTierModal } from '../../../components/onboarding/StreakCard';
+import type { StreakDto } from '../../../lib/api';
+import { rigCardPath } from '../../../components/share/strings';
 
 /** How often the live accrual counter repaints. 10fps reads as smooth. */
 const TICK_MS = 100;
@@ -38,7 +62,7 @@ export default function DashboardClient() {
   const router = useRouter();
   const params = useParams<{ locale: string }>();
   const locale = params.locale;
-  const { playMiningStrike, playClaimReward } = useMiningFX();
+  const { playMiningStrike, playClaimReward, playError } = useMiningFX();
 
   const [status, setStatus] = useState<MiningStatus | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -47,30 +71,32 @@ export default function DashboardClient() {
   const [error, setError] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
   const [celebrate, setCelebrate] = useState<number | null>(null);
+  /** Set only when a claim crosses a streak tier, so the modal fires once. */
+  const [tierUnlocked, setTierUnlocked] = useState<StreakDto | null>(null);
 
   const toLogin = useCallback(() => {
     logout();
     router.replace(`/${locale}/login`);
   }, [router, locale]);
 
-  const load = useCallback(async () => {
+  // Returns the status it fetched so a claim can compare the streak tier
+  // before and after without reading a stale closure.
+  const load = useCallback(async (): Promise<MiningStatus | null> => {
     try {
-      const [s, p, h] = await Promise.all([
-        getMiningStatus(),
-        getProfile(),
-        getMiningHistory(),
-      ]);
+      const [s, p, h] = await Promise.all([getMiningStatus(), getProfile(), getMiningHistory()]);
       setStatus(s);
       setProfile(p);
       setHistory(h);
       setError(null);
+      return s;
     } catch (err) {
       // 401/403 means the session is gone or the account was blocked.
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
         toLogin();
-        return;
+        return null;
       }
       setError(err instanceof ApiError ? err.message : t('offline'));
+      return null;
     }
   }, [toLogin, t]);
 
@@ -91,346 +117,183 @@ export default function DashboardClient() {
   usePolling(load, REFRESH_MS);
 
   async function mine() {
+    if (!status?.canClaim || claiming) return;
     playMiningStrike();
     setClaiming(true);
+    // The tier this claim is paid at — compared against the refreshed value
+    // below to decide whether the miner just climbed one.
+    const bonusBefore = status.streak?.bonusPercent ?? 0;
     try {
       const res = await claimMining();
       playClaimReward();
       setCelebrate(res.earnedPoints);
       setTimeout(() => setCelebrate(null), 1700);
 
-      // Optimistically update balance and mining status immediately for zero-lag UI
-      setProfile((prev) =>
-        prev
-          ? {
-              ...prev,
-              pointsBalance: prev.pointsBalance + res.earnedPoints,
-            }
-          : prev,
-      );
+      // Optimistic update so the balance and status never lag the tap.
+      setProfile((prev) => (prev ? { ...prev, pointsBalance: prev.pointsBalance + res.earnedPoints } : prev));
       setStatus((prev) =>
-        prev
-          ? {
-              ...prev,
-              pendingPoints: 0,
-              canClaim: false,
-              nextClaimAt: res.nextClaimAt,
-            }
-          : prev,
+        prev ? { ...prev, pendingPoints: 0, canClaim: false, nextClaimAt: res.nextClaimAt } : prev,
       );
 
-      // Synchronize in the background
-      await load();
+      const fresh = await load();
+      const streak = fresh?.streak;
+      if (streak && streak.bonusPercent > bonusBefore) setTierUnlocked(streak);
     } catch (err) {
+      playError();
       setError(err instanceof ApiError ? err.message : t('offline'));
     } finally {
       setClaiming(false);
     }
   }
 
-  if (!status || !profile) return <Skeleton message={error} />;
+  if (!status || !profile) {
+    return (
+      <AppShell locale={locale}>
+        <DashboardSkeleton message={error} />
+      </AppShell>
+    );
+  }
 
   const ready = status.canClaim && !claiming;
 
   return (
-    <div className="app-shell min-h-dvh">
-      <TopBar locale={locale} onSignOut={toLogin} />
+    <AppShell locale={locale} mine={{ onMine: mine, ready, claiming }}>
+      {error && (
+        <Notice tone="heat" className="mb-4" icon={<Icon name="flame" size={16} />}>
+          {error}
+        </Notice>
+      )}
 
-      <main
-        className="mx-auto max-w-6xl px-4 pb-32 pt-5 sm:px-6 lg:pb-16"
-        style={{ paddingBottom: 'max(8rem, env(safe-area-inset-bottom))' }}
-      >
-        {error && (
-          <p className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
-            {error}
-          </p>
-        )}
+      <GridEventBanner className="mb-4" />
 
-        {/* Hero + mining console. Two columns from lg. */}
-        <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
-          <HeroPanel
-            status={status}
-            claiming={claiming}
-            celebrate={celebrate}
-            onMine={mine}
-            ready={ready}
-          />
-          <BalancePanel
-            profile={profile}
-            history={history}
-            status={status}
-            locale={locale}
-          />
-        </div>
+      {/* The launch ramp. Both vanish on their own once they are spent. */}
+      <StarterChecklist onboarding={status.onboarding} locale={locale} className="mb-4" />
+      <LoanerBanner locale={locale} className="mb-4" />
 
-        {/* Stat grid */}
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <StatCard
-            i={0}
-            chip="#22c55e"
-            icon={<IconCoins />}
+      {/* A rig in trouble outranks everything below it. The rate already has
+          both efficiencies baked in, so dividing them back out gives what the
+          throttle is eating without a second request. */}
+      <RescueBanner
+        telemetry={status.rig}
+        lostPerHour={
+          status.ratePerHour /
+            Math.max(0.01, status.rig.thermalEfficiency * status.rig.powerEfficiency) -
+          status.ratePerHour
+        }
+        locale={locale}
+        referralCode={profile?.referralCode}
+        className="mb-4"
+      />
+
+      {/* Scroll target for the checklist's "Mine now". Zero-height on purpose. */}
+      <div id="mine" className="scroll-mt-24" aria-hidden />
+
+      {/* Console row: mine panel + balance column. */}
+      <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+        <MinePanel status={status} claiming={claiming} celebrate={celebrate} onMine={mine} ready={ready} />
+        <BalanceColumn profile={profile} history={history} status={status} locale={locale} />
+      </div>
+
+      <StreakTierModal
+        streak={tierUnlocked}
+        open={tierUnlocked !== null}
+        onClose={() => setTierUnlocked(null)}
+      />
+
+      {/* Quick actions. */}
+      <div className="v-stagger mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <QuickAction href={`/${locale}/rig`} icon="rig" title={t('navRig')} body={t('openRig')} tone="brand" />
+        <QuickAction href={`/${locale}/boosters`} icon="chip" title={t('plansTitle')} body={t('buyBoosters')} tone="brand" />
+        <QuickAction href={`/${locale}/referrals`} icon="users" title={t('referrals')} body={t('viewReferrals')} tone="charge" />
+        <QuickAction href={`/${locale}/withdraw`} icon="swap" title={t('navWithdraw')} body={`${t('minWithdrawal')} · 100 ${t('pointsShort')}`} tone="ok" />
+      </div>
+
+      {/* Stat strip. */}
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Reveal index={0}>
+          <Stat
             label={t('totalEarnings')}
-            value={history?.lifetimeEarnedPoints ?? 0}
-            decimals={2}
-            spark
+            value={<AnimatedNumber value={history?.lifetimeEarnedPoints ?? 0} decimals={2} />}
+            hint={t('pointsShort')}
+            icon={<Icon name="sparkle" size={16} />}
+            tone="charge"
           />
-          <StatCard
-            i={1}
-            chip="#818cf8"
-            icon={<IconChip />}
+        </Reveal>
+        <Reveal index={1}>
+          <Stat
             label={t('hashRate')}
-            value={status.ratePerHour}
-            decimals={2}
-            suffix=" /h"
+            value={<AnimatedNumber value={status.ratePerHour} decimals={2} suffix=" /h" />}
+            hint={t('ratePerHour')}
+            icon={<Icon name="bolt" size={16} />}
+            tone="brand"
           />
-          <StatCard
-            i={2}
-            chip="#a78bfa"
-            icon={<IconDoc />}
-            label={t('boosters')}
-            value={status.activeBoosters}
-            href={`/${locale}/boosters`}
-            cta={t('buyBoosters')}
+        </Reveal>
+        <Reveal index={2}>
+          <Stat
+            label={t('stability')}
+            value={<AnimatedNumber value={status.rig.gridStability} decimals={0} suffix="%" />}
+            hint={t('partsRunning', { count: status.activeBoosters })}
+            icon={<Icon name="gauge" size={16} />}
+            tone={status.rig.gridStability >= 100 ? 'charge' : status.rig.gridStability >= 60 ? 'default' : 'heat'}
           />
-          <StatCard
-            i={3}
-            chip="#38bdf8"
-            icon={<IconUsers />}
+        </Reveal>
+        <Reveal index={3}>
+          <Stat
             label={t('referrals')}
-            value={profile.referralCount}
-            badge={`L${status.referralTier.level} ×${status.referralTier.multiplier}`}
-            href={`/${locale}/referrals`}
-            cta={t('viewReferrals')}
+            value={<AnimatedNumber value={profile.referralCount} decimals={0} />}
+            hint={`L${status.referralTier.level} · ×${status.referralTier.multiplier}`}
+            icon={<Icon name="users" size={16} />}
           />
-        </div>
+        </Reveal>
+      </div>
 
-        <LeaderboardBanner locale={locale} />
+      <RigStrip status={status} locale={locale} />
 
-        {/* Booster plans rail */}
-        {plans.length > 0 && (
-          <section className="panel mt-4 p-5">
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <h2 className="font-bold">{t('plansTitle')}</h2>
-                <p className="text-sm text-slate-400">{t('plansSubtitle')}</p>
-              </div>
-              <Link
-                href={`/${locale}/boosters`}
-                className="shrink-0 text-sm font-semibold text-indigo-400 hover:text-indigo-300"
-              >
-                {t('viewAll')} →
-              </Link>
-            </div>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {plans.map((p, i) => (
-                <PlanCard
-                  key={p.id}
-                  plan={p}
-                  popular={i === 1}
-                  href={`/${locale}/boosters`}
-                />
-              ))}
-            </div>
-          </section>
-        )}
+      <Reveal className="mt-4">
+        <GridPulse />
+      </Reveal>
 
-        {/* ─── BONDKOIN Network Marketplace Ecosystem Banner ─── */}
-        <section className="relative mt-4 overflow-hidden rounded-3xl border border-blue-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950/40 p-5 sm:p-6 shadow-xl backdrop-blur-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
-              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-blue-600/20 border border-blue-500/30 text-2xl shadow-inner">
-                🛒
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="rounded-md bg-blue-500/20 border border-blue-400/30 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-cyan-300">
-                    Ecosystem Utility
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">Testnet Preview</span>
-                </div>
-                <h3 className="mt-1 text-base font-bold text-white">
-                  BONDKOIN Network Marketplace
-                </h3>
-                <p className="mt-0.5 text-xs text-slate-300 max-w-xl leading-relaxed">
-                  Shop real-world goods and hardware from verified merchants, pay with $BONDKOIN on BNB Chain, and discover regional commerce.
-                </p>
-              </div>
-            </div>
+      <Reveal className="mt-4">
+        <LiveGridMap size="sm" locale={locale} />
+      </Reveal>
 
-            <Link
-              href={`/${locale}/marketplace`}
-              className="btn-gold shrink-0 rounded-xl px-5 py-3 text-center text-xs font-black uppercase tracking-wider text-slate-950 shadow-lg shadow-blue-500/20"
-            >
-              Open Marketplace →
-            </Link>
-          </div>
-        </section>
+      {plans.length > 0 && <PlansRail plans={plans} locale={locale} />}
 
-        {/* Honest platform facts — every figure here is enforced in code. */}
-        <section className="panel mt-4 grid grid-cols-2 gap-4 p-5 lg:grid-cols-4">
-          <Feature chip="#818cf8" icon={<IconBolt />} title={t('f1t')} body={t('f1b')} />
-          <Feature chip="#22c55e" icon={<IconClock />} title={t('f2t')} body={t('f2b')} />
-          <Feature chip="#a78bfa" icon={<IconSwap />} title={t('f3t')} body={t('f3b')} />
-          <Feature chip="#38bdf8" icon={<IconShield />} title={t('f4t')} body={t('f4b')} />
-        </section>
+      <TasksSection onClaimed={load} />
 
-        <TasksSection onClaimed={load} />
+      <RecentActivity entries={history?.entries ?? []} />
 
-        <RecentActivity entries={history?.entries ?? []} />
-
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <ReferralPanel profile={profile} locale={locale} />
-      </main>
-
-      <MobileTabBar locale={locale} onMine={mine} ready={ready} claiming={claiming} />
-    </div>
-  );
-}
-
-/* ──────────────────────────── Chrome ──────────────────────────── */
-
-function TopBar({ locale, onSignOut }: { locale: string; onSignOut: () => void }) {
-  const t = useTranslations('dashboard');
-  return (
-    <header
-      className="sticky top-0 z-30 border-b border-white/5 bg-[#05070f]/85 backdrop-blur"
-      style={{ paddingTop: 'env(safe-area-inset-top)' }}
-    >
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <Link href={`/${locale}`} className="flex items-center gap-2.5">
-          <LogoMark size={40} priority />
-          <span className="leading-none">
-            <span className="block text-sm font-extrabold tracking-tight">
-              BONDKOIN
-            </span>
-            <span className="block text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-slate-500">
-              {t('cloudMining')}
-            </span>
-          </span>
-        </Link>
-
-        {/* Desktop nav — the mobile equivalent is the bottom tab bar. */}
-        <nav className="hidden items-center gap-1 lg:flex">
-          <NavLink href={`/${locale}/dashboard`} active>
-            {t('navDashboard')}
-          </NavLink>
-          <NavLink href={`/${locale}/boosters`}>{t('navBoosters')}</NavLink>
-          <NavLink href={`/${locale}/referrals`}>
-            <span className="flex items-center gap-1">
-              <span>👥</span>
-              <span>Referrals</span>
-            </span>
-          </NavLink>
-          <NavLink href={`/${locale}/leaderboard`}>
-            <span className="flex items-center gap-1">
-              <span>🏆</span>
-              <span>Leaderboard</span>
-            </span>
-          </NavLink>
-          <NavLink href={`/${locale}/marketplace`}>
-            <span className="flex items-center gap-1">
-              <span>🛒</span>
-              <span>Marketplace</span>
-              <span className="rounded-full bg-blue-500/20 px-1.5 py-0.5 text-[9px] font-black uppercase text-cyan-300 border border-blue-400/30">
-                NEW
-              </span>
-            </span>
-          </NavLink>
-          <NavLink href={`/${locale}/withdraw`}>{t('navWithdraw')}</NavLink>
-          <NavLink href={`/${locale}/profile`}>{t('navProfile')}</NavLink>
-        </nav>
-
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <LocaleSwitcher locale={locale} />
-          <button
-            onClick={onSignOut}
-            className="rounded-full border border-white/10 px-3.5 py-1.5 text-sm font-semibold text-slate-300 transition hover:border-amber-400/50 hover:text-white"
-          >
-            {t('signOut')}
-          </button>
-        </div>
+        <LeaderboardBanner locale={locale} />
       </div>
-    </header>
-  );
-}
 
-function NavLink({
-  href,
-  active,
-  children,
-}: {
-  href: string;
-  active?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
-        active
-          ? 'bg-indigo-500/15 text-indigo-300'
-          : 'text-slate-400 hover:text-slate-200'
-      }`}
-    >
-      {children}
-    </Link>
-  );
-}
+      <Reveal className="mt-4">
+        <Panel className="grid grid-cols-2 gap-4 p-5 lg:grid-cols-4">
+          <Feature icon="bolt" title={t('f1t')} body={t('f1b')} />
+          <Feature icon="clock" title={t('f2t')} body={t('f2b')} />
+          <Feature icon="swap" title={t('f3t')} body={t('f3b')} />
+          <Feature icon="shield" title={t('f4t')} body={t('f4b')} />
+        </Panel>
+      </Reveal>
 
-function TabBar({
-  locale,
-  onMine,
-  ready,
-  claiming,
-}: {
-  locale: string;
-  onMine: () => void;
-  ready: boolean;
-  claiming: boolean;
-}) {
-  const t = useTranslations('dashboard');
-  return (
-    <nav
-      className="tabbar fixed inset-x-0 bottom-0 z-30 lg:hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-    >
-      <div className="mx-auto grid max-w-md grid-cols-5 items-end px-2">
-        <Link href={`/${locale}/dashboard`} data-active="true">
-          <IconHome />
-          {t('navDashboard')}
-        </Link>
-        <Link href={`/${locale}/boosters`}>
-          <IconRocket />
-          {t('navBoosters')}
-        </Link>
-
-        <div className="grid place-items-center pb-1">
-          <button
-            onClick={onMine}
-            disabled={!ready}
-            aria-label={t('mineButton')}
-            className={`tab-fab -mt-7 ${ready ? 'pulse-ring' : ''}`}
-          >
-            {claiming ? <IconSpinner /> : <IconBolt />}
-          </button>
-        </div>
-
-        <Link href={`/${locale}/withdraw`}>
-          <IconSwap />
-          {t('navWithdraw')}
-        </Link>
-        <Link href={`/${locale}/profile`}>
-          <IconUser />
-          {t('navProfile')}
-        </Link>
+      <div className="mt-8 flex justify-center">
+        <button
+          type="button"
+          onClick={toLogin}
+          className="inline-flex items-center gap-2 text-xs font-bold text-ink-3 transition hover:text-heat"
+        >
+          <Icon name="logout" size={14} />
+          {t('signOut')}
+        </button>
       </div>
-    </nav>
+    </AppShell>
   );
 }
 
-/* ───────────────────────── Hero / console ─────────────────────── */
+/* ───────────────────────── Mine console ───────────────────────── */
 
-function HeroPanel({
+function MinePanel({
   status,
   claiming,
   celebrate,
@@ -446,124 +309,128 @@ function HeroPanel({
   const t = useTranslations('dashboard');
   const pending = useLiveAccrual(status);
   const countdown = useCountdown(status.nextClaimAt);
-  const progress =
-    status.maxPendingPoints > 0
-      ? Math.min(1, pending / status.maxPendingPoints)
-      : 0;
+  const progress = status.maxPendingPoints > 0 ? Math.min(1, pending / status.maxPendingPoints) : 0;
+  const [shocks, setShocks] = useState<number[]>([]);
+
+  // Every claim spawns a fresh ring; old ones fall away after they finish.
+  useEffect(() => {
+    if (celebrate === null) return;
+    const id = Date.now();
+    setShocks((s) => [...s, id]);
+    const timer = setTimeout(() => setShocks((s) => s.filter((x) => x !== id)), 1000);
+    return () => clearTimeout(timer);
+  }, [celebrate]);
 
   return (
-    <section className="panel relative overflow-hidden p-5 sm:p-7">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-indigo-600/25 blur-3xl"
-      />
+    <Panel
+      tone={ready ? 'charge' : 'default'}
+      hud
+      className="v-scanlines relative overflow-hidden p-5 animate-rise sm:p-7"
+    >
+      <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand/25 blur-3xl" />
+      {ready && <div className="pointer-events-none absolute -left-16 bottom-0 h-48 w-48 rounded-full bg-charge/15 blur-3xl" />}
 
-      <div className="relative flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-            {t('cloudMining')}
-          </h1>
-          <p className="mt-1.5 max-w-sm text-sm text-slate-400">
-            {t('heroBody')}
-          </p>
-          <div className="mt-2.5">
-            <BnbBadge label={t('bnbRewards')} />
-          </div>
+      <div className="relative flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Eyebrow tone={ready ? 'charge' : 'brand'}>{t('cloudMining')}</Eyebrow>
+          <h1 className="mt-2 font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">{t('title')}</h1>
+          <p className="mt-1.5 max-w-sm text-sm text-ink-2">{t('heroBody')}</p>
         </div>
-        <MiningRig active={!ready} />
+        <Chip tone="brand" className="shrink-0">
+          <BnbLogo className="h-3 w-3" />
+          {t('bnbRewards')}
+        </Chip>
       </div>
 
-      <div className="relative mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-end sm:justify-between">
-        <div className="relative text-center sm:text-left">
-          {/* Mobile celebration: the ring and its burst are desktop-only, so
-              the reward floats off the counter instead. */}
-          {celebrate !== null && (
-            <span className="float-up absolute left-1/2 top-6 z-10 -translate-x-1/2 whitespace-nowrap text-2xl font-extrabold text-emerald-400 sm:hidden">
-              +{celebrate.toFixed(2)}
-            </span>
-          )}
-          <div className="flex items-center justify-center gap-2 sm:justify-start">
-            {ready ? (
-              <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-400">
-                ✓ {t('ready')}
-              </span>
-            ) : (
-              <>
-                <span className="live-dot" aria-hidden />
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  {t('accruing')}
-                </span>
-              </>
-            )}
-          </div>
-          <div className="mt-2 text-4xl font-black tabular-nums tracking-tight text-white sm:text-5xl">
-            {pending.toFixed(4)}
-          </div>
-          <div className="mt-1 text-sm text-slate-400">{t('pending')}</div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1.5 text-sm font-bold text-indigo-300">
-              <IconBolt className="h-3.5 w-3.5" />
-              {status.ratePerHour} /h
-            </span>
-            {!status.canClaim && countdown && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 px-3 py-1.5 text-sm font-medium text-slate-300">
-                <IconClock className="h-3.5 w-3.5" />
-                <span className="tabular-nums font-mono">{countdown}</span>
-              </span>
-            )}
-          </div>
+      <div className="relative mt-4 grid items-center gap-4 sm:grid-cols-[auto_1fr]">
+        {/* The coin, small on phones. */}
+        <div className="hidden w-52 sm:block">
+          <Coin3D size="sm" />
         </div>
 
-        {/* Ring + Mine button with Shockwave and Burst Effects */}
-        <div className="relative shrink-0 place-items-center grid my-2 sm:my-0">
-          <div className="col-start-1 row-start-1">
-            <ProgressRing progress={progress} />
+        <div className="text-center sm:text-left">
+          <div className="flex items-center justify-center gap-2 sm:justify-start">
+            {ready ? (
+              <Chip tone="charge" dot>
+                {t('ready')}
+              </Chip>
+            ) : (
+              <Chip tone="brand" dot>
+                {t('accruing')}
+              </Chip>
+            )}
           </div>
-          {celebrate !== null && <Burst />}
-          {celebrate !== null && <div className="col-start-1 row-start-1 mine-shockwave" />}
+
+          <div className="relative mt-3">
+            {celebrate !== null && (
+              <span className="v-float-up text-2xl sm:hidden">+{celebrate.toFixed(2)} {t('pointsShort')}</span>
+            )}
+            <div className={`v-num text-5xl font-extrabold leading-none tracking-tight sm:text-6xl ${ready ? 'text-charge' : 'text-ink'}`}>
+              {pending.toFixed(4)}
+            </div>
+            <div className="mt-1.5 text-sm text-ink-3">{t('pending')}</div>
+          </div>
+
+          <Progress value={progress * 100} charge={ready} className="mt-4 max-w-xs mx-auto sm:mx-0" />
+
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+            <Chip tone="brand">
+              <Icon name="bolt" size={12} />
+              <span className="v-num">{status.ratePerHour}</span> /h
+            </Chip>
+            {!status.canClaim && countdown && (
+              <Chip>
+                <Icon name="clock" size={12} />
+                <span className="v-num">{countdown}</span>
+              </Chip>
+            )}
+            <Chip tone={status.rig.gridStability >= 100 ? 'charge' : status.rig.gridStability >= 60 ? 'warn' : 'heat'}>
+              <Icon name="gauge" size={12} />
+              <span className="v-num">{status.rig.gridStability}%</span>
+            </Chip>
+          </div>
+        </div>
+      </div>
+
+      {/* The mine button: a big circle, lime only when ready. */}
+      <div className="relative mt-6 flex justify-center sm:justify-end">
+        <div className="relative grid place-items-center">
+          {shocks.map((id) => (
+            <span key={id} className="v-shock" style={{ borderColor: 'rgb(var(--c-charge))' }} />
+          ))}
+          {shocks.map((id) => (
+            <span key={`b-${id}`} className="v-shock" style={{ animationDelay: '120ms', borderColor: 'rgb(var(--c-brand-hi))' }} />
+          ))}
           {celebrate !== null && (
-            <span className="float-up absolute left-1/2 -top-4 z-20 whitespace-nowrap rounded-full bg-emerald-500/20 border border-emerald-400/40 px-3 py-1 text-xl font-extrabold text-emerald-400 backdrop-blur-md">
-              +{celebrate.toFixed(2)} PTS
-            </span>
+            <span className="v-float-up -top-6 hidden text-xl sm:block">+{celebrate.toFixed(2)} {t('pointsShort')}</span>
           )}
           <button
+            type="button"
             onClick={onMine}
             disabled={!ready}
-            className={`btn-gold col-start-1 row-start-1 h-[7.5rem] w-[7.5rem] flex flex-col items-center justify-center !rounded-full text-xs font-black uppercase tracking-wider transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:grayscale ${
-              ready ? 'pulse-ring shadow-[0_0_40px_rgba(245,158,11,0.6)]' : 'shadow-lg'
+            aria-label={t('mineButton')}
+            className={`relative grid h-32 w-32 place-items-center rounded-full font-display text-sm font-bold uppercase tracking-[0.2em] transition-all duration-300 active:scale-95 ${
+              ready
+                ? 'v-btn v-btn--charge !rounded-full shadow-charge'
+                : 'border border-line/25 bg-surface-2/70 text-ink-3 disabled:opacity-70'
             }`}
           >
-            {claiming ? (
-              <IconSpinner />
-            ) : (
-              <span className="text-2xl drop-shadow-sm">⚡</span>
-            )}
-            <span className="mt-1">{t('mineButton')}</span>
+            <span className="flex flex-col items-center gap-1">
+              {claiming ? (
+                <span className="inline-block h-7 w-7 animate-spin rounded-full border-[3px] border-current border-t-transparent" />
+              ) : (
+                <Icon name="bolt" size={30} strokeWidth={2.4} className={ready ? 'animate-breathe' : ''} />
+              )}
+              <span className="text-[11px]">{t('mineButton')}</span>
+            </span>
           </button>
         </div>
       </div>
-    </section>
+    </Panel>
   );
 }
 
-/** Three slabs that pulse while accrual is running — the "rig". */
-function MiningRig({ active }: { active: boolean }) {
-  return (
-    <div className="rig shrink-0" aria-hidden>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="rig-slab"
-          style={active ? undefined : { animation: 'none', filter: 'brightness(0.7)' }}
-        />
-      ))}
-      <span className="mt-1 h-1.5 w-14 rounded-full bg-indigo-500/30 blur-[2px]" />
-    </div>
-  );
-}
-
-function BalancePanel({
+function BalanceColumn({
   profile,
   history,
   status,
@@ -575,272 +442,346 @@ function BalancePanel({
   locale: string;
 }) {
   const t = useTranslations('dashboard');
-  const balance = useCountUp(profile.pointsBalance);
-  // SPEC §3: 3 points = 1 mainnet $Matsumoto.
-  const token = balance / 3;
+  // SPEC §3: 3 points = 1 mainnet $VLTR.
+  const token = profile.pointsBalance / 3;
+  const kycOk = profile.kycStatus === 'APPROVED';
 
   return (
-    <section className="panel flex flex-col justify-between gap-5 p-5 sm:p-7">
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
-          {t('balance')}
-        </div>
-        <div className="mt-1.5 flex items-baseline gap-2">
-          <span className="text-3xl font-black tabular-nums text-white sm:text-4xl">
-            {balance.toFixed(2)}
-          </span>
-          <span className="text-sm font-bold text-amber-400">
-            {t('pointsShort')}
-          </span>
-        </div>
-        <div className="mt-1 text-sm text-slate-400">
-          ≈ <strong className="font-mono text-cyan-400">{token.toFixed(4)}</strong> $BONDKOIN
-          <span className="ml-1 text-xs text-slate-500">({t('atRate')})</span>
-        </div>
-        <div className="mt-2.5">
-          <span className="chain-indicator font-semibold">
-            <BnbLogo className="h-3 w-3" />
-            {t('chainIndicator')}
-          </span>
-        </div>
-      </div>
+    <div className="flex flex-col gap-4">
+      <StreakCard streak={status.streak} />
 
-      {profile.kycStatus !== 'APPROVED' ? (
-        <Link
-          href={`/${locale}/kyc`}
-          className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-500/10 p-3 text-xs text-amber-200 transition hover:border-amber-400/50"
-        >
-          <span>{t('kycRequired', { status: profile.kycStatus })}</span>
-          <span className="shrink-0 font-bold">{t('verifyCta')} →</span>
-        </Link>
-      ) : (
-        <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-xs text-emerald-300">
-          ✓ {t('kycVerified')}
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-xl bg-white/[0.03] p-3">
-          <div className="text-xs text-slate-400">{t('minWithdrawal')}</div>
-          <div className="mt-0.5 font-bold tabular-nums">100 {t('pointsShort')}</div>
-        </div>
-        <div className="rounded-xl bg-white/[0.03] p-3">
-          <div className="text-xs text-slate-400">{t('boosters')}</div>
-          <div className="mt-0.5 font-bold tabular-nums">
-            {status.activeBoosters}
+      <Panel hud className="relative overflow-hidden p-5 animate-rise sm:p-6" style={{ animationDelay: '80ms' }}>
+        <div className="pointer-events-none absolute -left-16 -top-16 h-48 w-48 rounded-full bg-charge/10 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-3">
+          <div>
+            <Eyebrow>{t('balance')}</Eyebrow>
+            <div className="mt-2 flex items-baseline gap-2">
+              <AnimatedNumber value={profile.pointsBalance} decimals={2} className="text-4xl font-extrabold text-ink sm:text-5xl" />
+              <span className="text-sm font-extrabold text-charge">{t('pointsShort')}</span>
+            </div>
+            <div className="mt-1.5 text-sm text-ink-2">
+              ≈ <AnimatedNumber value={token} decimals={4} className="font-extrabold text-brand-hi" /> $VLTR
+              <span className="ml-1 text-xs text-ink-3">({t('atRate')})</span>
+            </div>
           </div>
+          <Gauge value={status.rig.gridStability} size={92} stroke={8} />
         </div>
-      </div>
-    </section>
-  );
-}
 
-/* ─────────────────────────── Stat cards ───────────────────────── */
+        <div className="v-divider my-4" />
 
-function StatCard({
-  i,
-  chip,
-  icon,
-  label,
-  value,
-  decimals = 0,
-  suffix = '',
-  badge,
-  spark,
-  href,
-  cta,
-}: {
-  i: number;
-  chip: string;
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  decimals?: number;
-  suffix?: string;
-  badge?: string;
-  spark?: boolean;
-  href?: string;
-  cta?: string;
-}) {
-  const animated = useCountUp(value);
-  const body = (
-    <>
-      <div className="flex items-start justify-between gap-2">
-        <span className="chip" style={{ '--chip': chip } as React.CSSProperties}>
-          {icon}
-        </span>
-        {spark && <Sparkline />}
-      </div>
-      <div className="mt-3 truncate text-xs font-medium uppercase tracking-wide text-slate-400">
-        {label}
-      </div>
-      <div className="mt-1 flex items-baseline gap-1.5">
-        <span className="text-xl font-black tabular-nums text-white sm:text-2xl">
-          {animated.toFixed(decimals)}
-          {suffix}
-        </span>
-        {badge && (
-          <span className="rounded-full bg-violet-500/15 px-1.5 py-0.5 text-[0.65rem] font-bold text-violet-300">
-            {badge}
-          </span>
+        {kycOk ? (
+          <Notice tone="ok" icon={<Icon name="shield" size={16} />}>
+            {t('kycVerified')}
+          </Notice>
+        ) : (
+          <Link href={`/${locale}/kyc`} className="block">
+            <Notice tone="warn" icon={<Icon name="shield" size={16} />}>
+              <span className="block">{t('kycRequired', { status: profile.kycStatus })}</span>
+              <span className="mt-1 inline-flex items-center gap-1 font-extrabold">
+                {t('verifyCta')} <Icon name="arrow-up-right" size={12} />
+              </span>
+            </Notice>
+          </Link>
         )}
-      </div>
-      {cta && (
-        <span className="mt-1 block text-xs font-bold text-indigo-400">
-          {cta} →
-        </span>
-      )}
-    </>
-  );
 
-  const cls = 'panel panel-lift rise-in block p-4';
-  const style = { '--i': i + 1 } as React.CSSProperties;
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <Mini label={t('minWithdrawal')} value={`100`} unit={t('pointsShort')} />
+          <Mini label={t('boosters')} value={String(status.activeBoosters)} unit="" />
+          <Mini label={t('referralTier')} value={`L${status.referralTier.level}`} unit={`×${status.referralTier.multiplier}`} />
+        </div>
+      </Panel>
 
-  return href ? (
-    <Link href={href} className={cls} style={style}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls} style={style}>
-      {body}
+      <Panel className="flex items-center justify-between gap-3 p-4 animate-rise" style={{ animationDelay: '160ms' }}>
+        <div className="flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand/10 text-brand-hi">
+            <Icon name="wallet" size={18} />
+          </span>
+          <div>
+            <div className="text-sm font-extrabold text-ink">{t('chainIndicator')}</div>
+            <div className="text-xs text-ink-3">{t('poweredByBnb')}</div>
+          </div>
+        </div>
+        <Chip tone="ok" dot>
+          {t('totalEarnings')} <span className="v-num">{(history?.lifetimeEarnedPoints ?? 0).toFixed(1)}</span>
+        </Chip>
+      </Panel>
     </div>
   );
 }
 
-/** A small upward trend line. Decorative — it is not plotting real series
-    data, so it carries no axis or value and is hidden from screen readers. */
-function Sparkline() {
+function Mini({ label, value, unit }: { label: string; value: string; unit: string }) {
   return (
-    <svg width="56" height="24" viewBox="0 0 56 24" fill="none" aria-hidden>
-      <path
-        d="M1 20 L9 16 L17 18 L25 11 L33 13 L41 6 L49 8 L55 2"
-        stroke="#22c55e"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    <div className="v-inset p-3">
+      <div className="truncate text-[10px] font-bold uppercase tracking-wider text-ink-3">{label}</div>
+      <div className="v-num mt-1 text-base font-extrabold text-ink">
+        {value} <span className="text-[10px] text-ink-3">{unit}</span>
+      </div>
+    </div>
   );
 }
 
-/* ───────────────────────── Plans / features ───────────────────── */
+/* ───────────────────────── Quick actions ──────────────────────── */
 
-function PlanCard({
-  plan,
-  popular,
+function QuickAction({
   href,
-}: {
-  plan: BoosterPlanDto;
-  popular: boolean;
-  href: string;
-}) {
-  const t = useTranslations('dashboard');
-  return (
-    <Link
-      href={href}
-      className={`glass-panel group relative flex flex-col justify-between overflow-hidden p-5 transition-all hover:scale-[1.02] ${
-        popular ? 'border-amber-400/60 shadow-xl shadow-amber-500/10 ring-1 ring-amber-400/30' : ''
-      }`}
-    >
-      {popular && (
-        <div className="absolute right-3 top-3 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-950 shadow-sm">
-          {t('popular')}
-        </div>
-      )}
-
-      <div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="font-mono text-3xl font-black text-amber-400">
-            ${plan.priceUsd}
-          </span>
-          <span className="text-xs font-bold uppercase tracking-wide text-slate-400">
-            / {plan.durationDays}d
-          </span>
-        </div>
-
-        <div className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 text-xs font-bold text-emerald-400">
-          +{plan.rateBonusPerHour} BONDKOIN/h
-        </div>
-
-        <div className="mt-4 space-y-2 border-t border-slate-800/80 pt-3 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400">{t('resultingRate')}</span>
-            <span className="font-mono font-extrabold text-amber-300">
-              {plan.resultingRatePerHour} /h
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-slate-400">{t('duration')}</span>
-            <span className="font-mono font-bold text-slate-300">
-              {plan.durationDays} {t('days')}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-5">
-        <span className="btn-gold block w-full rounded-xl py-2.5 text-center text-xs font-extrabold uppercase tracking-wider text-slate-950 shadow-md">
-          {t('getStarted')} →
-        </span>
-      </div>
-    </Link>
-  );
-}
-
-function Row({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-slate-400">{label}</span>
-      <span className={`font-bold ${accent ? 'text-emerald-400' : ''}`}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function Feature({
-  chip,
   icon,
   title,
   body,
+  tone,
 }: {
-  chip: string;
-  icon: React.ReactNode;
+  href: string;
+  icon: IconName;
   title: string;
   body: string;
+  tone: 'brand' | 'charge' | 'ok';
 }) {
+  const color = tone === 'charge' ? 'bg-charge/10 text-charge' : tone === 'ok' ? 'bg-ok/10 text-ok' : 'bg-brand/12 text-brand-hi';
+  return (
+    <Link href={href} className="block">
+      <Panel lift trace hud className="group flex h-full flex-col justify-between p-4 sm:p-5">
+        <span className={`grid h-10 w-10 place-items-center rounded-xl ${color}`}>
+          <Icon name={icon} size={18} />
+        </span>
+        <div className="mt-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm font-extrabold text-ink">{title}</span>
+            <Icon name="chevron-right" size={14} className="text-ink-3 transition group-hover:translate-x-0.5 group-hover:text-charge" />
+          </div>
+          <div className="mt-0.5 truncate text-xs text-ink-3">{body}</div>
+        </div>
+      </Panel>
+    </Link>
+  );
+}
+
+/* ───────────────────────── Rig telemetry ──────────────────────── */
+
+/**
+ * The rig, condensed to one row. Its job is to make a throttle impossible
+ * to miss: an overheating rig quietly pays less every hour.
+ */
+function RigStrip({ status, locale }: { status: MiningStatus; locale: string }) {
+  const GRID_S = useS();
+  const t = useTranslations('dashboard');
+  const rig = status.rig;
+  const throttled = rig.overheating || rig.brownout;
+  const overclock = !!rig.modifiers?.overclock;
+
+  return (
+    <Reveal className="mt-4">
+      <Panel tone={throttled || overclock ? 'heat' : 'default'} hud className="v-scanlines relative overflow-hidden p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Eyebrow tone={throttled ? 'default' : 'brand'}>{t('rigTitle')}</Eyebrow>
+              {overclock && (
+                <Chip tone="heat" dot>
+                  {GRID_S.overclock.on}
+                </Chip>
+              )}
+              {(rig.disabledCount ?? 0) > 0 && (
+                <Chip tone="heat">
+                  <span className="v-num">{rig.disabledCount}</span> {GRID_S.parts.burned.toLowerCase()}
+                </Chip>
+              )}
+            </div>
+            <p className={`mt-1 text-sm ${throttled ? 'text-heat' : 'text-ink-2'}`}>
+              {throttled ? t('rigThrottled') : t('rigStable')}
+            </p>
+          </div>
+          <Link href={`/${locale}/rig`} className="v-btn v-btn--primary v-btn--sm shrink-0">
+            {t('openRig')} <Icon name="chevron-right" size={12} />
+          </Link>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <RigMeter label={t('thermal')} used={rig.heatLoad} capacity={rig.coolingCapacity} unit="TU" bad={rig.overheating} icon="flame" />
+          <RigMeter label={t('power')} used={rig.powerDraw} capacity={rig.powerSupply} unit="W" bad={rig.brownout} icon="plug" />
+          <div className="v-inset p-3">
+            <div className="flex items-center justify-between">
+              <span className="v-eyebrow">{t('slotsUsed')}</span>
+              <Icon name="chip" size={14} className="text-brand-hi" />
+            </div>
+            <p className="v-num mt-1 text-xl font-extrabold text-ink">{rig.installedCount}</p>
+            <p className="mt-0.5 text-[11px] text-ink-3">{t('hashTotal', { amount: rig.hashPerHour.toFixed(1) })}</p>
+          </div>
+        </div>
+        {!throttled && <div className="v-trace mt-4" />}
+      </Panel>
+    </Reveal>
+  );
+}
+
+function RigMeter({
+  label,
+  used,
+  capacity,
+  unit,
+  bad,
+  icon,
+}: {
+  label: string;
+  used: number;
+  capacity: number;
+  unit: string;
+  bad: boolean;
+  icon: IconName;
+}) {
+  const pct = capacity > 0 ? Math.min(100, (used / capacity) * 100) : 0;
+  return (
+    <div className="v-inset p-3">
+      <div className="flex items-center justify-between">
+        <span className="v-eyebrow flex items-center gap-1.5">
+          <Icon name={icon} size={12} className={bad ? 'text-heat' : 'text-brand-hi'} />
+          {label}
+        </span>
+        <span className={`v-num text-xs font-bold ${bad ? 'text-heat' : 'text-ink-2'}`}>
+          {used} / {capacity} {unit}
+        </span>
+      </div>
+      <div className="stability-track mt-2 h-1.5">
+        <div
+          className={`stability-fill ${bad ? 'stability-fill--critical' : pct > 80 ? 'stability-fill--warn' : ''}`}
+          style={{ width: `${bad ? 100 : pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ───────────────────────── Plans rail ─────────────────────────── */
+
+const KIND_STRIPE: Record<BoosterPlanDto['kind'], string> = {
+  CORE: 'rig-slot__kind--core',
+  COOLER: 'rig-slot__kind--cooler',
+  PSU: 'rig-slot__kind--psu',
+  MODULE: 'rig-slot__kind--module',
+};
+
+const KIND_ICON: Record<BoosterPlanDto['kind'], IconName> = {
+  CORE: 'chip',
+  COOLER: 'snow',
+  PSU: 'plug',
+  MODULE: 'sparkle',
+};
+
+function PlansRail({ plans, locale }: { plans: BoosterPlanDto[]; locale: string }) {
+  const t = useTranslations('dashboard');
+  return (
+    <Reveal className="mt-4">
+      <Panel className="p-5">
+        <div className="flex items-end justify-between gap-3">
+          <div>
+            <Eyebrow tone="brand">{t('plansTitle')}</Eyebrow>
+            <p className="mt-1 text-sm text-ink-2">{t('plansSubtitle')}</p>
+          </div>
+          <Link href={`/${locale}/boosters`} className="inline-flex shrink-0 items-center gap-1 text-xs font-extrabold text-brand-hi hover:text-ink">
+            {t('viewAll')} <Icon name="chevron-right" size={12} />
+          </Link>
+        </div>
+
+        <div className="v-stagger -mx-5 mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
+          {plans.map((p, i) => (
+            <PlanCard key={p.id} plan={p} popular={i === 1} href={`/${locale}/boosters`} />
+          ))}
+        </div>
+      </Panel>
+    </Reveal>
+  );
+}
+
+function PlanCard({ plan, popular, href }: { plan: BoosterPlanDto; popular: boolean; href: string }) {
+  const t = useTranslations('dashboard');
+  const stat = (label: string, value: string, hot = false) => (
+    <div className="flex items-center justify-between text-xs">
+      <span className="text-ink-3">{label}</span>
+      <span className={`v-num font-extrabold ${hot ? 'text-heat' : 'text-ink'}`}>{value}</span>
+    </div>
+  );
+  return (
+    <Link href={href} className="w-[78%] shrink-0 snap-start sm:w-auto">
+      <Panel lift trace className={`relative flex h-full flex-col justify-between overflow-hidden p-4 ${popular ? 'border-charge/40' : ''}`}>
+        <span className={`rig-slot__kind ${KIND_STRIPE[plan.kind]}`} />
+        {popular && (
+          <span className="absolute right-3 top-3">
+            <Chip tone="charge">{t('popular')}</Chip>
+          </span>
+        )}
+        <div className="pl-2">
+          <span className="grid h-9 w-9 place-items-center rounded-lg bg-brand/10 text-brand-hi">
+            <Icon name={KIND_ICON[plan.kind]} size={16} />
+          </span>
+          <div className="mt-3 text-sm font-extrabold text-ink">{plan.name}</div>
+          <div className="mt-1 flex items-baseline gap-1">
+            <span className="v-num text-2xl font-extrabold text-charge">${plan.priceUsd}</span>
+            <span className="text-[10px] font-bold uppercase text-ink-3">
+              / {plan.durationDays} {t('days')}
+            </span>
+          </div>
+          <div className="mt-3 space-y-1.5 border-t border-line/15 pt-3">
+            {plan.rateBonusPerHour > 0 && stat(t('hashRate'), `+${plan.rateBonusPerHour} /h`)}
+            {plan.hashBoostPercent > 0 && stat(t('hashRate'), `+${plan.hashBoostPercent}%`)}
+            {plan.cooling > 0 && stat(t('thermal'), `+${plan.cooling} TU`)}
+            {plan.wattsSupplied > 0 && stat(t('power'), `+${plan.wattsSupplied} W`)}
+            {plan.heat > 0 && stat(t('thermal'), `${plan.heat} TU`, true)}
+            {plan.watts > 0 && stat(t('power'), `${plan.watts} W`, true)}
+            {/* The miner owns a rig here, so quote THEIR rate. The
+                stock-chassis figure overstates a big core badly — a VC-50 on
+                a bare chassis makes 3.59/h, not the 90.9 it advertises. */}
+            {plan.fit
+              ? stat(
+                  t('resultingRate'),
+                  `${plan.fit.ratePerHourBefore.toFixed(2)} → ${plan.fit.ratePerHourAfter.toFixed(2)} /h`,
+                )
+              : stat(t('resultingRate'), `${plan.resultingRatePerHour} /h`)}
+            {plan.fit && !plan.fit.clean && plan.fit.fix
+              ? stat(
+                  t('resultingRate'),
+                  `+${plan.fit.fix.steps.map((s) => s.code).join('+')} $${plan.fit.fix.totalUsd} → ${plan.fit.fix.ratePerHour.toFixed(2)} /h`,
+                )
+              : null}
+          </div>
+        </div>
+        <span className="v-btn v-btn--primary v-btn--sm mt-4 w-full">
+          {t('getStarted')} <Icon name="chevron-right" size={12} />
+        </span>
+      </Panel>
+    </Link>
+  );
+}
+
+function Feature({ icon, title, body }: { icon: IconName; title: string; body: string }) {
   return (
     <div className="text-center">
-      <span
-        className="chip mx-auto"
-        style={{ '--chip': chip } as React.CSSProperties}
-      >
-        {icon}
+      <span className="mx-auto grid h-10 w-10 place-items-center rounded-xl bg-brand/10 text-brand-hi">
+        <Icon name={icon} size={18} />
       </span>
-      <div className="mt-2 text-sm font-bold">{title}</div>
-      <div className="mt-0.5 text-xs text-slate-400">{body}</div>
+      <div className="mt-2 text-sm font-extrabold text-ink">{title}</div>
+      <div className="mt-0.5 text-xs text-ink-3">{body}</div>
     </div>
   );
 }
 
 /* ──────────────────────── Recent activity ─────────────────────── */
 
-const REASON_CHIP: Record<string, string> = {
-  MINING: '#818cf8',
-  TASK_REWARD: '#22c55e',
-  REFERRAL_BONUS: '#38bdf8',
-  BOOSTER_PURCHASE: '#a78bfa',
-  WITHDRAWAL: '#f59e0b',
-  AIRDROP: '#ec4899',
-  ADMIN_ADJUST: '#94a3b8',
+const REASON_TONE: Record<LedgerEntryDto['reason'], ChipTone> = {
+  MINING: 'brand',
+  TASK_REWARD: 'ok',
+  REFERRAL_BONUS: 'charge',
+  BOOSTER_PURCHASE: 'brand',
+  WITHDRAWAL: 'warn',
+  AIRDROP: 'charge',
+  ADMIN_ADJUST: 'default',
+};
+
+const REASON_ICON: Record<LedgerEntryDto['reason'], IconName> = {
+  MINING: 'bolt',
+  TASK_REWARD: 'gift',
+  REFERRAL_BONUS: 'users',
+  BOOSTER_PURCHASE: 'chip',
+  WITHDRAWAL: 'swap',
+  AIRDROP: 'sparkle',
+  ADMIN_ADJUST: 'settings',
 };
 
 function RecentActivity({ entries }: { entries: LedgerEntryDto[] }) {
@@ -848,59 +789,51 @@ function RecentActivity({ entries }: { entries: LedgerEntryDto[] }) {
   if (!entries.length) return null;
 
   return (
-    <section className="panel mt-4 p-5">
-      <h2 className="font-bold">{t('recentTitle')}</h2>
-      <ul className="mt-3 divide-y divide-white/5">
-        {entries.map((e) => (
-          <li key={e.id} className="flex items-center gap-3 py-2.5">
-            <span
-              className="chip !h-9 !w-9"
-              style={
-                { '--chip': REASON_CHIP[e.reason] ?? '#94a3b8' } as React.CSSProperties
-              }
-            >
-              <IconBolt className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-semibold">
-                {t(`reason.${e.reason}`)}
-              </div>
-              <div className="text-xs text-slate-500">
-                {new Date(e.createdAt).toLocaleString()}
-              </div>
-            </div>
-            <span
-              className={`shrink-0 text-sm font-bold tabular-nums ${
-                e.points >= 0 ? 'text-emerald-400' : 'text-amber-400'
-              }`}
-            >
-              {e.points >= 0 ? '+' : ''}
-              {e.points.toFixed(2)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <Reveal className="mt-4">
+      <Panel className="p-5">
+        <Eyebrow tone="brand">{t('recentTitle')}</Eyebrow>
+        <ul className="v-stagger mt-3 divide-y divide-line/10">
+          {entries.map((e) => {
+            const tone = REASON_TONE[e.reason] ?? 'default';
+            return (
+              <li key={e.id} className="flex items-center gap-3 py-3">
+                <Chip tone={tone} className="!h-9 !w-9 justify-center !p-0">
+                  <Icon name={REASON_ICON[e.reason] ?? 'bolt'} size={14} />
+                </Chip>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold text-ink">{t(`reason.${e.reason}`)}</div>
+                  <div className="text-xs text-ink-3">{new Date(e.createdAt).toLocaleString()}</div>
+                </div>
+                <span className={`v-num shrink-0 text-sm font-extrabold ${e.points >= 0 ? 'text-ok' : 'text-warn'}`}>
+                  {e.points >= 0 ? '+' : ''}
+                  {e.points.toFixed(2)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </Panel>
+    </Reveal>
   );
 }
 
-function ReferralPanel({
-  profile,
-  locale,
-}: {
-  profile: Profile;
-  locale: string;
-}) {
+/* ───────────────────────── Referral panel ─────────────────────── */
+
+function ReferralPanel({ profile, locale }: { profile: Profile; locale: string }) {
   const t = useTranslations('dashboard');
+  const { playTick } = useMiningFX();
   const [copied, setCopied] = useState(false);
+  // The rig card, not a bare invite: this link unfurls into an image of the
+  // miner's own build. `?ref=` still rides on the card page's sign-up CTA.
   const link =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/${locale}/login?ref=${profile.referralCode}`
+      ? `${window.location.origin}${rigCardPath(locale, profile.referralCode)}`
       : '';
 
   async function copy() {
     try {
       await navigator.clipboard.writeText(link);
+      playTick();
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -909,159 +842,102 @@ function ReferralPanel({
   }
 
   return (
-    <section className="glass-panel mt-4 p-5 sm:p-6 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-base">👥</span>
-          <div className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
-            {t('referralLink')}
+    <Reveal>
+      <Panel hud className="relative h-full overflow-hidden p-5 sm:p-6">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-charge/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-charge/10 text-charge">
+              <Icon name="users" size={16} />
+            </span>
+            <Eyebrow>{t('referralLink')}</Eyebrow>
+          </div>
+          <div className="flex items-center gap-2">
+            <Chip tone="charge">
+              L{profile.referralTier.level} · ×{profile.referralTier.multiplier}
+            </Chip>
+            <Chip>
+              <span className="v-num">{profile.referralCode}</span>
+            </Chip>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded-lg bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-xs font-mono font-bold text-amber-300">
-            Tier {profile.referralTier.level} ({profile.referralTier.multiplier}× Multiplier)
-          </span>
-          <span className="rounded-lg bg-slate-800 border border-white/10 px-2.5 py-0.5 text-xs font-mono font-bold text-slate-300">
-            CODE: {profile.referralCode}
-          </span>
-        </div>
-      </div>
 
-      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-        <div className="flex-1 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/80 px-3.5 py-3">
-          <code className="block truncate font-mono text-sm font-bold text-amber-400 select-all">
-            {link || `.../${locale}/login?ref=${profile.referralCode}`}
-          </code>
+        <div className="relative mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+          <div className="v-inset min-w-0 flex-1 px-3.5 py-3">
+            <code className="block select-all truncate font-mono text-sm font-bold text-charge">
+              {link || `...${rigCardPath(locale, profile.referralCode)}`}
+            </code>
+          </div>
+          <Button variant={copied ? 'ghost' : 'charge'} onClick={copy} className="shrink-0">
+            <Icon name={copied ? 'check' : 'copy'} size={14} />
+            {copied ? t('copied') : t('copy')}
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={copy}
-          className="btn-gold shrink-0 rounded-xl px-5 py-3 text-xs font-black uppercase tracking-wider text-slate-950 shadow-md transition-all active:scale-95"
-        >
-          {copied ? `✓ ${t('copied')}` : t('copy')}
-        </button>
-      </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3.5">
-        <div className="text-xs text-slate-400">
-          Total Invited: <strong className="text-white font-mono">{profile.referralCount} Miners</strong>
+        <div className="relative mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line/15 pt-3.5">
+          <div className="text-xs text-ink-2">
+            {t('referrals')}: <strong className="v-num text-ink">{profile.referralCount}</strong>
+          </div>
+          <Link href={`/${locale}/referrals`} className="inline-flex items-center gap-1 text-xs font-extrabold text-brand-hi hover:text-ink">
+            {t('viewReferrals')} <Icon name="chevron-right" size={12} />
+          </Link>
         </div>
-        <Link
-          href={`/${locale}/referrals`}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3.5 py-1.5 text-xs font-bold text-amber-300 hover:bg-amber-500/20 transition-all hover:scale-105"
-        >
-          <span>👥 {t('viewReferrals')}</span>
-          <span>→</span>
-        </Link>
-      </div>
-    </section>
+      </Panel>
+    </Reveal>
   );
 }
 
 function LeaderboardBanner({ locale }: { locale: string }) {
   const t = useTranslations('leaderboard');
   return (
-    <Link
-      href={`/${locale}/leaderboard`}
-      className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 via-slate-900/60 to-slate-900/60 p-4 transition-all hover:border-emerald-400/40 hover:from-emerald-500/15"
-    >
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-xl">
-          🏆
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-sm font-black text-white">
-            {t('title')}
+    <Reveal index={1}>
+      <Link href={`/${locale}/leaderboard`} className="block h-full">
+        <Panel lift trace className="group flex h-full items-center justify-between gap-4 p-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-ok/10 text-ok">
+              <Icon name="trophy" size={20} />
+            </span>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-extrabold text-ink">{t('title')}</div>
+              <div className="truncate text-xs text-ink-3">
+                {t('yourRank')} · {t('catEarnings')}
+              </div>
+            </div>
           </div>
-          <div className="truncate text-xs text-slate-400">
-            {t('yourRank')} · {t('catEarnings')}
-          </div>
+          <Icon name="chevron-right" size={16} className="shrink-0 text-ink-3 transition group-hover:translate-x-0.5 group-hover:text-charge" />
+        </Panel>
+      </Link>
+    </Reveal>
+  );
+}
+
+/* ───────────────────────── Skeleton ───────────────────────────── */
+
+function DashboardSkeleton({ message }: { message: string | null }) {
+  return (
+    <div>
+      <div className="grid gap-4 lg:grid-cols-[1.25fr_1fr]">
+        <Skeleton className="h-80 w-full rounded-2xl" />
+        <div className="flex flex-col gap-4">
+          <Skeleton className="h-56 w-full rounded-2xl" />
+          <Skeleton className="h-20 w-full rounded-2xl" />
         </div>
       </div>
-      <span className="shrink-0 text-xs font-bold text-emerald-300">→</span>
-    </Link>
-  );
-}
-
-function Skeleton({ message }: { message: string | null }) {
-  return (
-    <div className="app-shell min-h-dvh px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-5 flex items-center justify-between">
-          <div className="skeleton h-9 w-40" />
-          <div className="skeleton h-9 w-24 !rounded-full" />
-        </div>
-        <div className="grid gap-4 lg:grid-cols-[1.15fr_1fr]">
-          <div className="skeleton h-64 w-full" />
-          <div className="skeleton h-64 w-full" />
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="skeleton h-32 w-full" />
-          ))}
-        </div>
-        {message && (
-          <p className="mt-6 text-center text-sm text-slate-400">{message}</p>
-        )}
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+        ))}
       </div>
-    </div>
-  );
-}
-
-/* ────────────────────────── Shared bits ───────────────────────── */
-
-function ProgressRing({ progress }: { progress: number }) {
-  const R = 66;
-  const C = 2 * Math.PI * R;
-  return (
-    <svg width="158" height="158" viewBox="0 0 158 158" aria-hidden>
-      <defs>
-        <linearGradient id="ringGradient" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#6366f1" />
-          <stop offset="55%" stopColor="#a78bfa" />
-          <stop offset="100%" stopColor="#38bdf8" />
-        </linearGradient>
-      </defs>
-      <circle
-        cx="79"
-        cy="79"
-        r={R}
-        fill="none"
-        strokeWidth="7"
-        stroke="rgba(255,255,255,0.08)"
-      />
-      <circle
-        className="ring-progress"
-        cx="79"
-        cy="79"
-        r={R}
-        fill="none"
-        strokeWidth="7"
-        strokeDasharray={C}
-        strokeDashoffset={C * (1 - progress)}
-        transform="rotate(-90 79 79)"
-      />
-    </svg>
-  );
-}
-
-function Burst() {
-  const colors = ['#6366f1', '#a78bfa', '#38bdf8', '#22c55e', '#f59e0b'];
-  return (
-    <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
-      {Array.from({ length: 14 }).map((_, i) => (
-        <span
-          key={i}
-          className="burst-particle"
-          style={
-            {
-              '--a': `${(360 / 14) * i}deg`,
-              background: colors[i % colors.length],
-              animationDelay: `${i * 12}ms`,
-            } as React.CSSProperties
-          }
-        />
-      ))}
+      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+        ))}
+      </div>
+      {message && (
+        <Notice tone="heat" className="mt-6">
+          {message}
+        </Notice>
+      )}
     </div>
   );
 }
@@ -1090,30 +966,6 @@ function useLiveAccrual(status: MiningStatus): number {
   return pending;
 }
 
-function useCountUp(target: number, duration = 900): number {
-  const [display, setDisplay] = useState(target);
-  const from = useRef(target);
-
-  useEffect(() => {
-    const start = performance.now();
-    const origin = from.current;
-    if (origin === target) return;
-
-    let raf = 0;
-    const step = (now: number) => {
-      const p = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(origin + (target - origin) * eased);
-      if (p < 1) raf = requestAnimationFrame(step);
-      else from.current = target;
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [target, duration]);
-
-  return display;
-}
-
 function useCountdown(iso: string | null): string | null {
   const [label, setLabel] = useState<string | null>(null);
 
@@ -1128,9 +980,7 @@ function useCountdown(iso: string | null): string | null {
       if (ms <= 0) return setLabel(null);
       const s = Math.floor(ms / 1000);
       const pad = (n: number) => String(n).padStart(2, '0');
-      setLabel(
-        `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`,
-      );
+      setLabel(`${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`);
     };
     render();
     const id = setInterval(render, 1000);
@@ -1138,109 +988,4 @@ function useCountdown(iso: string | null): string | null {
   }, [iso]);
 
   return label;
-}
-
-/* ───────────────────────────── Icons ──────────────────────────── */
-
-const ico = 'h-[18px] w-[18px]';
-
-function IconBolt({ className = ico }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" />
-    </svg>
-  );
-}
-function IconCoins({ className = ico }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <ellipse cx="12" cy="6" rx="8" ry="3" />
-      <path d="M4 6v4c0 1.7 3.6 3 8 3s8-1.3 8-3V6c0 1.7-3.6 3-8 3s-8-1.3-8-3Z" />
-      <path d="M4 12v4c0 1.7 3.6 3 8 3s8-1.3 8-3v-4c0 1.7-3.6 3-8 3s-8-1.3-8-3Z" />
-    </svg>
-  );
-}
-function IconChip({ className = ico }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <rect x="6" y="6" width="12" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
-      <rect x="9.5" y="9.5" width="5" height="5" rx="1" fill="currentColor" />
-      <path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-function IconDoc({ className = ico }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <path d="M6 3h8l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M13 3v5h5M8 13h8M8 17h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-function IconUsers({ className = ico }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M9 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-3.3 0-8 1.7-8 5v2h16v-2c0-3.3-4.7-5-8-5Zm7.5-3.5A3.5 3.5 0 1 0 16.5 3a3.5 3.5 0 0 0 0 7Zm.6 2.1c1.2.6 2.9 2 2.9 3.9v3H23v-3c0-2.7-2.5-3.5-5.9-3.9Z" />
-    </svg>
-  );
-}
-function IconUser({ className = ico }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-4 0-9 2-9 5.5V22h18v-2.5C21 16 16 14 12 14Z" />
-    </svg>
-  );
-}
-function IconClock({ className = ico }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M12 7v5l3 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-function IconSwap({ className = ico }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <path d="M4 8h13l-3-3M20 16H7l3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function IconShield({ className = ico }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <path d="m12 3 7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
-      <path d="m9 12 2 2 4-4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function IconHome({ className = 'h-5 w-5' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <path d="m4 11 8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-8Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function IconRocket({ className = 'h-5 w-5' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
-      <path d="M12 2c3 2 5 6 5 10 0 1.5-.3 2.9-.8 4l-2.2-1c.5-1 .8-2 .8-3 0-3-1.5-6-2.8-7.5C10.7 5.9 9 8.7 9 12c0 1 .3 2 .8 3l-2.2 1c-.5-1.1-.8-2.5-.8-4 0-4 2-8 5-10Zm-3 15 1.5 3H8l-1-2 2-1Zm6 0 2 1-1 2h-2.5l1.5-3Z" />
-    </svg>
-  );
-}
-function IconPick({ className = 'h-6 w-6' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden>
-      <path d="M14.5 3c2.5.4 5 2 6.5 4.2-1.6-.5-3-.4-4.3.2M9.5 3C7 3.4 4.5 5 3 7.2c1.6-.5 3-.4 4.3.2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="m12 6 1.6 1.6L7.4 20.4a1.1 1.1 0 0 1-1.9-1L12 6Z" fill="currentColor" />
-    </svg>
-  );
-}
-function IconSpinner({ className = 'h-6 w-6' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={`${className} animate-spin`} aria-hidden>
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
-      <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-    </svg>
-  );
 }

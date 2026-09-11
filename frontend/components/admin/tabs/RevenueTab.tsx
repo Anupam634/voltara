@@ -127,7 +127,7 @@ export function RevenueTab() {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black text-white">
-              💰 Booster Revenue Analytics
+              Booster Revenue Analytics
             </h2>
             <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[10px] font-black uppercase text-emerald-400">
               Confirmed On-Chain
@@ -146,26 +146,26 @@ export function RevenueTab() {
             disabled={downloading || !data}
             className="rounded-xl border border-white/10 bg-slate-900/80 px-3.5 py-2 text-xs font-bold text-slate-300 transition hover:border-amber-500 hover:text-amber-400 disabled:opacity-50"
           >
-            {downloading ? '⏳ Building CSV…' : '📥 Export Payers CSV'}
+            {downloading ? 'Building CSV…' : 'Export Payers CSV'}
           </button>
           <button
             onClick={load}
             className="rounded-xl border border-white/10 bg-slate-900/80 px-3.5 py-2 text-xs font-bold text-slate-300 transition hover:border-amber-500 hover:text-amber-400"
           >
-            🔄 Sync
+            Sync
           </button>
         </div>
       </div>
 
       {error && (
         <div className="rounded-xl border border-rose-500/30 bg-rose-950/30 p-3 text-xs text-rose-300">
-          ⚠️ {error}
+          {error}
         </div>
       )}
 
       {data?.seriesTruncated && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3 text-xs text-amber-300">
-          ⚠️ More confirmed payments fall inside this window than one read
+          More confirmed payments fall inside this window than one read
           returns, so the chart and the period cards below cover only the most
           recent of them. The headline totals are complete — export the CSV for
           the full history.
@@ -283,7 +283,7 @@ export function RevenueTab() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
               <div>
                 <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                  📈 Revenue Over Time
+                  Revenue Over Time
                 </h3>
                 <p className="text-xs text-slate-400">{GRAIN_CAPTION[grain]}</p>
               </div>
@@ -298,7 +298,7 @@ export function RevenueTab() {
                       onClick={() => setGrain(g)}
                       className={`rounded-lg px-3 py-1.5 font-bold uppercase transition ${
                         grain === g
-                          ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                          ? 'bg-violet-600 text-white shadow-md shadow-violet-600/25'
                           : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
@@ -354,7 +354,7 @@ export function RevenueTab() {
           <div className="card border-slate-800 bg-slate-900/80 p-6 backdrop-blur-md">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
               <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                🏷️ Revenue By Booster Category
+                Revenue By Booster Category
               </h3>
               <span className="font-mono text-xs text-slate-400">
                 {data.byCategory.length} plans in catalogue
@@ -458,7 +458,7 @@ export function RevenueTab() {
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
               <div>
                 <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                  👤 Spend Per Miner
+                  Spend Per Miner
                 </h3>
                 <p className="text-xs text-slate-400">
                   Top {data.topPayers.length} paying accounts of{' '}
@@ -571,7 +571,7 @@ export function RevenueTab() {
             <div className="card border-slate-800 bg-slate-900/80 p-6 backdrop-blur-md">
               <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                  🧾 Latest Confirmed Payments
+                  Latest Confirmed Payments
                 </h3>
                 <span className="font-mono text-[10px] text-slate-500">
                   Synced {new Date(data.generatedAt).toLocaleTimeString()}
@@ -617,7 +617,7 @@ export function RevenueTab() {
                               rel="noreferrer"
                               className="text-cyan-400 underline hover:text-cyan-300"
                             >
-                              🔗 {r.txHash.slice(0, 12)}…
+                              {r.txHash.slice(0, 12)}…
                             </a>
                           ) : (
                             <span className="text-slate-500">Manual approval</span>
