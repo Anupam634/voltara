@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "VOLTARA",
-    "slug": "voltara",
+    "slug": "volta",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -123,7 +123,7 @@
       "webUrl": "https://voltaragrid.com",
       "router": {},
       "eas": {
-        "projectId": "2c23423c-f64f-44a3-a9ce-08748d6631a0"
+        "projectId": "69a3ed01-b62a-4906-849d-993df652e733"
       }
     },
     "runtimeVersion": {
