@@ -42,12 +42,22 @@ padhe jaate hain, aur crypto mein pehle se trust deficit hai; `@VoltaraHQ` ya
 | Link | `https://www.voltaragrid.com` (www — apex 308 redirect karta hai) |
 | Location | blank chhodo |
 
-Bio (159 chars, limit 160):
+Bio (150 chars, limit 160):
 
 ```
 Build the rig. Hold the grid.
 
 Six slots. Heat and power are real constraints. GRID STABILITY multiplies everything you mine. Not another tap-to-earn.
+```
+
+Signup ke waqt X ise "Describe yourself — what makes you special? Don't think
+too hard, just have fun with it" ke roop mein poochta hai. Wahi bio field hai,
+aur wo composer line break accept nahi karta — to signup pe ye single line
+paste karo (149 chars), aur baad mein Settings → Edit profile se upar wala
+do-line version daal dena:
+
+```
+Build the rig. Hold the grid. Six slots. Heat and power are real constraints. GRID STABILITY multiplies everything you mine. Not another tap-to-earn.
 ```
 
 Dono `tools/brand/generate-assets.js` se nikalte hain, baaki har icon ki tarah
