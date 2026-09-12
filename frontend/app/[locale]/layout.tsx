@@ -1,7 +1,8 @@
 import type { Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
-import { locales } from '../../i18n';
+import { locales, type Locale } from '../../i18n';
+import { alternatesFor, SITE_URL } from '../seo';
 import { fontDisplay, fontMono, fontSans } from '../fonts';
 import { Backdrop } from '../../components/Backdrop';
 import { THEME_STORAGE_KEY } from '../../components/theme';
@@ -11,15 +12,24 @@ export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://voltaragrid.com';
 const TITLE = 'VOLTARA — Build the rig. Hold the grid.';
 const DESCRIPTION =
   'Not another tap-to-earn. Socket cores, coolers and PSUs into a six-slot rig, keep GRID STABILITY at 100%, and convert VOLTS to on-chain $VLTR on BNB Chain. Overheat and your output throttles.';
 
 // Open Graph + Twitter card: when a miner tweets their invite link (the
 // "Post on X" bounty), X unfurls this image and title under the post.
-export const metadata = {
+export async function generateMetadata({
+  params,
+}: {
+  params: { locale: string };
+}) {
+  const locale = params.locale as Locale;
+  return {
   metadataBase: new URL(SITE_URL),
+  // Without these the three locales read as three copies of one page and
+  // compete with each other in the index instead of each serving its own
+  // language.
+  alternates: alternatesFor(locale),
   title: TITLE,
   description: DESCRIPTION,
   manifest: '/manifest.webmanifest',
@@ -44,7 +54,13 @@ export const metadata = {
     description: DESCRIPTION,
     images: ['/og-image.png'],
   },
-};
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large' as const },
+  },
+  };
+}
 
 export const viewport: Viewport = {
   width: 'device-width',

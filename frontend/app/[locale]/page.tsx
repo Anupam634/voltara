@@ -20,6 +20,7 @@ import { GridEventBanner } from '../../components/grid/GridEventBanner';
 import { LiveGridMap } from '../../components/grid/LiveGridMap';
 import { GridPulse } from '../../components/grid/GridPulse';
 import { FeatureGrid } from '../../components/landing/FeatureGrid';
+import { StructuredData } from '../../components/landing/StructuredData';
 import { PayoutTerms } from '../../components/landing/PayoutTerms';
 
 export default function LandingPage({
@@ -59,6 +60,7 @@ function Landing({ locale }: { locale: string }) {
 
   return (
     <div className="min-h-dvh">
+      <StructuredData locale={locale} />
       <NetworkStatusBar />
 
       {/* ─────────────────────────── Header ─────────────────────────── */}
