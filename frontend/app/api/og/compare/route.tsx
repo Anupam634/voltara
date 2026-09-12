@@ -81,6 +81,48 @@ const BALANCED: Build = {
   verdict: 'Holding',
 };
 
+const LOANER: Build = {
+  usd: 1,
+  parts: '1 × VC-1 Volt Core',
+  slots: [BRAND_HI, null, null, null, null, null],
+  heat: [10, 12],
+  power: [45, 120],
+  stability: 100,
+  rate: 2.9,
+  accent: CHARGE,
+  verdict: 'Holding',
+};
+
+/**
+ * The presets.
+ *
+ * `overbuilt` is the launch card: near enough the same money, seven times the
+ * output. `dollar` is the harder version of the same claim -- the cheapest
+ * part in the catalogue, alone in a bare chassis, out-earning a rig that cost
+ * twenty times as much -- and it is worth having as its own card because a
+ * product saying its $1 option beats its $20 one is the part people repeat.
+ *
+ * The balanced rig is deliberately not the *cheapest* 100% build. VC-10 +
+ * CX-2 + PS-3 costs $15 and also holds 100%, but at 52 heat against exactly
+ * 52 cooling it sits on the knife edge: any grid event that raises heat drops
+ * it under. Putting a build with no margin on a pinned card would be a claim
+ * that quietly stops being true.
+ */
+const PRESETS: Record<string, { left: Build; right: Build; headline: string; footer: string }> = {
+  overbuilt: {
+    left: OVERBUILT,
+    right: BALANCED,
+    headline: 'SAME MONEY. SEVEN TIMES THE OUTPUT.',
+    footer: 'The rig on the left has twice the hash. It keeps 7% of it.',
+  },
+  dollar: {
+    left: OVERBUILT,
+    right: LOANER,
+    headline: 'OUR $1 PART BEATS OUR $20 BUILD.',
+    footer: 'The rig on the left has twenty times the hash. It keeps 7% of it.',
+  },
+};
+
 function Slots({ slots }: { slots: (string | null)[] }) {
   return (
     <div style={{ display: 'flex' }}>
@@ -219,7 +261,8 @@ function Panel({ build }: { build: Build }) {
   );
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const preset = PRESETS[new URL(req.url).searchParams.get('p') ?? ''] ?? PRESETS.overbuilt;
   return new ImageResponse(
     (
       <div
@@ -264,7 +307,7 @@ export async function GET() {
             </div>
           </div>
           <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: 3, color: INK_2 }}>
-            SAME MONEY. SEVEN TIMES THE OUTPUT.
+            {preset.headline}
           </div>
         </div>
 
@@ -275,8 +318,8 @@ export async function GET() {
             marginTop: 44,
           }}
         >
-          <Panel build={OVERBUILT} />
-          <Panel build={BALANCED} />
+          <Panel build={preset.left} />
+          <Panel build={preset.right} />
         </div>
 
         <div
@@ -288,7 +331,7 @@ export async function GET() {
           }}
         >
           <div style={{ fontSize: 26, color: INK_2 }}>
-            The rig on the left has twice the hash. It keeps 7% of it.
+            {preset.footer}
           </div>
           <div style={{ fontSize: 26, fontWeight: 700, color: BRAND_HI }}>
             voltaragrid.com

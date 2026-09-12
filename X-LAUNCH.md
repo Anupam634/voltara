@@ -203,7 +203,135 @@ reach hai; quote naya post hai.
 
 Roz post karna zaroori nahi. Khaali din ek bakwaas post se behtar hai.
 
-## 7. Jo kabhi post nahi karna
+## 7. Post bank
+
+Official page se. Inme se koi bhi post karne ke liye users ki zaroorat nahi —
+sab abhi sach hain. Har number engine se nikla hai (`rigTelemetry` +
+`effectiveRateMilli`, catalogue `backend/prisma/seed.js`).
+
+Ek baat pehle: **post viral karne ka koi tareeka nahi hai.** Jo control mein
+hai wo ye hai ki post ki *shakl* aisi ho jise koi apni baat jod ke aage bhej
+sake. X pe reach quote aur reply se aati hai, like se nahi. Isliye har post
+neeche ya to ek aisa daava hai jispe koi ruk jaaye, ya ek sawaal jiska jawab
+dena sasta ho.
+
+### P1 — Sabse strong (232 chars)
+
+Image: `/api/og/compare?p=dollar`
+
+```
+Our $1 part beats our $20 build.
+
+One VC-1 core in a bare chassis: 2.90/hr, holding 100%.
+
+Four $5 cores and no cooler: twenty times the hash, 104 heat against 12 cooling. 7% stability, 2.79/hr.
+
+Spending more isn't building better.
+```
+
+Company apne hi $1 wale option ko $20 wale se upar bata rahi hai — yehi wo
+hissa hai jo log repeat karte hain. Anti-sales lagta hai, isliye bikta hai.
+
+### P2 — Guess (197 chars)
+
+```
+Six slots:
+3 × VC-10 Plasma Core
+1 × CX-6 Cryo Loop
+1 × PS-3 Feeder Unit
+
+Heat: 148, against 132 cooling.
+Power: 640 W, against 380 supplied.
+
+$39 spent. Guess the GRID STABILITY before you scroll.
+```
+
+Jawab **53%** hai, 32.25/hr. Use apne hi post ke reply mein daalo, 30–60 minute
+baad. Har guess ek reply hai, aur reply reach badhate hain. Ye format har hafte
+naye build ke saath dobara chal sakta hai.
+
+### P3 — Jo galti sab karte hain (234 chars)
+
+Image: `/api/og/compare` (default)
+
+```
+Nobody's first rig has a cooler in it.
+
+Four cores, every slot that matters filled, looks maxed out. The bare chassis gives you 12 cooling. Those cores make 104 heat.
+
+It runs at 7%.
+
+The fix costs $2. Most people find it a week late.
+```
+
+Sikhane wale posts bookmark hote hain, aur bookmark X ke liye strong signal hai.
+
+### P4 — Challenge (209 chars)
+
+```
+$15. Six slots. Highest GRID STABILITY wins.
+
+Cores make hash and heat. Coolers remove heat and cost watts. PSUs supply watts and make a little heat.
+
+Post your build. I'll run the real numbers on every reply.
+```
+
+Ye ek aisa post hai jo actually users laata hai: jo reply karega wo pehle hi
+tumhare mechanic ke baare mein soch chuka hoga. Jawab dena tumhare liye free
+hai — `rigTelemetry` har build ka number nikaal deta hai. Jawab dena bhoolna
+mat, warna ulta asar hoga.
+
+### P5 — Build in public (254 chars)
+
+```
+Our own admin dashboard was showing this:
+
+≈ 35.00 $VLTR (~$5.25)
+
+The $5.25 came from a hardcoded $0.15 per token. $VLTR has never been on a chain and has never traded. There is no price.
+
+Deleted it. A number that isn't measured doesn't go on a screen.
+```
+
+Ye sach hai aur crypto mein aisa post durlabh hai, isliye phailta hai. Saath hi
+ye §8 wala rule public kar deta hai, jisse baad mein usse hatna mushkil ho
+jaata hai — jo achhi baat hai.
+
+### P6 — Category contrast (238 chars)
+
+```
+Tap-to-earn gives you one button and one number that goes up.
+
+VOLTARA gives you six slots, a heat budget, a power budget, and a stability figure that multiplies everything the rig makes.
+
+Same idle loop. One of them has a decision in it.
+```
+
+Ek saaf position. Kisi ka naam mat lena — category pe baat karo, competitor pe
+nahi, warna baat product se hat ke ladai pe aa jaati hai.
+
+### Verified builds
+
+Inhe naye posts banane ke liye use karo. Engine se nikle hain, 12 Sep 2026:
+
+| Build | $ | Heat | Power | Stability | Earns |
+|---|---|---|---|---|---|
+| VC-1 akela | 1 | 10/12 | 45/120 | 100% | 2.90/hr |
+| VC-5 + CX-2 + PS-3 | 10 | 30/52 | 128/380 | 100% | 10.90/hr |
+| VC-10 + CX-2 + PS-3 | 15 | 52/52 | 218/380 | 100% | 20.90/hr |
+| 4 × VC-5 | 20 | 104/12 | 440/120 | **7%** | 2.79/hr |
+| 2 × VC-5 + CX-6 + PS-3 | 19 | 56/132 | 260/380 | 100% | 20.90/hr |
+| 3 × VC-10 + CX-6 + PS-3 | 39 | 148/132 | 640/380 | **53%** | 32.25/hr |
+| 2 × VC-10 + CX-20 + PS-12 + OD-8 | 60 | 122/432 | 520/1020 | 100% | 46.90/hr |
+
+$15 wala 100% pe hai lekin **52 heat against exactly 52 cooling** — zero
+margin. Koi bhi grid event heat badhaye to wo 100% se gir jaata hai. Isliye
+launch card pe $19 wala hai, $15 wala nahi: pinned card pe aisa daava nahi
+jaana chahiye jo chupchaap jhoot ho jaaye.
+
+Catalogue badla to ye poori table dobara nikalni padegi.
+
+## 8. Jo kabhi post nahi karna
 
 - **$VLTR ka koi bhi price ya market cap.** Token on-chain hai hi nahi, kabhi
   trade nahi hua. Ek bhi dollar figure post ho gaya to wahi screenshot ban ke
@@ -216,7 +344,7 @@ Roz post karna zaroori nahi. Khaali din ek bakwaas post se behtar hai.
   kare. Ye GROWTH.md §6 wali hi baat hai, bas ab public.
 - **Giveaway/airdrop hype.** Bounties app ke andar hain, wahi theek hai.
 
-## 8. Account banne ke baad
+## 9. Account banne ke baad
 
 1. `X_PINNED_POST_URL` = pinned post ka poora URL (`.../status/123…`), Render
    env mein. Status ID hoga tabhi REPOST one-tap repost intent banega; profile
