@@ -77,13 +77,41 @@ Backend: `referrals.service.ts` mein tier unlock pe `Booster` grant with
 
 ## 5. Distribution
 
+Pehle ye maano: **referral loop engine nahi hai, multiplier hai.** Zero ko
+multiply karoge to zero hi milega. Pehle ~100 users kahin aur se laane padenge,
+aur wo jagah loop nahi ho sakti.
+
+Isliye do alag list hain, aur inhe mix karna hi sabse badi galti hogi.
+
+### 5a. Cold start: 0 → 100
+
+| Channel | Kyun abhi | Kya lagta hai |
+|---|---|---|
+| Incremental / idle game communities (r/incremental_games, idle-game Discords) | Mechanic hi pitch hai. Ye log build optimise karne ke liye aate hain, payout ke liye nahi — aur payouts abhi band hain | Ek achhi post, koi paisa nahi |
+| KO + ZH micro-KOLs | Product pehle se teen zubaan mein hai; zyadatar competitors nahi hain. Naver cafe, Kakao open chat, WeChat | 3–5 KOLs ko free VC-5 + custom code |
+| Airdrop aggregators (airdrops.io, CMC airdrop, DappRadar, Airdropalert) | Sabse zyada volume, sabse tez, submit karna free | Ek form, par listing pe **pre-launch** likhna zaroori |
+| Telegram GameFi / airdrop channels | Ye poori category Telegram pe rehti hai, X pe nahi | Channel outreach |
+| Reddit: r/airdrops, r/PlayToEarn, r/CryptoMoonShots | Promo allowed hai, r/CryptoCurrency ke ulat | Post + replies |
+
+**Kaunsa darwaza khatkhataoge wo tay karta hai kaun aayega.** Airdrop hunters
+sabse tez aate hain aur sabse tez chale jaate hain — aur `PAYOUTS_OPEN=false`
+dekh ke public mein shikayat karenge, kyunki unse wahi wada kiya gaya tha. Idle
+game wale kam hain lekin wo actually khelte hain aur mechanic pe asli feedback
+dete hain. Abhi jo chahiye wo earners nahi, **playtesters** hain — to pitch bhi
+"ise khelo" hona chahiye, "isse kamao" nahi.
+
+Iska matlab D7 aur share rate tabhi kuch kehte hain jab wo sahi audience se
+aaye hon. 500 airdrop hunters ka D7 2% tumhe kuch nahi batata.
+
+### 5b. Loop: 100+
+
 | Channel | Kya karna hai | Fit |
 |---|---|---|
-| Telegram mini app | Dashboard + Mine ko TG WebApp mein wrap. Referral share native hai. | High |
-| X bounties (already) | Tweet task ko "share your rig card" (image) banao: 5–10x reach | High |
-| KO + ZH communities | Naver cafe, Kakao open chat, WeChat: 3–5 micro-KOLs ko free VC-5 + custom code | High |
+| Rig card shares | Har share miner ka apna rig unfurl karta hai (`/r/<code>`), ek jaisa house ad nahi | High |
+| X bounties | **Cold start pe zero hain** — bounty karne wala hi koi nahi. 100 active users ke baad hi inka matlab hai | High (baad mein) |
+| Telegram mini app | Dashboard + Mine ko TG WebApp mein wrap. Referral share native hai | High |
+| Seasons + leaderboard | Hafte ka reset wapas aane ki wajah deta hai | Medium |
 | YouTube build videos | "Best $10 rig", "How to hit 100% stability"; calculator embed | Medium |
-| Airdrop trackers | airdrops.io, CMC airdrop list, DappRadar | Medium |
 | Paid ads | Abhi nahi; pehle organic K-factor 0.5+ | Later |
 
 X account ka handle, bio, pinned post aur pehle hafte ke posts **X-LAUNCH.md**
@@ -151,8 +179,11 @@ ko share karne ka reason do. Isliye order hai: **instant first claim + loaner
 core → streak/retention → rig card sharing.** Rig card ek multiplier hai, engine
 nahi: agar log ruk hi nahi rahe to behtar card zero ko multiply karega.
 
-**Pehle 2 hafte:** items 1, 2, 3 ship karo. 100 real users lao (KOL codes + X
-bounty), share rate + D7 measure karo. Share rate 10%+ hai to 4, 5, 6 pe jao;
-nahi to rig card ka design fix karo pehle, woh loop ka engine hai.
+**Pehle 2 hafte:** items 1, 2, 3 ship karo, phir pehle 100 users §5a se lao —
+idle-game communities aur KO/ZH KOL codes. X bounty se nahi: wo loop ka hissa
+hai, aur loop tab tak zero hai jab tak usme log na hon.
+
+Uske baad share rate + D7 measure karo. 10%+ hai to 4, 5, 6 pe jao; nahi to
+pehle rig card ka design theek karo — wo loop ka engine hai.
 
 Jo sabse zyada matter karta hai: user ko apna rig dikhane pe garv ho.
