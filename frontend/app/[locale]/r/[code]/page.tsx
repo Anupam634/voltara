@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { setRequestLocale } from 'next-intl/server';
+import { SITE_URL, X_TAG } from '../../../seo';
 import RigCardClient from './rig-card-client';
 
 /**
@@ -16,7 +17,6 @@ import RigCardClient from './rig-card-client';
  */
 export const dynamic = 'force-dynamic';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://voltaragrid.com';
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
 
 interface CardHead {
@@ -69,7 +69,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: 'summary_large_image',
-      site: '@VoltaraGrid',
+      site: X_TAG,
       title,
       description,
       images: [image],

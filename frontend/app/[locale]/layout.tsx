@@ -2,7 +2,7 @@ import type { Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { locales, type Locale } from '../../i18n';
-import { alternatesFor, SITE_URL } from '../seo';
+import { alternatesFor, SITE_URL, X_TAG } from '../seo';
 import { fontDisplay, fontMono, fontSans } from '../fonts';
 import { Backdrop } from '../../components/Backdrop';
 import { THEME_STORAGE_KEY } from '../../components/theme';
@@ -48,8 +48,8 @@ export async function generateMetadata({
   },
   twitter: {
     card: 'summary_large_image',
-    site: '@VoltaraGrid',
-    creator: '@VoltaraGrid',
+    site: X_TAG,
+    creator: X_TAG,
     title: TITLE,
     description: DESCRIPTION,
     images: ['/og-image.png'],

@@ -127,7 +127,7 @@ const DEFAULT_QUIZ_QUESTIONS: QuizQuestionDto[] = [
 /** Public site, used to build the invite link inside the tweet. */
 const WEB_URL = (process.env.WEB_URL || 'https://voltaragrid.com').replace(/\/$/, '');
 /** Official X handle, without the @. */
-const X_HANDLE = process.env.X_HANDLE || 'Voltara';
+const X_HANDLE = process.env.X_HANDLE || 'VoltaraGrid';
 /** The pinned post to repost. Falls back to the profile, where it sits on top. */
 const X_PINNED_POST_URL = process.env.X_PINNED_POST_URL || `https://x.com/${X_HANDLE}`;
 

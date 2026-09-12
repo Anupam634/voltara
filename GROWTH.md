@@ -86,6 +86,10 @@ Backend: `referrals.service.ts` mein tier unlock pe `Booster` grant with
 | Airdrop trackers | airdrops.io, CMC airdrop list, DappRadar | Medium |
 | Paid ads | Abhi nahi; pehle organic K-factor 0.5+ | Later |
 
+X account ka handle, bio, pinned post aur pehle hafte ke posts **X-LAUNCH.md**
+mein hain. Pinned post ka URL `X_PINNED_POST_URL` mein daalna zaroori hai —
+REPOST bounty wahi padhta hai.
+
 ## 6. Trust
 
 - **Fake numbers kabhi nahi.** Landing strip ab measured grid stats dikhati hai

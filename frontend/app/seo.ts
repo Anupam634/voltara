@@ -30,6 +30,22 @@ export const SITE_URL = (
  * `[code]` route — those are per-miner share links, not site pages, and a
  * sitemap full of them would be noise that never resolves for anyone else.
  */
+/**
+ * The official X account, without the @.
+ *
+ * Lives here next to SITE_URL because it is brand identity rather than page
+ * content: it appears in the Twitter card of every page, in the footer, and
+ * in the share intents the referral screen builds. It was written out by hand
+ * in four places and the backend had drifted to a different handle, so the
+ * FOLLOW bounty was sending miners to an account that is not ours.
+ *
+ * One constant, because the account does not exist yet and the handle may
+ * still have to change if it turns out to be taken.
+ */
+export const X_HANDLE = 'VoltaraGrid';
+export const X_TAG = `@${X_HANDLE}`;
+export const X_URL = `https://x.com/${X_HANDLE}`;
+
 export const PUBLIC_PATHS = ['', '/faq', '/terms', '/privacy'] as const;
 
 /**

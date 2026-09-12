@@ -11,6 +11,7 @@ import { RigShowcase } from '../../components/RigShowcase';
 import { ReferralTierMatrix } from '../../components/ReferralTierMatrix';
 import { TasksBountySection } from '../../components/TasksBountySection';
 import { FAQSection } from '../../components/FAQSection';
+import { X_TAG, X_URL } from '../seo';
 import { LogoMark } from '../../components/Logo';
 import { LocaleSwitcher } from '../../components/LocaleSwitcher';
 import { ThemeToggle } from '../../components/ThemeToggle';
@@ -412,7 +413,7 @@ function Landing({ locale }: { locale: string }) {
                 BNB Chain mainnet
               </span>
               <a
-                href="https://x.com/VoltaraGrid"
+                href={X_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Voltara on X"
@@ -421,7 +422,7 @@ function Landing({ locale }: { locale: string }) {
                 <svg viewBox="0 0 24 24" aria-hidden="true" className="h-3 w-3 fill-current">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
-                @VoltaraGrid
+                {X_TAG}
               </a>
             </div>
           </div>
