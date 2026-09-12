@@ -189,12 +189,39 @@ export class EmailService {
    * never sets it.
    */
   private fromHeader(): string {
-    const configured = (process.env.SMTP_FROM ?? '').trim();
-    if (configured) return configured;
     const senderEmail = (process.env.SMTP_USER || 'hello@voltaragrid.com')
       .trim()
       .toLowerCase();
-    return `"VOLTARA Labs" <${senderEmail}>`;
+    const configured = (process.env.SMTP_FROM ?? '').trim();
+    if (!configured) return `"VOLTARA Labs" <${senderEmail}>`;
+
+    // The address is always the authenticated mailbox, whatever SMTP_FROM
+    // says. A From that does not match the login is rejected outright —
+    // `553 Sender address rejected: not owned by user` — and that failure
+    // takes signup down completely while the transporter still verifies
+    // green, so nothing upstream looks wrong.
+    //
+    // It is an easy value to get wrong. Written in a .env file the display
+    // name needs escaping (`SMTP_FROM="\"VOLTARA\" <me@host>"`), and
+    // pasting that same string into a dashboard — which does no unquoting —
+    // sends the backslashes to the mail server verbatim.
+    //
+    // So only the display name is taken from the config, and only if it
+    // survives being stripped of quotes and backslashes.
+    const address = configured.match(/[^\s<>"']+@[^\s<>"']+\.[^\s<>"']+/)?.[0]?.toLowerCase();
+    const name = configured
+      .replace(/<[^>]*>/g, '')
+      .replace(/["'\\]/g, '')
+      .trim();
+
+    if (address && address !== senderEmail) {
+      this.logger.warn(
+        `[EmailService] SMTP_FROM address (${address}) is not the authenticated ` +
+          `mailbox (${senderEmail}); the mail server would reject it. Using the ` +
+          'mailbox address and keeping only the display name.',
+      );
+    }
+    return name ? `"${name}" <${senderEmail}>` : `"VOLTARA Labs" <${senderEmail}>`;
   }
 
   /**
