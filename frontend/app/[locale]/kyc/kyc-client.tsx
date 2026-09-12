@@ -125,7 +125,28 @@ export default function KycClient() {
         </div>
       ) : (
         <div className="space-y-4">
-          <StatusCard state={state} locale={params.locale} />
+          {/* Closed is the normal state before launch, not an error: KYC gates
+              only the withdrawal path, and that path refuses everyone while
+              payouts are shut. Say so plainly rather than showing a form with
+              no submit button and no reason. */}
+          {!state.open && (
+            <Notice tone="default" icon={<Icon name="lock" size={16} />}>
+              <div className="text-xs font-extrabold text-ink">{t('closedTitle')}</div>
+              <p className="mt-1 text-[11px] leading-relaxed">{t('closedBody')}</p>
+              {state.opensAt && (
+                <p className="v-num mt-2 text-[11px] font-bold text-ink-2">
+                  {t('closedWhen', {
+                    date: new Date(state.opensAt).toLocaleDateString(params.locale, {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    }),
+                  })}
+                </p>
+              )}
+            </Notice>
+          )}
+          {state.status !== 'NONE' && <StatusCard state={state} locale={params.locale} />}
           {state.canSubmit && <SubmitForm onDone={load} locale={params.locale} />}
         </div>
       )}

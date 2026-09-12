@@ -96,6 +96,8 @@ export interface Profile {
   referralCount: number;
   referralTier: { level: number; multiplier: number };
   kycStatus: KycStatus;
+  /** False while verification is not being collected at all. */
+  kycOpen: boolean;
   createdAt: string;
 }
 
@@ -390,6 +392,10 @@ export interface KycStatusDto {
   reviewedAt: string | null;
   reviewerNote: string | null;
   canSubmit: boolean;
+  /** False while verification is not being collected at all. */
+  open: boolean;
+  /** Announced opening instant, so the UI can say *when*. */
+  opensAt: string | null;
 }
 
 export interface KycImage {

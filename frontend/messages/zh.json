@@ -526,7 +526,10 @@
       "NATIONAL_ID": "身份证",
       "DRIVERS_LICENSE": "驾驶证"
     },
-    "countryPlaceholder": "请选择您的国家/地区"
+    "countryPlaceholder": "请选择您的国家/地区",
+    "closedTitle": "身份验证将在代币上线时开放",
+    "closedBody": "目前还没有需要验证的东西 —— 在 $VLTR 上链之前提现是关闭的。在真正需要之前，我们不愿意保管你的身份证件。继续挖矿即可，你的 VOLTS 照常累积。",
+    "closedWhen": "{date} 开放"
   },
   "profile": {
     "title": "个人资料",

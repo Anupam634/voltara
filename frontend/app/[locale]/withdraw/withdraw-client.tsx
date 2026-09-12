@@ -232,8 +232,10 @@ function RequestForm({
         {eligible && <div className="v-trace mt-4" />}
         {!eligible && <div className="v-divider mt-4" />}
 
-        {/* Gates, most blocking first. */}
-        {!kycOk && (
+        {/* Gates, most blocking first. The payouts-closed notice above already
+            explains why nothing can be withdrawn; pushing someone toward a
+            verification form that refuses them adds a second dead end. */}
+        {!kycOk && profile.kycOpen && (
           <Link href={`/${locale}/kyc`} className="mt-4 block">
             <Notice tone="warn" icon={<Icon name="shield" size={16} />} className="transition hover:border-warn/70">
               <span className="flex items-center justify-between gap-3">

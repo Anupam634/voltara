@@ -574,7 +574,29 @@ granting in `referrals.service.ts`.
 - **Approval:** manual admin review before on-chain payout. Admin approve and
   reject stay available while the window is shut, so any request that predates
   the gate can still be settled or refunded.
-- **KYC:** must be completed/approved before withdrawal.
+- **KYC:** must be completed/approved before withdrawal — and is **not
+  collected until there is a withdrawal to collect it for**. Verification has
+  its own window (`KYC_OPEN` / `KYC_OPEN_AT`, `src/kyc/kyc-window.ts`) which
+  **follows the payout window by default**.
+
+  KYC gates exactly one call site in this codebase, `WithdrawalsService.request`,
+  and that call refuses everyone twenty lines earlier while `PAYOUTS_OPEN` is
+  false — so the check is unreachable, and asking for passport photographs to
+  satisfy it buys nothing. It costs plenty: it is the heaviest friction in the
+  funnel, it puts real identity documents in Postgres (base64) with no present
+  use, and each one costs an operator a manual review for a payout that cannot
+  happen. Collecting personal data before you need it is a liability; a breach
+  would expose IDs that were never required. Note also that no provider has
+  been chosen (§9b.4), so documents gathered in-house now may have to be
+  gathered again later anyway.
+
+  Following payouts rather than being a second independent switch prevents the
+  one failure that matters: opening payouts while KYC stays shut turns every
+  withdrawal into "KYC must be approved" with no way for anyone to comply.
+  `KYC_OPEN="true"` exists only to run verification *ahead* of launch and
+  spread the review load. The **admin review queue stays open either way**, so
+  a record submitted before the gate is never stranded — the same rule the
+  payout window follows for approve/reject.
 - Fees: **OPEN** — client hasn't specified a withdrawal fee. **See §9.**
 
 ---

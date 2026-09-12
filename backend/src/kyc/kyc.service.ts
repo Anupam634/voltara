@@ -1,6 +1,12 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { SubmitKycDto } from './dto';
+import { KYC_CLOSED_MESSAGE, readKycWindow, type KycWindow } from './kyc-window';
 
 /** Image kinds an applicant can attach, in display order. */
 const KINDS = ['front', 'back', 'selfie'] as const;
@@ -17,6 +23,10 @@ export interface KycStatusDto {
   reviewerNote: string | null;
   /** Whether the user may submit (or re-submit) right now. */
   canSubmit: boolean;
+  /** False while verification is not being collected at all. */
+  open: boolean;
+  /** Announced opening instant, so the UI can say *when* rather than only *not yet*. */
+  opensAt: string | null;
 }
 
 /**
@@ -29,12 +39,31 @@ export interface KycStatusDto {
  */
 @Injectable()
 export class KycService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {}
+
+  /**
+   * Whether documents are being collected at all.
+   *
+   * Read per call rather than resolved at boot: this is the switch that goes
+   * live alongside the token, and it should not need a redeploy.
+   */
+  window(): KycWindow {
+    return readKycWindow({
+      KYC_OPEN: this.config.get<string>('KYC_OPEN'),
+      KYC_OPEN_AT: this.config.get<string>('KYC_OPEN_AT'),
+      PAYOUTS_OPEN: this.config.get<string>('PAYOUTS_OPEN'),
+      PAYOUTS_OPEN_AT: this.config.get<string>('PAYOUTS_OPEN_AT'),
+    });
+  }
 
   /** The caller's own status. Never returns document payloads. */
   async mine(userId: string): Promise<KycStatusDto> {
     const rec = await this.prisma.kycRecord.findUnique({ where: { userId } });
     const status = (rec?.status ?? 'NONE') as KycStatusDto['status'];
+    const window = this.window();
     return {
       status,
       fullName: rec?.fullName ?? null,
@@ -44,12 +73,23 @@ export class KycService {
       reviewedAt: rec?.reviewedAt ?? null,
       reviewerNote: rec?.reviewerNote ?? null,
       // Re-submission is allowed after a rejection; a pending or approved
-      // record is left alone.
-      canSubmit: status === 'NONE' || status === 'REJECTED',
+      // record is left alone. A closed window overrides all of that: there
+      // is nothing to verify *for* yet.
+      canSubmit: window.open && (status === 'NONE' || status === 'REJECTED'),
+      open: window.open,
+      opensAt: window.opensAt,
     };
   }
 
   async submit(userId: string, dto: SubmitKycDto): Promise<KycStatusDto> {
+    // Before anything is read, and well before an image is stored: while the
+    // window is shut there is no payout these documents could unlock, and
+    // identity papers we have no use for are a liability rather than an
+    // asset. Refuse rather than queue.
+    if (!this.window().open) {
+      throw new ServiceUnavailableException(KYC_CLOSED_MESSAGE);
+    }
+
     const existing = await this.prisma.kycRecord.findUnique({
       where: { userId },
     });

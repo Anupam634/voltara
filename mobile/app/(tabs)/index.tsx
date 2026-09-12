@@ -644,8 +644,10 @@ function BalancePanel({
         style={{ marginTop: spacing.md }}
       />
 
-      {/* KYC gate */}
-      {profile ? (
+      {/* KYC gate. Hidden entirely while verification is not being collected:
+          KYC gates only the withdrawal path, which is shut until launch, so
+          pushing someone at a form that refuses them is pure friction. */}
+      {profile && (profile.kycStatus === 'APPROVED' || profile.kycOpen) ? (
         profile.kycStatus === 'APPROVED' ? (
           <View
             style={{

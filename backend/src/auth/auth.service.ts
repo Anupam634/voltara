@@ -19,6 +19,7 @@ import {
   ResetPasswordDto,
 } from './dto';
 import { referralTierFor } from '../mining/mining.engine';
+import { readKycWindow } from '../kyc/kyc-window';
 import { LoanerService } from '../rig/loaner.service';
 import { canonicalizeEmail } from '../common/canonical-email';
 
@@ -371,6 +372,16 @@ export class AuthService {
       referralCount: user._count.referrals,
       referralTier: referralTierFor(user._count.referrals),
       kycStatus: user.kyc?.status ?? 'NONE',
+      // Carried alongside the status so every screen that nags a miner to
+      // verify also knows whether verification is being collected at all.
+      // Without it the dashboard and the withdraw screen each push people
+      // toward a form that refuses them.
+      kycOpen: readKycWindow({
+        KYC_OPEN: process.env.KYC_OPEN,
+        KYC_OPEN_AT: process.env.KYC_OPEN_AT,
+        PAYOUTS_OPEN: process.env.PAYOUTS_OPEN,
+        PAYOUTS_OPEN_AT: process.env.PAYOUTS_OPEN_AT,
+      }).open,
       createdAt: user.createdAt,
     };
   }

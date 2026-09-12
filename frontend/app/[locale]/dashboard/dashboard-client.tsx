@@ -469,11 +469,13 @@ function BalanceColumn({
 
         <div className="v-divider my-4" />
 
+        {/* Nothing to nag about while verification is not being collected —
+            KYC gates only the withdrawal path, which is shut anyway. */}
         {kycOk ? (
           <Notice tone="ok" icon={<Icon name="shield" size={16} />}>
             {t('kycVerified')}
           </Notice>
-        ) : (
+        ) : !profile.kycOpen ? null : (
           <Link href={`/${locale}/kyc`} className="block">
             <Notice tone="warn" icon={<Icon name="shield" size={16} />}>
               <span className="block">{t('kycRequired', { status: profile.kycStatus })}</span>

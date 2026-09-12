@@ -54,6 +54,10 @@ services:
         sync: false
       - key: BOOSTER_PAY_TOKEN_ADDRESS
         sync: false
+      # KYC follows the payout window unless set. Left unset on purpose:
+      # documents are not collected until there is a payout to verify for.
+      - key: KYC_OPEN
+        sync: false
       - key: WALLET_MODE
         value: offchain
       - key: BSC_RPC_URL

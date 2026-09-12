@@ -526,7 +526,10 @@
       "NATIONAL_ID": "National ID",
       "DRIVERS_LICENSE": "Driver's licence"
     },
-    "countryPlaceholder": "Select your country"
+    "countryPlaceholder": "Select your country",
+    "closedTitle": "Verification opens at token launch",
+    "closedBody": "There is nothing to verify for yet — withdrawals are closed until $VLTR is on-chain. We would rather not hold your identity documents before we actually need them. Keep mining; your VOLTS accrue either way.",
+    "closedWhen": "Opens {date}"
   },
   "profile": {
     "title": "Profile",
