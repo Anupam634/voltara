@@ -78,6 +78,27 @@ Ye sirf ek post nahi hai — REPOST bounty isi ki taraf point karta hai. Post
 karne ke baad uska URL `X_PINNED_POST_URL` mein daalo, warna bounty profile pe
 gir jaayega aur miner ko pata hi nahi chalega kya repost karna hai.
 
+**Image ke saath post karna.** Text wala post timeline mein gayab ho jaata
+hai, aur ye pinned rahega — saal bhar log ise dekhenge. Card yahan render hota
+hai:
+
+```
+https://www.voltaragrid.com/api/og/compare
+```
+
+1600×900, do rigs side by side: $20 wala 7% stability pe 2.79/hr, $19 wala
+100% pe 20.90/hr. Saare numbers asli engine se nikle hain (`rigTelemetry` +
+`effectiveRateMilli`, catalogue `backend/prisma/seed.js` se), kisi ne acche
+dikhne wale figures chun ke nahi likhe.
+
+**Iska matlab ye bhi hai ki catalogue badla to card jhoot bolne lagega.** Kisi
+part ka heat, watts ya price badlo to `frontend/app/api/og/compare/route.tsx`
+ke numbers dobara nikalna padenge — aur ye pinned post hai, wahan galat number
+wapas nahi liya ja sakta.
+
+Attach karte waqt link post mein rehne do; image attach karne pe X unfurl card
+nahi dikhata, to dono ka conflict nahi hota.
+
 ```
 VOLTARA is not a tap-to-earn button.
 
