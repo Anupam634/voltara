@@ -1,4 +1,4 @@
-import { normalisePath, referrerHost } from './visits.service';
+import { isExcludedPath, normalisePath, referrerHost } from './visits.service';
 
 const SELF = ['voltaragrid.com', 'localhost'];
 
@@ -47,5 +47,25 @@ describe('normalisePath', () => {
     for (const junk of ['https://evil.com', '', null, undefined, 7]) {
       expect(normalisePath(junk)).toBeNull();
     }
+  });
+});
+
+describe('isExcludedPath', () => {
+  it('drops the admin console, which is the operator looking at this number', () => {
+    expect(isExcludedPath('/admin')).toBe(true);
+    expect(isExcludedPath('/admin/users')).toBe(true);
+  });
+
+  it('keeps a public path that merely begins with the same letters', () => {
+    expect(isExcludedPath('/administration-guide')).toBe(false);
+    expect(isExcludedPath('/faq')).toBe(false);
+    expect(isExcludedPath(null)).toBe(false);
+  });
+
+  it('matches after the locale prefix is stripped', () => {
+    // The beacon sends `/en/admin`; only the normalised form is checked, so
+    // the two have to agree or the guard silently does nothing.
+    expect(isExcludedPath(normalisePath('/en/admin'))).toBe(true);
+    expect(isExcludedPath(normalisePath('/ko/admin/withdrawals'))).toBe(true);
   });
 });

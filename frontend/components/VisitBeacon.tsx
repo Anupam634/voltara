@@ -16,6 +16,21 @@ import { useEffect } from 'react';
  */
 const KEY = 'vg:visit';
 
+/**
+ * The admin console is not a visit.
+ *
+ * It sits under the same locale layout as the public site, so the beacon
+ * mounted on it and the operator counted themselves every time they opened
+ * their own panel -- on the very screen where that number is read. A metric
+ * that moves when you look at it is worse than no metric.
+ *
+ * Not marked as counted either: if this tab later navigates to a public page,
+ * that page view is a real one and should count.
+ */
+function isExcluded(pathname: string): boolean {
+  return pathname.includes('/admin');
+}
+
 function sessionId(): string | null {
   try {
     const existing = sessionStorage.getItem(KEY);
@@ -32,6 +47,8 @@ function sessionId(): string | null {
 
 export function VisitBeacon({ locale }: { locale: string }) {
   useEffect(() => {
+    if (isExcluded(window.location.pathname)) return;
+
     const id = sessionId();
     if (!id) return;
 

@@ -58,6 +58,22 @@ export function referrerHost(raw: unknown, selfHosts: string[]): string | null {
 }
 
 /**
+ * Paths that are not a visit to the public site.
+ *
+ * The admin console lives under the same locale layout as everything else,
+ * so without this the operator counts themselves every time they open the
+ * panel the number is displayed on. The beacon already skips it client side;
+ * this is here because the endpoint is public and a stale cached bundle, or
+ * anyone posting by hand, would otherwise still land a row.
+ */
+const EXCLUDED = ['/admin'];
+
+export function isExcludedPath(path: string | null): boolean {
+  if (!path) return false;
+  return EXCLUDED.some((p) => path === p || path.startsWith(`${p}/`));
+}
+
+/**
  * Strip the locale prefix so `/en/faq`, `/zh/faq` and `/ko/faq` count as one
  * page. The locale is recorded separately, so nothing is lost.
  */
@@ -109,6 +125,9 @@ export class VisitsService {
     const id = typeof beacon.id === 'string' ? beacon.id : '';
     if (!ID_RE.test(id)) return;
 
+    const path = normalisePath(beacon.path);
+    if (isExcludedPath(path)) return;
+
     const locale =
       typeof beacon.locale === 'string' ? beacon.locale.slice(0, MAX_LOCALE) : null;
 
@@ -117,7 +136,7 @@ export class VisitsService {
         data: {
           id,
           locale,
-          path: normalisePath(beacon.path),
+          path,
           referrer: referrerHost(beacon.referrer, this.selfHosts()),
         },
       });
@@ -183,8 +202,10 @@ export class VisitsService {
       topPaths: paths.map((r) => ({ path: r.path as string, visits: r._count._all })),
       counts:
         'Browsing sessions, not people. A new tab or a return tomorrow counts ' +
-        'again. Bots are excluded because the beacon needs JavaScript. Direct ' +
-        'visits have no referrer and are not in the referrer list.',
+        'again. The admin console is not counted, so opening this page does ' +
+        'not move the number. Bots are excluded because the beacon needs ' +
+        'JavaScript. Direct visits have no referrer and are not in the ' +
+        'referrer list.',
     };
   }
 }
