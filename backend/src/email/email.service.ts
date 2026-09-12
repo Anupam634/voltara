@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { randomInt } from 'crypto';
 import * as nodemailer from 'nodemailer';
 import { createOtpStore, OtpPurpose, OtpRecord, OtpStore } from './otp.store';
+import { button, codeBlock, layout, note, paragraph, stat } from './templates';
 
 export type { OtpRecord, OtpPurpose } from './otp.store';
 
@@ -356,55 +357,21 @@ export class EmailService {
       purposeDesc = 'Use the verification code below to sign in to your VOLTARA Mining Dashboard.';
     }
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { margin: 0; padding: 0; background-color: #05070f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9; }
-          .wrapper { width: 100%; max-width: 540px; margin: 30px auto; background-color: #0b0f19; border: 1px solid #1e293b; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
-          .header { padding: 28px 24px; text-align: center; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-bottom: 1px solid #334155; }
-          .logo { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: #f8fafc; text-transform: uppercase; }
-          .logo-accent { color: #38bdf8; }
-          .badge { display: inline-block; margin-top: 8px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: #f59e0b; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 9999px; text-transform: uppercase; }
-          .content { padding: 32px 28px; text-align: center; }
-          .title { font-size: 18px; font-weight: 800; color: #ffffff; margin-bottom: 8px; }
-          .desc { font-size: 13px; line-height: 1.6; color: #94a3b8; margin-bottom: 24px; }
-          .otp-container { background: #020617; border: 2px dashed #0284c7; border-radius: 14px; padding: 20px; margin: 20px 0; text-align: center; }
-          .otp-code { font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 900; letter-spacing: 10px; color: #38bdf8; text-shadow: 0 0 15px rgba(56, 189, 248, 0.5); }
-          .otp-hint { font-size: 11px; color: #64748b; margin-top: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-          .warning { font-size: 12px; color: #cbd5e1; background: rgba(30, 41, 59, 0.6); padding: 12px 16px; border-radius: 10px; text-align: left; margin-top: 24px; border-left: 3px solid #f59e0b; }
-          .footer { padding: 20px 24px; text-align: center; font-size: 11px; color: #475569; border-top: 1px solid #1e293b; background: #070a14; }
-          .footer a { color: #38bdf8; text-decoration: none; }
-        </style>
-      </head>
-      <body>
-        <div class="wrapper">
-          <div class="header">
-            <div class="logo">VOLTARA <span class="logo-accent">LABS</span></div>
-            <div class="badge">BNB Smart Chain Protocol</div>
-          </div>
-          <div class="content">
-            <div class="title">${purposeTitle}</div>
-            <div class="desc">${purposeDesc}</div>
-            
-            <div class="otp-container">
-              <div class="otp-code">${code}</div>
-              <div class="otp-hint">Valid for 10 minutes · Single Use</div>
-            </div>
-
-            <div class="warning">
-              🔒 <strong>Security Notice:</strong> Never share this 6-digit code with anyone. VOLTARA Labs administrators will never ask for your verification code.
-            </div>
-          </div>
-          <div class="footer">
-            © ${new Date().getFullYear()} VOLTARA Labs (<a href="https://voltaragrid.com">voltaragrid.com</a>). Built for the BNB Chain Ecosystem.
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    const html = layout({
+      preheader: `${code} is your VOLTARA code. It expires in 10 minutes.`,
+      eyebrow: purposeTitle,
+      heading: 'Your verification code',
+      body: [
+        paragraph(purposeDesc),
+        codeBlock(code, 'Valid 10 minutes &middot; single use'),
+        note(
+          '<strong style="color:#F4F1FA;">Never share this code.</strong> ' +
+            'Nobody from VOLTARA will ever ask you for it. If you did not ask ' +
+            'to sign in, you can ignore this message — nothing has changed on ' +
+            'your account.',
+        ),
+      ].join(''),
+    });
 
     const delivered = await this.deliver({
       to: cleanEmail,
@@ -503,48 +470,25 @@ export class EmailService {
       'You receive this because a miner in your referral network asked us to nudge you. Each referral can be reminded at most once every three days.',
     ].join('\n');
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { margin: 0; padding: 0; background-color: #05070f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9; }
-          .wrapper { width: 100%; max-width: 540px; margin: 30px auto; background-color: #0b0f19; border: 1px solid #1e293b; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
-          .header { padding: 28px 24px; text-align: center; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-bottom: 1px solid #334155; }
-          .logo { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: #f8fafc; text-transform: uppercase; }
-          .logo-accent { color: #38bdf8; }
-          .badge { display: inline-block; margin-top: 8px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: #f59e0b; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 9999px; text-transform: uppercase; }
-          .content { padding: 32px 28px; text-align: center; }
-          .title { font-size: 18px; font-weight: 800; color: #ffffff; margin-bottom: 8px; }
-          .desc { font-size: 13px; line-height: 1.6; color: #94a3b8; margin-bottom: 24px; }
-          .idle { background: #020617; border: 2px dashed #f59e0b; border-radius: 14px; padding: 18px; margin: 20px 0; font-size: 15px; font-weight: 800; color: #fbbf24; }
-          .cta { display: inline-block; margin-top: 8px; padding: 14px 32px; font-size: 14px; font-weight: 900; color: #0b0f19 !important; background: linear-gradient(90deg, #f59e0b, #fbbf24); border-radius: 12px; text-decoration: none; letter-spacing: 0.5px; }
-          .note { font-size: 11px; color: #64748b; margin-top: 24px; line-height: 1.6; }
-          .footer { padding: 20px 24px; text-align: center; font-size: 11px; color: #475569; border-top: 1px solid #1e293b; background: #070a14; }
-          .footer a { color: #38bdf8; text-decoration: none; }
-        </style>
-      </head>
-      <body>
-        <div class="wrapper">
-          <div class="header">
-            <div class="logo">VOLTARA <span class="logo-accent">LABS</span></div>
-            <div class="badge">BNB Smart Chain Protocol</div>
-          </div>
-          <div class="content">
-            <div class="title">⛏️ ${escapeHtml(inviterLabel)} wants you back at the controls</div>
-            <div class="desc">The miner who invited you to VOLTARA sent you a reminder. Tap <strong>Mine</strong> once every 24 hours to keep your $VLTR accruing. It costs nothing and needs no hardware.</div>
-            <div class="idle">${escapeHtml(idleLine)}</div>
-            <a class="cta" href="${escapeHtml(dashboardUrl)}">MINE NOW →</a>
-            <div class="note">You receive this because a miner in your referral network asked us to nudge you. Each referral can be reminded at most once every three days.</div>
-          </div>
-          <div class="footer">
-            © ${new Date().getFullYear()} VOLTARA Labs (<a href="https://voltaragrid.com">voltaragrid.com</a>). Built for the BNB Chain Ecosystem.
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    const html = layout({
+      preheader: `${inviterLabel} sent you a nudge. ${idleLine}`,
+      eyebrow: 'A nudge from your network',
+      heading: `${escapeHtml(inviterLabel)} wants you back at the controls`,
+      body: [
+        paragraph(
+          'The miner who invited you to VOLTARA sent you a reminder. Tap ' +
+            '<strong style="color:#F4F1FA;">Mine</strong> once every 24 hours to keep ' +
+            'your VOLTS accruing. It costs nothing and needs no hardware.',
+        ),
+        stat('Your rig', escapeHtml(idleLine)),
+        button(escapeHtml(dashboardUrl), 'Mine now'),
+        note(
+          'You receive this because a miner in your referral network asked us ' +
+            'to nudge you. Each referral can be reminded at most once every ' +
+            'three days.',
+        ),
+      ].join(''),
+    });
 
     return this.deliver({ to: cleanEmail, subject, html, text });
   }
@@ -577,52 +521,23 @@ export class EmailService {
       'You receive this once, because a part on your rig is expiring.',
     ].join('\n');
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { margin: 0; padding: 0; background-color: #05070f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #f1f5f9; }
-          .wrapper { width: 100%; max-width: 540px; margin: 30px auto; background-color: #0b0f19; border: 1px solid #1e293b; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
-          .header { padding: 28px 24px; text-align: center; background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); border-bottom: 1px solid #334155; }
-          .logo { font-size: 22px; font-weight: 900; letter-spacing: 1px; color: #f8fafc; text-transform: uppercase; }
-          .logo-accent { color: #38bdf8; }
-          .badge { display: inline-block; margin-top: 8px; padding: 4px 12px; font-size: 11px; font-weight: 700; color: #f59e0b; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 9999px; text-transform: uppercase; }
-          .content { padding: 32px 28px; text-align: center; }
-          .title { font-size: 18px; font-weight: 800; color: #ffffff; margin-bottom: 8px; }
-          .desc { font-size: 13px; line-height: 1.6; color: #94a3b8; margin-bottom: 24px; }
-          .idle { background: #020617; border: 2px dashed #f43f5e; border-radius: 14px; padding: 18px; margin: 20px 0; font-size: 15px; font-weight: 800; color: #fb7185; }
-          .rate { font-size: 13px; color: #94a3b8; margin: 16px 0; }
-          .rate strong { color: #a3e635; }
-          .cta { display: inline-block; margin-top: 8px; padding: 14px 32px; font-size: 14px; font-weight: 900; color: #0b0f19 !important; background: linear-gradient(90deg, #a3e635, #d9f99d); border-radius: 12px; text-decoration: none; letter-spacing: 0.5px; }
-          .note { font-size: 11px; color: #64748b; margin-top: 24px; line-height: 1.6; }
-          .footer { padding: 20px 24px; text-align: center; font-size: 11px; color: #475569; border-top: 1px solid #1e293b; background: #070a14; }
-          .footer a { color: #38bdf8; text-decoration: none; }
-        </style>
-      </head>
-      <body>
-        <div class="wrapper">
-          <div class="header">
-            <div class="logo">VOLTARA <span class="logo-accent">LABS</span></div>
-            <div class="badge">Starter core expiring</div>
-          </div>
-          <div class="content">
-            <div class="title">Your starter core burns out in ${escapeHtml(leftLabel)}</div>
-            <div class="desc">The free VC-1 Volt Core you were lent when you joined is nearly done. When it goes, your rig drops back to the bare chassis.</div>
-            <div class="idle">${escapeHtml(leftLabel)} left</div>
-            <div class="rate">Rate now <strong>2.9 VOLTS/hour</strong> &rarr; after it burns out <strong>0.9</strong></div>
-            <div class="desc">Your own VC-1 costs $1 and runs for 30 days.</div>
-            <a class="cta" href="${escapeHtml(shopUrl)}">FIT A NEW CORE &rarr;</a>
-            <div class="note">You receive this once, because a part on your rig is expiring.</div>
-          </div>
-          <div class="footer">
-            &copy; ${new Date().getFullYear()} VOLTARA Labs (<a href="https://voltaragrid.com">voltaragrid.com</a>). Built for the BNB Chain Ecosystem.
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
+    const html = layout({
+      preheader: `Your free VC-1 core burns out in ${leftLabel}.`,
+      eyebrow: 'Starter core expiring',
+      heading: `Your starter core burns out in ${escapeHtml(leftLabel)}`,
+      body: [
+        paragraph(
+          'The free VC-1 Volt Core you were lent when you joined is nearly ' +
+            'done. When it goes, your rig drops back to the bare chassis.',
+        ),
+        stat('Time left', escapeHtml(leftLabel)),
+        stat('Rate now', '2.9 VOLTS/h'),
+        stat('After it burns out', '0.9 VOLTS/h'),
+        paragraph('Your own VC-1 costs $1 and runs for 30 days.'),
+        button(escapeHtml(shopUrl), 'Fit a new core'),
+        note('You receive this once, because a part on your rig is expiring.'),
+      ].join(''),
+    });
 
     return this.deliver({ to: cleanEmail, subject, html, text });
   }
