@@ -48,8 +48,16 @@ export function AnalyticsTab({
     return revenue?.periods.find((p) => p.key === key) ?? null;
   }, [revenue, timeframe]);
   const totalBalance = stats?.totalBalancePoints ?? 0;
+  // The $VLTR figure is real: 3 VOLTS = 1 $VLTR is the published ratio.
+  //
+  // There used to be a dollar figure beside it, `tokenEquivalent * 0.15`,
+  // commented "benchmark market estimate". There is no benchmark and no
+  // market — $VLTR is not on-chain, has never traded, and has no price. The
+  // 0.15 was invented, and it turned an honest points total into "we have
+  // issued $N of value", which is the sort of number that ends up in a
+  // decision. It is gone rather than adjusted: no multiplier is defensible
+  // until the token trades.
   const tokenEquivalent = totalBalance / 3;
-  const estUsdValue = tokenEquivalent * 0.15; // Benchmark market estimate
 
   const growth = stats?.growth;
   const history = useMemo(() => {
@@ -173,8 +181,8 @@ export function AnalyticsTab({
           <div className="mt-2 text-3xl font-black tabular-nums text-amber-400">
             {totalBalance.toFixed(2)}
           </div>
-          <div className="mt-1 text-xs text-cyan-400 font-semibold truncate">
-            ≈ {tokenEquivalent.toFixed(2)} $VLTR (~${estUsdValue.toFixed(2)})
+          <div className="mt-1 truncate text-xs font-semibold text-violet-300">
+            &asymp; {tokenEquivalent.toFixed(2)} $VLTR at 3:1
           </div>
         </div>
 
