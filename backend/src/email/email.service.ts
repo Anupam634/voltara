@@ -172,6 +172,31 @@ export class EmailService {
     }
   }
 
+
+  /**
+   * The From header for every outgoing message.
+   *
+   * `SMTP_FROM` used to be documented in `.env.example`, prompted for by
+   * `render.yaml`, and read by nothing: the header was assembled inline in
+   * three places as `"VOLTARA Labs" <SMTP_USER>`. Setting it did nothing,
+   * which is the worst kind of config — it looks applied.
+   *
+   * A display name is not cosmetic here. Mailbox providers weigh a
+   * consistent, recognisable From when deciding whether a transactional
+   * message is a phish, and signup dies entirely if the code lands in spam.
+   *
+   * Falls back to the old literal so nothing changes for a deployment that
+   * never sets it.
+   */
+  private fromHeader(): string {
+    const configured = (process.env.SMTP_FROM ?? '').trim();
+    if (configured) return configured;
+    const senderEmail = (process.env.SMTP_USER || 'hello@voltaragrid.com')
+      .trim()
+      .toLowerCase();
+    return `"VOLTARA Labs" <${senderEmail}>`;
+  }
+
   /**
    * Generate a 6-digit code and store it with a 10-minute TTL.
    *
@@ -397,8 +422,7 @@ export class EmailService {
       return false;
     }
 
-    const senderEmail = (process.env.SMTP_USER || 'hello@voltaragrid.com').trim().toLowerCase();
-    const message = { from: `"VOLTARA Labs" <${senderEmail}>`, ...mail };
+    const message = { from: this.fromHeader(), ...mail };
 
     try {
       const info = await this.withDeadline(this.transporter.sendMail(message), 'Primary SMTP');
@@ -600,7 +624,7 @@ export class EmailService {
 
     try {
       const info = await this.transporter.sendMail({
-        from: `"VOLTARA Labs" <${senderEmail}>`,
+        from: this.fromHeader(),
         to: cleanEmail,
         subject: 'VOLTARA Labs Email Health Test',
         text: 'This is a test email confirming your Spacemail integration on AWS EC2 is working perfectly!',
@@ -615,7 +639,7 @@ export class EmailService {
       if (this.fallbackTransporter) {
         try {
           const info = await this.fallbackTransporter.sendMail({
-            from: `"VOLTARA Labs" <${senderEmail}>`,
+            from: this.fromHeader(),
             to: cleanEmail,
             subject: 'VOLTARA Labs Email Health Test (Fallback)',
             text: 'This is a test email confirming your Spacemail integration on AWS EC2 is working perfectly!',
