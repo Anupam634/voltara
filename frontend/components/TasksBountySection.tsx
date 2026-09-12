@@ -38,7 +38,13 @@ export function TasksBountySection({ locale }: { locale: string }) {
                 </span>
                 <div className="min-w-0">
                   <span className="v-eyebrow">{task.category}</span>
-                  <h4 className="mt-0.5 truncate font-display text-sm font-bold text-ink">{tTasks(task.nameKey)}</h4>
+                  {/* Wraps rather than truncates. On a phone this grid is one column
+                      wide and there is room for a second line, so ellipsing
+                      "Daily Lucky Reward Wheel" down to "Daily Lucky Rewar..."
+                      hid the half of the title that says what the bounty is. */}
+                  <h4 className="mt-0.5 font-display text-sm font-bold leading-snug text-ink">
+                    {tTasks(task.nameKey)}
+                  </h4>
                 </div>
               </div>
               <span className="v-chip v-chip--charge v-num whitespace-nowrap">{t('rewardBadge', { amount: task.reward })}</span>

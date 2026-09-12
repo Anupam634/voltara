@@ -468,6 +468,15 @@
     color: rgb(var(--c-ink-2));
     white-space: nowrap;
   }
+  /* A chip is a label, so it never wraps -- but a few carry a whole sentence,
+     and at phone width a nowrap sentence is 465px inside a 390px screen and
+     drags a scrollbar across the page. This lets those wrap without giving up
+     the pill shape. */
+  .v-chip--wrap {
+    white-space: normal;
+    text-align: center;
+    line-height: 1.5;
+  }
   .v-chip--brand { border-color: rgb(var(--c-brand) / 0.45); background: rgb(var(--c-brand) / 0.12); color: rgb(var(--c-brand-hi)); }
   .v-chip--charge { border-color: rgb(var(--c-charge) / 0.45); background: rgb(var(--c-charge) / 0.1); color: rgb(var(--c-charge)); }
   .v-chip--ok { border-color: rgb(var(--c-ok) / 0.45); background: rgb(var(--c-ok) / 0.1); color: rgb(var(--c-ok)); }
@@ -559,6 +568,13 @@
   .v-reveal {
     opacity: 0;
     transform: translateY(18px);
+    /* A reveal wrapper is almost always a grid or flex item, and those
+       default to `min-width: auto` -- they refuse to shrink below their
+       content's min-content width. On a phone that turned the bounty grid's
+       single column into 422px inside a 358px container and gave the whole
+       landing page a horizontal scrollbar. The wrapper exists to animate, not
+       to have an opinion about width, so it never imposes one. */
+    min-width: 0;
     transition:
       opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
       transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);

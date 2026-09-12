@@ -20,8 +20,8 @@ export function ReferralTierMatrix() {
       <SectionHeading eyebrow="Referrals" title={t('title')} subtitle={t('subtitle')} />
 
       <Reveal className="mt-8 flex justify-center">
-        <span className="v-chip v-chip--charge">
-          <Icon name="users" size={12} />
+        <span className="v-chip v-chip--charge v-chip--wrap">
+          <Icon name="users" size={12} className="shrink-0" />
           {t('bonusNote')}
         </span>
       </Reveal>
