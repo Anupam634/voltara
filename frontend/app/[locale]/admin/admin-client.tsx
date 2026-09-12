@@ -11,6 +11,7 @@ import {
   type AdminStats,
 } from '../../../lib/admin-api';
 import type { AdminTab } from '../../../components/admin/types';
+import { applyThemeOverlay, clearThemeOverlay } from '../../../components/theme';
 import { AdminLoginGate } from '../../../components/admin/AdminLoginGate';
 import { AdminSidebar } from '../../../components/admin/AdminSidebar';
 import { AdminTopNav } from '../../../components/admin/AdminTopNav';
@@ -41,6 +42,20 @@ export default function AdminClient() {
   const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => setAuthed(!!getAdminToken()), []);
+
+  // The console is a dark-only surface: it paints itself with fixed greys
+  // and white text, while `.card` resolves to `.v-panel`, whose background
+  // comes from the theme variables. Under Substation — the daylight theme —
+  // `--c-surface` is pure white, so every panel turned white behind text
+  // that stayed light. The whole page read as blank.
+  //
+  // An overlay rather than a theme change: nothing is written to storage,
+  // so a miner who prefers Substation still gets it back the moment they
+  // leave the console.
+  useEffect(() => {
+    applyThemeOverlay('grid');
+    return () => clearThemeOverlay();
+  }, []);
 
   if (authed === null) return null;
   if (!authed) return <AdminLoginGate onDone={() => setAuthed(true)} />;

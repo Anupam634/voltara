@@ -74,7 +74,13 @@ export const viewport: Viewport = {
  * sees an obsidian flash. Inline scripts are already allowed by the CSP for
  * the App Router's own hydration payload.
  */
-const themeBoot = `(function(){try{var t=localStorage.getItem('${THEME_STORAGE_KEY}');var ok=['grid','substation','overdrive','overheat'];document.documentElement.setAttribute('data-theme',ok.indexOf(t)>-1?t:'grid');}catch(e){document.documentElement.setAttribute('data-theme','grid');}})();`;
+// The admin console is excluded on purpose. It is a dark-only surface —
+// fixed greys, white text — while `.card` resolves to `.v-panel`, whose
+// background comes from the theme variables. Under Substation, the daylight
+// theme, `--c-surface` is white, so every panel turned white behind text
+// that stayed light and the page read as blank. Deciding it here rather than
+// in an effect means an operator never sees the white frame at all.
+const themeBoot = `(function(){var d=document.documentElement;try{if(location.pathname.indexOf('/admin')>-1){d.setAttribute('data-theme','grid');return;}var t=localStorage.getItem('${THEME_STORAGE_KEY}');var ok=['grid','substation','overdrive','overheat'];d.setAttribute('data-theme',ok.indexOf(t)>-1?t:'grid');}catch(e){d.setAttribute('data-theme','grid');}})();`;
 
 export default async function LocaleLayout({
   children,
