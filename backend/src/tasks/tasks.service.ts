@@ -134,20 +134,44 @@ const X_PINNED_POST_URL = process.env.X_PINNED_POST_URL || `https://x.com/${X_HA
 /**
  * Where a social task sends the miner when no admin-configured URL exists.
  *
- * The tweet is a real X compose intent: the miner's own referral link goes in
- * as `url`, so X unfurls the site's Open Graph card (image + title) under the
- * text, and the post carries the @handle and hashtags.
+ * The tweet is a real X compose intent, and two things about it matter more
+ * than the wording.
+ *
+ * It links to `/r/<code>`, not to the login page. Both carry the referral,
+ * but only `/r/` unfurls the miner's *own* rig -- which parts are socketed,
+ * what it makes, whether it is holding 100% -- because `/api/og/rig/<code>`
+ * renders that card. Pointed at the login page, a thousand miners posting
+ * produced a thousand copies of one house ad; pointed here, each post is a
+ * different picture of a different build, which is the only reason anyone
+ * outside would click one. The card exists either way; it just was not wired
+ * to the bounty that sends people to X.
+ *
+ * And it no longer promises payouts. The old text said "on-chain payouts" in
+ * a post published from the miner's own account, while `PAYOUTS_OPEN` is
+ * false and $VLTR has never been on chain. We can correct a number in our own
+ * UI; we cannot recall a promise made in someone else's name.
  */
+/** The default action URL for a social task. Exported so the share intent,
+ * which publishes from a miner's own account, can be asserted on. */
+export function shareIntentFor(type: string, referralCode: string): string | null {
+  return defaultActionUrl(type, referralCode);
+}
+
 function defaultActionUrl(type: string, referralCode: string): string | null {
   switch (type) {
     case 'TWEET': {
+      // No cashtag either: `$VLTR` links X readers to a ticker page for a
+      // token that does not trade.
       const text =
-        `I'm mining $VLTR every day on BNB Chain with @${X_HANDLE} ⛏️ ` +
-        'Free to join, no hardware, on-chain payouts. Start with my link 👇';
+        `Building a rig on @${X_HANDLE} ⛏️ Six slots, and heat and power are ` +
+        'real constraints — overbuild and your output throttles. Free core to ' +
+        'start. Beat my build 👇';
       const params = new URLSearchParams({
         text,
-        url: `${WEB_URL}/en/login?ref=${referralCode}`,
-        hashtags: 'VOLTARA,BNBChain,Crypto,Mining',
+        url: `${WEB_URL}/en/r/${referralCode}`,
+        // Two, not four. A wall of tags reads as spam to the people whose
+        // timelines this is trying to reach.
+        hashtags: 'VOLTARA,Mining',
       });
       return `https://x.com/intent/post?${params.toString()}`;
     }
