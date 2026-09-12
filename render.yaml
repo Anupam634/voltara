@@ -11,7 +11,13 @@ services:
     name: voltara-api
     runtime: node
     rootDir: backend
-    plan: free
+    # NOT free: the free plan sleeps on inactivity, and a sleeping instance
+    # runs no cron. This API has ten scheduled jobs — seasons pay on Monday
+    # 00:10, the blueprint challenge on 00:05, the daily puzzle at midnight,
+    # duels settle every 5 minutes. On free they simply never fire, and
+    # nothing looks broken because a health check wakes the box up.
+    plan: starter
+    region: oregon
     buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm run start:prod
     healthCheckPath: /api/health
@@ -58,6 +64,15 @@ services:
       # documents are not collected until there is a payout to verify for.
       - key: KYC_OPEN
         sync: false
+      # The payout kill switch, explicit rather than relying on the code's
+      # closed-by-default. Flip to "true" on launch day.
+      - key: PAYOUTS_OPEN
+        value: "false"
+      # Links inside outgoing email are built from this.
+      - key: WEB_URL
+        value: https://voltaragrid.com
+      - key: CORS_ORIGINS
+        value: https://voltaragrid.com,https://www.voltaragrid.com
       - key: WALLET_MODE
         value: offchain
       - key: BSC_RPC_URL
@@ -71,6 +86,10 @@ services:
 
 databases:
   - name: voltara-db
+    region: oregon
+    # Render's free Postgres is DELETED after 30 days. Fine while testing,
+    # fatal once there are real miners — every balance and every ledger row
+    # goes with it. Move to a paid plan before anyone signs up.
     plan: free
 
 envVarGroups: []
