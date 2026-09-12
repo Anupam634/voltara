@@ -37,8 +37,8 @@ padhe jaate hain, aur crypto mein pehle se trust deficit hai; `@VoltaraHQ` ya
 |---|---|
 | Name | `VOLTARA` |
 | Handle | `@VoltaraGrid` |
-| Avatar | `frontend/public/voltara-mark.png` |
-| Header | **abhi nahi hai** — 1500×500 chahiye; `og-image.png` 1200×630 hai, crop karna padega |
+| Avatar | `frontend/public/x-avatar.png` (400×400) |
+| Header | `frontend/public/x-header.png` (1500×500) |
 | Link | `https://www.voltaragrid.com` (www — apex 308 redirect karta hai) |
 | Location | blank chhodo |
 
@@ -49,6 +49,15 @@ Build the rig. Hold the grid.
 
 Six slots. Heat and power are real constraints. GRID STABILITY multiplies everything you mine. Not another tap-to-earn.
 ```
+
+Dono `tools/brand/generate-assets.js` se nikalte hain, baaki har icon ki tarah
+— palette ya shape badla to `node tools/brand/generate-assets.js` chala dena,
+alag se koi file maintain nahi karni.
+
+Avatar `voltara-logo.png` nahi hai, apni file hai. Wo 0.14 inset pe bana hai jo
+rounded square ke liye theek hai, lekin X avatar ko **circle** mein crop karta
+hai aur circle corners kha jaata hai — hex ke left/right grid stubs har size pe
+cut ho rahe the. `x-avatar.png` 0.22 inset pe hai, pura mark circle ke andar.
 
 Email `hello@voltaragrid.com` use karo — SMTP wahi mailbox authenticate karta
 hai, aur recovery ke liye wahi inbox chahiye jo tum actually padhte ho.
@@ -103,7 +112,53 @@ voltaragrid.com
 Thread yahin khatam. Roadmap post mat karo — jo cheez abhi live nahi hai uska
 wada thread mein daalne ka matlab hai pehle din se uska hisaab dena.
 
-## 5. Pehla hafta
+## 5. Kaise post karein
+
+Content se zyada ye maayne rakhta hai, kyunki shuru mein followers zero hain.
+
+**Link post ke andar mat daalo.** X external link wale posts ki reach dabata
+hai — uska business hi yehi hai ki log platform pe rukein. Link pehle reply
+mein daalo ya bio pe chhod do. Pinned post exception hai: wahan link hi kaam
+hai, aur pinned reach algorithm se nahi aati.
+
+**Rig card free content hai.** `GET /api/og/rig/<code>` kisi bhi rig ka
+1200×630 card render karta hai — kaunse parts socketed hain, rate kya hai,
+stability kya hai. Matlab har post ke liye ek real image already generate ho
+sakti hai, design kiye bina:
+
+```
+https://www.voltaragrid.com/api/og/rig/<referral-code>
+```
+
+Isse banta hai sabse sasta recurring post: ek build, uska card, aur ek sawaal.
+"Guess the stability" type post log isliye jawab dete hain kyunki jawab dene
+mein ek second lagta hai.
+
+**Reply karna post karne se zyada kaam karta hai.** 0 followers pe tumhara
+post koi nahi dekhta; reply doosre ke audience ke saamne jaata hai. Roz 5–10
+replies, sirf wahan jahan tumhare paas kehne ko kuch actual hai. Ye pehle
+mahine ka asli kaam hai — posting nahi.
+
+**Numbers likho, adjectives nahi.** "38% stability" ko log padhte hain, "huge
+boost" ko scroll karte hain. Product ka pura differentiator hi numbers hai, to
+usko chhupana ulta pad raha hai.
+
+**Ek post, ek idea.** Do ideas ka matlab hai dono kamzor.
+
+**Thread ka pehla post akela khada hona chahiye.** Log thread expand nahi
+karte. Agar pehle post se baat samajh nahi aayi to baaki 3 waste hain.
+
+**Post karke gayab mat ho jao.** Pehle 30 minute ke replies hi decide karte
+hain ki post aage jaayega ya nahi. Jab tak 20 minute na ho, post mat karo.
+
+**Timing:** audience en / zh / ko hai. 12:00–14:00 UTC teeno ke liye theek hai
+— Asia evening, Europe midday. Ek hi time pe roz post karo, taaki pata chale
+kya kaam kiya aur kya nahi.
+
+**Purani post repost mat karo, quote karo** ek nayi line ke saath. Repost dead
+reach hai; quote naya post hai.
+
+## 6. Pehla hafta
 
 | Din | Post |
 |---|---|
@@ -117,7 +172,7 @@ wada thread mein daalne ka matlab hai pehle din se uska hisaab dena.
 
 Roz post karna zaroori nahi. Khaali din ek bakwaas post se behtar hai.
 
-## 6. Jo kabhi post nahi karna
+## 7. Jo kabhi post nahi karna
 
 - **$VLTR ka koi bhi price ya market cap.** Token on-chain hai hi nahi, kabhi
   trade nahi hua. Ek bhi dollar figure post ho gaya to wahi screenshot ban ke
@@ -130,7 +185,7 @@ Roz post karna zaroori nahi. Khaali din ek bakwaas post se behtar hai.
   kare. Ye GROWTH.md §6 wali hi baat hai, bas ab public.
 - **Giveaway/airdrop hype.** Bounties app ke andar hain, wahi theek hai.
 
-## 7. Account banne ke baad
+## 8. Account banne ke baad
 
 1. `X_PINNED_POST_URL` = pinned post ka poora URL (`.../status/123…`), Render
    env mein. Status ID hoga tabhi REPOST one-tap repost intent banega; profile

@@ -536,6 +536,65 @@ function drawOgImage(w = 1200, h = 630) {
   return c;
 }
 
+/**
+ * The X profile header, 1500x500.
+ *
+ * Laid out around two things X does to a header that nothing else does: the
+ * avatar is punched into the bottom-left corner, overlapping roughly a
+ * 260px circle, and narrow viewports crop the sides rather than letterbox.
+ * So the lockup sits dead centre with the pips under it, and the corners
+ * carry nothing but glow. Anything witty in a corner is a thing nobody sees.
+ */
+function drawXHeader(w = 1500, h = 500) {
+  const c = new Canvas(w, h);
+  c.fill(PALETTE.obsidian);
+
+  const step = 42;
+  const line = [26, 22, 46];
+  for (let x = 0; x <= w; x += step) {
+    c.fillPolygons([[[x, 0], [x + 1.2, 0], [x + 1.2, h], [x, h]]], solid(line), 0.7);
+  }
+  for (let y = 0; y <= h; y += step) {
+    c.fillPolygons([[[0, y], [w, y], [w, y + 1.2], [0, y + 1.2]]], solid(line), 0.7);
+  }
+
+  c.glow(w * 0.5, h * 0.45, h * 1.15, PALETTE.violet, 0.5);
+  c.glow(w * 0.12, h * 0.95, h * 0.6, PALETTE.violet, 0.28);
+  c.glow(w * 0.88, h * 0.15, h * 0.55, PALETTE.lime, 0.12);
+
+  const markSize = Math.round(h * 0.42);
+  const capHeight = Math.round(h * 0.2);
+  const gap = Math.round(h * 0.1);
+  const wordW = Math.round(wordWidth('VOLTARA', capHeight));
+  const startX = Math.round((w - (markSize + gap + wordW)) / 2);
+  const midY = Math.round(h * 0.42);
+
+  blit(c, drawMark(markSize, { background: 'none', inset: 0.02 }), startX, midY - Math.round(markSize / 2));
+
+  const textX = startX + markSize + gap;
+  const wordY = midY - Math.round(capHeight / 2);
+  drawWord(c, 'VOLTARA', textX, wordY, capHeight, rampShader(textX, wordY, textX + wordW, wordY + capHeight));
+
+  // Six pips, four lit — the rig, centred under the whole lockup rather than
+  // under the word, because at header scale the lockup reads as one object.
+  const pip = Math.round(h * 0.032);
+  const pitch = Math.round(pip * 2.6);
+  const pipsW = pitch * 5 + pip;
+  const pipX = Math.round((w - pipsW) / 2);
+  const pipY = midY + Math.round(h * 0.22);
+  for (let i = 0; i < 6; i += 1) {
+    const px = pipX + i * pitch;
+    const lit = i < 4;
+    c.fillPolygons(
+      [[[px, pipY], [px + pip, pipY], [px + pip, pipY + pip], [px, pipY + pip]]],
+      solid(lit ? PALETTE.lime : [60, 55, 80]),
+      lit ? 1 : 0.9,
+    );
+  }
+
+  return c;
+}
+
 /** Composite one canvas onto another at native resolution. */
 function blit(dst, src, x, y) {
   for (let py = 0; py < src.H; py += 1) {
@@ -567,6 +626,13 @@ const TARGETS = [
   [path.join(WEB, 'icon-maskable-192.png'), () => drawMark(192, { background: 'obsidian', inset: 0.26 })],
   [path.join(WEB, 'icon-maskable-512.png'), () => drawMark(512, { background: 'obsidian', inset: 0.26 })],
   [path.join(WEB, 'og-image.png'), () => drawOgImage()],
+  [path.join(WEB, 'x-header.png'), () => drawXHeader()],
+  // The avatar needs its own inset. voltara-logo.png is drawn at 0.14, which
+  // is right for a rounded square, but X crops the avatar to a circle and the
+  // circle eats the corners — enough to clip the left and right grid stubs off
+  // the hex at every size. 0.22 pulls the whole mark inside the inscribed
+  // circle, so nothing is cut.
+  [path.join(WEB, 'x-avatar.png'), () => drawMark(400, { background: 'obsidian-round', inset: 0.22 })],
   // Expo
   [path.join(APP, 'icon.png'), () => drawMark(1024, { background: 'obsidian-round', inset: 0.14 })],
   [path.join(APP, 'adaptive-icon.png'), () => drawMark(1024, { background: 'obsidian', inset: 0.28 })],
