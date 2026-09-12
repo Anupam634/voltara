@@ -25,6 +25,7 @@ import { PartMarketModule } from './part-market/part-market.module';
 import { ChallengesModule } from './challenges/challenges.module';
 import { DailyModule } from './daily/daily.module';
 import { ApprenticeModule } from './apprentice/apprentice.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { SeasonsModule } from './seasons/seasons.module';
 
 /**
@@ -63,6 +64,7 @@ import { SeasonsModule } from './seasons/seasons.module';
     DailyModule,
     ApprenticeModule,
     SeasonsModule,
+    MetricsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

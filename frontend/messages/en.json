@@ -690,6 +690,10 @@
         "q": "What we collect",
         "a": "Your email address, the country you select, and a device fingerprint used to detect duplicate accounts. We also record your activity on the platform: accrual, taps, tasks, referrals, booster purchases and withdrawal requests."
       },
+      "visits": {
+        "q": "Visit counting",
+        "a": "We count visits to the public pages. When a page loads, your browser generates a random id, keeps it in sessionStorage, and sends it once along with the page you landed on, your language, and the host that linked you here — reddit.com, for example, never the full address of the page you came from. This is not a cookie: the id is erased when you close the tab, it is never sent to any other site, and we do not record your IP address. It lets us count browsing sessions and see which places send people to us. It cannot tell us who you are, and it cannot follow you between visits or across the web."
+      },
       "kycData": {
         "q": "Verification documents",
         "a": "If you verify your identity we collect your name, document type and number, country, photographs of that document, and a selfie.\n\nThis is the most sensitive data we hold. It is used only to decide whether to approve your verification and to satisfy the obligations that come with paying people out."

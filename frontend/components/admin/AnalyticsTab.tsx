@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import type { AdminRevenueAnalytics, AdminStats } from '../../lib/admin-api';
 import { countryFlag, countryName } from '../../lib/countries';
 import { GrowthMetrics } from './GrowthMetrics';
+import { VisitMetrics } from './VisitMetrics';
 
 interface AnalyticsTabProps {
   stats: AdminStats | null;
@@ -141,6 +142,11 @@ export function AnalyticsTab({
           </button>
         </div>
       </div>
+
+      {/* Visits first: signups are a fraction of it, and the funnel reads in
+          that order. Every figure below this is about people who already
+          arrived. */}
+      <VisitMetrics />
 
       {/* The targets the playbook actually sets, above the vanity totals. */}
       <GrowthMetrics />

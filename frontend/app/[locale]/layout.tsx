@@ -5,6 +5,7 @@ import { locales, type Locale } from '../../i18n';
 import { alternatesFor, SITE_URL, X_TAG } from '../seo';
 import { fontDisplay, fontMono, fontSans } from '../fonts';
 import { Backdrop } from '../../components/Backdrop';
+import { VisitBeacon } from '../../components/VisitBeacon';
 import { THEME_STORAGE_KEY } from '../../components/theme';
 import '../globals.css';
 
@@ -103,6 +104,7 @@ export default async function LocaleLayout({
       </head>
       <body className="min-h-dvh bg-bg font-sans text-ink antialiased">
         <Backdrop />
+        <VisitBeacon locale={locale} />
         <NextIntlClientProvider messages={messages}>{children}</NextIntlClientProvider>
       </body>
     </html>

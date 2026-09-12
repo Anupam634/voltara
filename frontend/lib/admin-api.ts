@@ -707,3 +707,24 @@ export const getOpsGrid = () => adminFetch<OpsGrid>('/ops/grid');
 export const getOpsSeasons = () => adminFetch<OpsSeasons>('/ops/seasons');
 export const getOpsSocial = () => adminFetch<OpsSocial>('/ops/social');
 export const getOpsGrowth = () => adminFetch<OpsGrowth>('/ops/growth');
+
+/**
+ * Public-site visits.
+ *
+ * `counts` is the service's own description of what the number can and
+ * cannot claim, carried through so the panel never has to restate it and
+ * never drifts from it.
+ */
+export interface OpsVisits {
+  allTime: number;
+  last30d: number;
+  last7d: number;
+  today: number;
+  byReferrer: { referrer: string; visits: number }[];
+  byLocale: { locale: string; visits: number }[];
+  topPaths: { path: string; visits: number }[];
+  counts: string;
+}
+
+export const getOpsVisits = () => adminFetch<OpsVisits>('/ops/visits');
+

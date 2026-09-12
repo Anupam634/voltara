@@ -7,6 +7,7 @@ import { AdminAuthGuard } from './admin.guard';
 import { AuthModule } from '../auth/auth.module';
 import { WithdrawalsModule } from '../withdrawals/withdrawals.module';
 import { GridModule } from '../grid/grid.module';
+import { MetricsModule } from '../metrics/metrics.module';
 import { TasksService } from '../tasks/tasks.service';
 
 /**
@@ -17,7 +18,8 @@ import { TasksService } from '../tasks/tasks.service';
 @Module({
   // GridModule supplies the event, weather and collective-goal services the
   // operator views read — the same instances the rigs are scored against.
-  imports: [AuthModule, WithdrawalsModule, GridModule],
+  // MetricsModule supplies the visit counter the analytics view reads.
+  imports: [AuthModule, WithdrawalsModule, GridModule, MetricsModule],
   controllers: [AdminController, AdminSecureController],
   providers: [
     AdminService,

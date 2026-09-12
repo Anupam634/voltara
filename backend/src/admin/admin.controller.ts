@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AdminService } from './admin.service';
+import { VisitsService } from '../metrics/visits.service';
 import { AdminOpsService } from './ops.service';
 import { AdminAuthGuard } from './admin.guard';
 import { WithdrawalsService } from '../withdrawals/withdrawals.service';
@@ -55,6 +56,7 @@ export class AdminSecureController {
   constructor(
     private readonly admin: AdminService,
     private readonly ops: AdminOpsService,
+    private readonly visits: VisitsService,
     private readonly withdrawals: WithdrawalsService,
     private readonly tasks: TasksService,
     private readonly email: EmailService,
@@ -87,6 +89,12 @@ export class AdminSecureController {
   @Get('ops/social')
   opsSocial() {
     return this.ops.social();
+  }
+
+  /** GET /api/admin/ops/visits — public-site sessions, and where they came from. */
+  @Get('ops/visits')
+  opsVisits() {
+    return this.visits.totals();
   }
 
   /** GET /api/admin/ops/growth — the four figures GROWTH.md §7 asks for. */

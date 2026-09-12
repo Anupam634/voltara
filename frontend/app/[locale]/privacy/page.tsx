@@ -2,7 +2,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Article, StaticPage } from '../../../components/StaticPage';
 
 /** Section keys, in the order they are shown. */
-const KEYS = ['collect','kycData','use','share','retain','rights','contact'] as const;
+const KEYS = ['collect','visits','kycData','use','share','retain','rights','contact'] as const;
 
 export default async function PrivacyPage({
   params: { locale },

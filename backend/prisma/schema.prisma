@@ -733,3 +733,35 @@ model SeasonAward {
   @@index([userId])
   @@index([seasonId, rank])
 }
+
+/// One browsing session on the public site.
+///
+/// A "visit" is a session, not a page view and not a person: the id is a
+/// random string the browser keeps in `sessionStorage` for as long as the tab
+/// is open, so closing the tab and coming back counts again and two tabs
+/// count twice. That is the number this model can honestly produce, and the
+/// admin panel says so next to it.
+///
+/// Deliberately not a cookie and deliberately no IP address. sessionStorage
+/// dies with the tab and never travels between sites, so there is nothing
+/// here to build a profile from and nothing that needs a consent banner. It
+/// also means uniques-across-days are not knowable, and we would rather be
+/// unable to answer that than quietly start following people around.
+///
+/// The id is the primary key, which is what makes the beacon idempotent: a
+/// retry, a double fire in React strict mode, or a page that re-mounts all
+/// write the same row.
+model VisitSession {
+  id        String   @id @db.VarChar(40)
+  startedAt DateTime @default(now())
+  /// Which language the visitor landed in.
+  locale    String?  @db.VarChar(8)
+  /// Landing path, locale prefix stripped ('/', '/faq', '/r/:code').
+  path      String?  @db.VarChar(160)
+  /// Referring host only, never the full URL -- enough to tell Reddit from
+  /// Kakao when deciding which channel is worth more effort, and not enough
+  /// to know which thread someone came from.
+  referrer  String?  @db.VarChar(120)
+
+  @@index([startedAt])
+}
